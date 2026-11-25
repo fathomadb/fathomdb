@@ -90,37 +90,45 @@ impl Reader {
 }
 
 impl Reader {
-    pub(crate) fn serving(&mut self, query: &str, limit: usize) -> Result<Value, &'static str> {
+    pub(crate) fn serving(
+        &mut self,
+        query: &str,
+        limit: usize,
+        scope: Option<&str>,
+    ) -> Result<Value, &'static str> {
         if query.trim().is_empty() || query.len() > 4096 || !(1..=100).contains(&limit) {
             return Err("invalid_range");
         }
         if !self.session.cached_cpu {
             return Err("model_unavailable");
         }
+        let target_scope = scope.unwrap_or("");
         let admission = self.lexical_admission(&super::lexical::Query {
             route: super::lexical::Route::Body,
             query: query.into(),
             property: None,
             filter: Default::default(),
             view: Default::default(),
+            scope: scope.map(str::to_string),
             limit,
         })?;
+        self.session.ensure_engine_scope(target_scope).map_err(|f| f.error)?;
         let request = fathomdb_engine::ReadContextV1::new(
             fathomdb_engine::ReadView::default(),
             fathomdb_engine::SearchFilter::default(),
         )
         .map_err(|_| "storage")?;
-        let frozen = self.session.engine.freeze_read_context(&request).map_err(|_| "storage")?;
+        let frozen = self.session.engine()?.freeze_read_context(&request).map_err(|_| "storage")?;
         let started = crate::session::epoch_ms();
         let result = self
             .session
-            .engine
+            .engine()?
             .search_frozen(query, &frozen, 0, false, 0.3, 0, true, limit)
             .map_err(|_| "native_query_refused")?;
         let ended = crate::session::epoch_ms();
         let explanation = result.explanation.as_ref().ok_or("native_evidence_unavailable")?;
         let trace = &explanation.trace;
-        let query_context = json!({"route":"engine_frozen_hybrid","read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"snapshot":"native_frozen_search","projection_cursor":result.projection_cursor.to_string(),"frozen_token":frozen.token,"effective_valid_at":frozen.effective_valid_at.to_string(),"correlation_id":explanation.correlation_id,"vector_hits":trace.vector_hits,"text_hits":trace.text_hits,"graph_hits":trace.graph_hits,"embedder_id":trace.embedder_id,"ce_active":trace.ce_active,"alpha":trace.alpha,"pool_n":trace.pool_n,"rerank_depth":trace.rerank_depth,"graph_requested":trace.use_graph_arm,"stop_words_sha256":trace.stop_words_sha256,"runtime":"production_default_sealed_cache_cpu","degradations":result.degradations.iter().map(|v|json!({"arm":format!("{:?}",v.arm),"reason":v.reason.as_str()})).collect::<Vec<_>>()});
+        let query_context = json!({"route":"engine_frozen_hybrid","engine_scope":self.session.engine_scope,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"snapshot":"native_frozen_search","projection_cursor":result.projection_cursor.to_string(),"frozen_token":frozen.token,"effective_valid_at":frozen.effective_valid_at.to_string(),"correlation_id":explanation.correlation_id,"vector_hits":trace.vector_hits,"text_hits":trace.text_hits,"graph_hits":trace.graph_hits,"embedder_id":trace.embedder_id,"ce_active":trace.ce_active,"alpha":trace.alpha,"pool_n":trace.pool_n,"rerank_depth":trace.rerank_depth,"graph_requested":trace.use_graph_arm,"stop_words_sha256":trace.stop_words_sha256,"runtime":"production_default_sealed_cache_cpu","degradations":result.degradations.iter().map(|v|json!({"arm":format!("{:?}",v.arm),"reason":v.reason.as_str()})).collect::<Vec<_>>()});
         let c = self.session.connection()?;
         let context = self.context(&c)?;
         let mut remaining = 100000;
@@ -133,14 +141,15 @@ impl Reader {
             };
             let cursor =
                 i64::try_from(hit.write_cursor).map_err(|_| "unsupported_value_encoding")?;
-            let origins = match self.lexical_origins(&c, class, cursor, &mut remaining) {
-                Ok(v) if !v.is_empty() => v,
-                Ok(_) | Err("refused" | "unavailable" | "reference_expired") => {
-                    withheld += 1;
-                    continue;
-                }
-                Err(e) => return Err(e),
-            };
+            let origins =
+                match self.lexical_origins(&c, class, cursor, Some(target_scope), &mut remaining) {
+                    Ok(v) if !v.is_empty() => v,
+                    Ok(_) | Err("refused" | "unavailable" | "reference_expired") => {
+                        withheld += 1;
+                        continue;
+                    }
+                    Err(e) => return Err(e),
+                };
             if !hit.score.is_finite()
                 || !evidence.fused_score.is_finite()
                 || !evidence.blended.is_finite()
@@ -151,7 +160,7 @@ impl Reader {
             items.push(json!({"rank":(rank+1).to_string(),"score":hit.score.to_string(),"class":class,"native_id":{"space":hit.id.space.as_str(),"value":if hit.id.value.len()<=4096{Some(&hit.id.value)}else{None}},"write_cursor":hit.write_cursor.to_string(),"representative_branch":format!("{:?}",hit.branch),"payload":{"text":text,"total_bytes":hit.body.len().to_string(),"complete":n==hit.body.len(),"scope":"native_frozen_search"},"evidence":{"vector_rank":evidence.vector_rank,"text_rank":evidence.text_rank,"graph_rank":evidence.graph_rank,"rank_base":0,"fused_score":evidence.fused_score.to_string(),"blended_score":evidence.blended.to_string(),"ce_score":evidence.ce_score,"structural":{"inclusion_state":format!("{:?}",evidence.structural.inclusion_state),"projection_origin":format!("{:?}",evidence.structural.projection_origin),"dependency_state":format!("{:?}",evidence.structural.dependency_state),"lifecycle_state":format!("{:?}",evidence.structural.lifecycle_state),"degradation_codes":evidence.structural.degradation_codes.iter().map(|v|format!("{v:?}")).collect::<Vec<_>>() }},"origin":{"state":if origins.len()==1{"exact"}else{"choices"},"targets":origins,"scope":"separate_later_policy_exact_cursor_read"}}));
         }
         Self::lexical_bounded(
-            json!({"status":"complete","items":items,"request":{"query":query,"limit":limit,"view":"engine_default_eligible","filter":null},"admission":admission,"query_context":query_context,"context":Self::finished(context),"scope":{"score_family":"engine_rrf","score_direction":"higher_better","dense_stage_distances":"not_exposed","binary_shortlist":"mean_centered_sign_when_pinned; not_stored_L2","native_returned":result.results.len(),"returned":items.len(),"withheld":withheld,"rank_gaps":"original_native_ranks_preserved","policy":self.session.policy,"response_byte_cap":RESPONSE}}),
+            json!({"status":"complete","items":items,"request":{"query":query,"limit":limit,"scope":scope,"view":"engine_default_eligible","filter":null},"admission":admission,"query_context":query_context,"context":Self::finished(context),"scope":{"score_family":"engine_rrf","score_direction":"higher_better","dense_stage_distances":"not_exposed","binary_shortlist":"mean_centered_sign_when_pinned; not_stored_L2","native_returned":result.results.len(),"returned":items.len(),"withheld":withheld,"rank_gaps":"original_native_ranks_preserved","policy":self.session.policy,"response_byte_cap":RESPONSE}}),
         )
     }
 }
@@ -207,6 +216,7 @@ impl Reader {
         if !self.session.policy.permits(classification) {
             return Err("refused");
         }
+        let seed_scope = seed_record["scope"].as_str().unwrap_or("").to_string();
         let profile:Option<(String,usize)>=c.query_row("SELECT CASE WHEN octet_length(p.profile)<=4096 THEN p.profile END,p.dimension FROM _fathomdb_vector_rows r JOIN _fathomdb_vector_kinds k ON k.kind=r.kind JOIN _fathomdb_embedder_profiles p ON p.profile=k.profile WHERE r.rowid=?1 AND r.write_cursor=?2",params![rowid,locator.cursor],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(|_|"storage")?;
         let (profile, dimension) = profile.ok_or("reference_expired")?;
         let (seed, source_type) = blob(&c, rowid)?.ok_or("unavailable")?;
@@ -253,11 +263,11 @@ impl Reader {
             let mut origins = vec![];
             let mut owners = c
                 .prepare(&format!(
-                    "SELECT rowid FROM {} WHERE write_cursor=?1 LIMIT 3",
+                    "SELECT rowid FROM {} WHERE scope=?1 AND write_cursor=?2 LIMIT 3",
                     class.table()
                 ))
                 .map_err(|_| "storage")?;
-            let mut owners = owners.query([cursor]).map_err(|_| "storage")?;
+            let mut owners = owners.query(params![seed_scope, cursor]).map_err(|_| "storage")?;
             let mut permitted = true;
             while let Some(owner) = owners.next().map_err(|_| "storage")? {
                 if work >= 100000 {
@@ -268,7 +278,14 @@ impl Reader {
                 work += 1;
                 source_rows += 1;
                 let owner_row: i64 = owner.get(0).map_err(|_| "storage")?;
-                let revision_rowid=c.query_row("SELECT rowid FROM _fathomdb_artifact_revisions WHERE artifact_class=?1 AND write_cursor=?2",params![class.label(),cursor],|r|r.get(0)).optional().map_err(|_|"storage")?;
+                let revision_rowid = c
+                    .query_row(
+                        "SELECT rowid FROM _fathomdb_artifact_revisions WHERE scope=?1 AND artifact_class=?2 AND write_cursor=?3",
+                        params![seed_scope, class.label(), cursor],
+                        |r| r.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| "storage")?;
                 let origin = Locator { class, rowid: owner_row, cursor, revision_rowid };
                 let (_, classification) =
                     Self::summary_fields(&c, &origin, &["kind", "logical_id", "source_id"])?;

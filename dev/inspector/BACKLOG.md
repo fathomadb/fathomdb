@@ -12,6 +12,8 @@ This is the canonical Inspector backlog, including the examples and
 recommendations accepted for backlog capture on 2026-11-18. The
 [ROADMAP](ROADMAP.md) owns release commitments and promotion conditions;
 [requirements](requirements.md), [acceptance](acceptance.md),
+[Slice 30](../plans/0.8.32/features/slice-30/plan.md) (FathomDB `0.8.32` /
+Schema `39` active-`scope` UI),
 [Slice 60](../plans/0.8.31/features/slice-60/plan.md) (`0.3.0` / FathomDB
 `0.8.31` / Schema `38`), and the
 [adopted 0.2.0 scope](plans/0.2.0/scope.md) remain authoritative for required
@@ -21,11 +23,13 @@ and evidence limits. These entries are actionable follow-ups, not a second
 requirements or roadmap register.
 
 B01–B04 were scoped into `0.2.0`, delivered and carried forward through
-`0.2.1` and `0.3.0` (which adds Schema `38` outside-`body` `properties` /
-reserved `scope`, historical `as_of` graph exploration subordinate to 8-flag
-`D-01` erasure non-disclosure, `--scoped` default `local-ci.sh`, bounded
-`P7-02` timeouts, retained `D4 = B` Ubuntu 24.04 qualification, and
-`build-inspector` GitHub Release artifact delivery). **Deferred RM candidate**
+`0.2.1`, `0.3.0`, and `0.8.32` (adding Schema `39` `TABLE_MANIFEST`-backed
+admission, active-`scope` UI subordinate to `D-01`, hosted
+`inspector-browser-smoke` Playwright CI, outside-`body` `properties`,
+historical `as_of` graph exploration subordinate to 8-flag `D-01` erasure
+non-disclosure, `--scoped` default `local-ci.sh`, bounded `P7-02` timeouts,
+retained `D4 = B` Ubuntu 24.04 qualification, and `build-inspector` GitHub
+Release artifact delivery). **Deferred RM candidate**
 develops an existing roadmap candidate. **New unscheduled candidate** has no
 assigned release and needs an explicit scope decision before delivery.
 B05–B10 remain deferred/unscheduled.

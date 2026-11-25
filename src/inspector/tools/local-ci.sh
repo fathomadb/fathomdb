@@ -256,7 +256,8 @@ stage installed bash src/inspector/tools/run-installed.sh \
   src/inspector/tests/browser/attributes.mjs \
   src/inspector/tests/browser/comparison.mjs src/inspector/tests/browser/lexical.mjs \
   src/inspector/tests/browser/vector.mjs src/inspector/tests/browser/graph.mjs \
-  src/inspector/tests/browser/workspace.mjs src/inspector/tests/browser/ux.mjs
+  src/inspector/tests/browser/workspace.mjs src/inspector/tests/browser/ux.mjs \
+  src/inspector/tests/browser/scope.mjs
 if [[ "$mode" == "installed-only" ]]; then
   echo 'local-ci PASS installed-only (source gate not run)'
 elif [[ "$mode" == "scoped" ]]; then

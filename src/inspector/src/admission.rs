@@ -127,43 +127,50 @@ fn preflight_inner(path: &Path) -> Result<Admitted, Failure> {
     drop(lock);
     Ok(Admitted { fingerprint: fingerprint(&path)?, path })
 }
+fn manifest_columns(table: &str) -> &'static str {
+    match table {
+        "canonical_nodes" => "write_cursor,kind,body,source_id,logical_id,superseded_at,row_kind,importance,state,reason,valid_from,valid_until,properties,scope",
+        "canonical_edges" => "write_cursor,kind,from_id,to_id,source_id,logical_id,superseded_at,body,t_valid,t_invalid,confidence,extractor_model_id,temporal_fallback,properties,scope",
+        "operational_collections" => "name,kind,schema_json,retention_json,format_version,created_at",
+        "operational_mutations" => "id,collection_name,record_key,op_kind,payload_json,schema_id,write_cursor,scope",
+        "operational_state" => "collection_name,record_key,payload_json,schema_id,write_cursor,scope",
+        "_fathomdb_artifact_revisions" => "schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness,scope",
+        "_fathomdb_source_links" => "schema_version,artifact_revision_id,source_id,source_version_id,source_revision_id,locator_kind,start_byte,end_byte,hash_algorithm,hash_digest,scope",
+        "_fathomdb_source_versions" => "schema_version,source_id,source_version_id,source_revision_id,scope",
+        "_fathomdb_source_dependencies" => "schema_version,dependency_id,derived_revision_id,registered_dependency_generation,scope",
+        "_fathomdb_dependency_closures" => "schema_version,closure_operation_id,root_kind,root_value,cause,phase,proof_json,closure_sequence,scope",
+        "_fathomdb_projection_registry" => "name,roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds",
+        "canonical_attributes" => "write_cursor,attr_name,attr_value",
+        "canonical_property_values" => "entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val",
+        "_fathomdb_commit_timestamps" => "write_cursor,committed_at_ms",
+        "_fathomdb_projection_state" => "kind,last_enqueued_cursor,updated_at",
+        "_fathomdb_projection_terminal" => "write_cursor,state",
+        "_fathomdb_vector_kinds" => "kind,profile,created_at",
+        "_fathomdb_vector_rows" => "rowid,kind,write_cursor",
+        "_fathomdb_vector_spans" => "vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length",
+        "_fathomdb_erasure_requests" => "ticket,idempotency_key,payload,phase,scope",
+        "_fathomdb_embedder_profiles" => "profile,name,revision,dimension,mean_vec",
+        "_fathomdb_embed_probe" => "probe_ordinal,probe_text,reference_vec,embedder_name,embedder_revision,dim",
+        "_fathomdb_actuation_receipts" => "projection_generation_id,scope",
+        "_fathomdb_actuation_receipt_source_refs" => "operation_id,ref_kind,ref_value,scope",
+        "_fathomdb_migrations" => "step_id,applied_at_ms",
+        "_fathomdb_schema_meta" => "key,value",
+        "_fathomdb_read_visibility_state" => "singleton,generation,state_nonce,coalescing",
+        "_fathomdb_open_state" => "key,value",
+        "_fathomdb_projection_generations" => "schema_version,generation_id,declaration_sha256,transition_boundary,role,origin,retired_boundary",
+        "_fathomdb_projection_generation_current" => "singleton,generation_id",
+        "search_index" | "search_index_v2" | "search_index_edges" => "body,kind,write_cursor",
+        "property_search_index" => "attr_value,attr_name,write_cursor",
+        "vector_default" => "embedding,embedding_bin,source_type,kind,created_at,status",
+        _ => "1",
+    }
+}
 fn validate_layout(c: &Connection) -> Result<(), &'static str> {
-    for (table, columns) in [
-        ("canonical_nodes", "write_cursor,kind,body,source_id,logical_id,superseded_at,row_kind,importance,state,reason,valid_from,valid_until,properties,scope"),
-        ("canonical_edges", "write_cursor,kind,from_id,to_id,source_id,logical_id,superseded_at,body,t_valid,t_invalid,confidence,extractor_model_id,temporal_fallback,properties,scope"),
-        ("operational_collections", "name,kind,schema_json,retention_json,format_version,created_at"),
-        ("operational_mutations", "id,collection_name,record_key,op_kind,payload_json,schema_id,write_cursor,scope"),
-        ("operational_state", "collection_name,record_key,payload_json,schema_id,write_cursor,scope"),
-        ("_fathomdb_artifact_revisions", "schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness,scope"),
-        ("_fathomdb_source_links", "schema_version,artifact_revision_id,source_id,source_version_id,source_revision_id,locator_kind,start_byte,end_byte,hash_algorithm,hash_digest,scope"),
-        ("_fathomdb_source_versions", "schema_version,source_id,source_version_id,source_revision_id,scope"),
-        ("_fathomdb_source_dependencies", "schema_version,dependency_id,derived_revision_id,registered_dependency_generation,scope"),
-        ("_fathomdb_dependency_closures", "schema_version,closure_operation_id,root_kind,root_value,cause,phase,proof_json,closure_sequence,scope"),
-        ("_fathomdb_projection_registry", "name,roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds"),
-        ("canonical_attributes", "write_cursor,attr_name,attr_value"),
-        ("canonical_property_values", "entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val"),
-        ("_fathomdb_commit_timestamps", "write_cursor,committed_at_ms"),
-        ("_fathomdb_projection_state", "kind,last_enqueued_cursor,updated_at"),
-        ("_fathomdb_projection_terminal", "write_cursor,state"),
-        ("_fathomdb_vector_kinds", "kind,profile,created_at"),
-        ("_fathomdb_vector_rows", "rowid,kind,write_cursor"),
-        ("_fathomdb_vector_spans", "vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length"),
-        ("_fathomdb_erasure_requests", "ticket,idempotency_key,payload,phase,scope"),
-        ("_fathomdb_embedder_profiles", "profile,name,revision,dimension,mean_vec"),
-        ("_fathomdb_embed_probe", "probe_ordinal,probe_text,reference_vec,embedder_name,embedder_revision,dim"),
-        ("_fathomdb_actuation_receipts", "projection_generation_id,scope"),
-        ("_fathomdb_actuation_receipt_source_refs", "operation_id,ref_kind,ref_value,scope"),
-        ("_fathomdb_migrations", "step_id,applied_at_ms"),
-        ("_fathomdb_schema_meta", "key,value"),
-        ("_fathomdb_read_visibility_state", "singleton,generation,state_nonce,coalescing"),
-        ("_fathomdb_open_state", "key,value"),
-        ("_fathomdb_projection_generations", "schema_version,generation_id,declaration_sha256,transition_boundary,role,origin,retired_boundary"),
-        ("_fathomdb_projection_generation_current", "singleton,generation_id"),
-        ("search_index", "body,kind,write_cursor"), ("search_index_v2", "body,kind,write_cursor"),
-        ("search_index_edges", "body,kind,write_cursor"), ("property_search_index", "attr_value,attr_name,write_cursor"),
-        ("vector_default", "embedding,embedding_bin,source_type,kind,created_at,status"),
-    ] {
-        c.prepare(&format!("SELECT {columns} FROM {table} LIMIT 0")).map_err(|_| "malformed_layout")?;
+    for entry in fathomdb_schema::TABLE_MANIFEST {
+        let table = entry.name;
+        let columns = manifest_columns(table);
+        c.prepare(&format!("SELECT {columns} FROM {table} LIMIT 0"))
+            .map_err(|_| "malformed_layout")?;
     }
     for key in ["search_index_tokenizer_reproject_complete", "tc33_edge_vector_prune_complete"] {
         let value: String = c

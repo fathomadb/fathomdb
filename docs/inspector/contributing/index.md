@@ -6,13 +6,16 @@ Inspector is a separate product area in the FathomDB repository:
 - `docs/inspector/` contains public product documentation following the existing getting-started, concepts, guides, reference, operations and contributing layout.
 - `src/inspector/` is the application source home; it contains the Rust application, embedded browser UI, tests and packaging.
 
-Inspector `0.3.0` (`R31-08`) upgrades Inspector onto FathomDB `0.8.31`
-(schema `38`), adding outside-`body` node/edge `properties` and read-only
-reserved `scope` inspection, historical `as_of` graph exploration subordinate
-to the 8-flag `D-01` disclosure policy, `--scoped` default `local-ci.sh`,
-bounded `P7-02` timeouts/cleanup, retained `D4 = B` native Ubuntu 24.04
-(`glibc 2.39`) Chromium + bundled SQLite qualification, and GitHub Release
-artifact delivery via `.github/workflows/release.yml` (`build-inspector`). The
+Inspector targets FathomDB `0.8.32` (schema `39`, `TABLE_MANIFEST`-backed
+admission refusing schema `38` and older), adding active-`scope` switching and
+per-view scope filters strictly subordinate to `D-01` nondisclosure, hosted
+`inspector-browser-smoke` Playwright CI coverage in `.github/workflows/ci.yml`,
+outside-`body` node/edge `properties` inspection, historical `as_of` graph
+exploration subordinate to the 8-flag `D-01` disclosure policy, `--scoped`
+default `local-ci.sh`, bounded `P7-02` timeouts/cleanup, retained `D4 = B`
+native Ubuntu 24.04 (`glibc 2.39`) Chromium + bundled SQLite qualification, and
+GitHub Release artifact delivery via `.github/workflows/release.yml`
+(`build-inspector`). The
 unperformed five-person study remains removed by owner decision. Optional
 deeper inspection and broader compatibility belong in [ROADMAP](../ROADMAP.md).
 Source changes follow the repository's test-first and verification rules. Tests

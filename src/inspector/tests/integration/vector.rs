@@ -217,7 +217,7 @@ fn stored_vectors_obey_all_disclosure_combinations_and_fresh_queue_state() {
         })
         .unwrap();
     drop(c);
-    reader.session.engine.withdraw_queued_erasure(&ticket).unwrap();
+    reader.session.engine().unwrap().withdraw_queued_erasure(&ticket).unwrap();
     let vectors = dispatch(&mut reader, json!({"op":"vectors","handle":handle})).unwrap();
     assert_eq!(
         vectors["items"][0]["origin"]["targets"][0]["record"]["retained_erasure_pending"],
@@ -279,7 +279,8 @@ fn serving_reports_embedder_absent_degradation_rejects_ownerless_fts_and_propaga
     // after close fails at freeze_read_context with exact Err("storage").
     let frozen = reader
         .session
-        .engine
+        .engine()
+        .unwrap()
         .freeze_read_context(
             &fathomdb_engine::ReadContextV1::new(
                 fathomdb_engine::ReadView::default(),
@@ -288,10 +289,14 @@ fn serving_reports_embedder_absent_degradation_rejects_ownerless_fts_and_propaga
             .unwrap(),
         )
         .unwrap();
-    reader.session.engine.close().unwrap();
+    reader.session.engine().unwrap().close().unwrap();
     assert!(
         matches!(
-            reader.session.engine.search_frozen("alpha", &frozen, 0, false, 0.3, 0, true, 10),
+            reader
+                .session
+                .engine()
+                .unwrap()
+                .search_frozen("alpha", &frozen, 0, false, 0.3, 0, true, 10),
             Err(fathomdb_engine::EngineError::Closing)
         ),
         "search_frozen on closed engine must return EngineError::Closing"
@@ -440,19 +445,21 @@ fn cached_cpu_candle013_serving_preserves_equal_body_records_reports_timeout_and
     //    (1ms dispatcher deadline against real Candle 0.13 CPU embedder).
     let mut timed_reader =
         Reader::new(Session::attach_mode(&path, Policy::default(), true).unwrap());
-    timed_reader.session.engine.close().unwrap();
-    timed_reader.session.engine = Engine::open_with_choice_and_config(
-        &path,
-        EmbedderChoice::Default,
-        EngineConfig {
-            scheduler_runtime_threads: Some(1),
-            embedder_pool_size: Some(1),
-            embedder_call_timeout_ms: Some(1),
-            ..EngineConfig::default()
-        },
-    )
-    .unwrap()
-    .engine;
+    timed_reader.session.engine.take().unwrap().close().unwrap();
+    timed_reader.session.engine = Some(
+        Engine::open_with_choice_and_config(
+            &path,
+            EmbedderChoice::Default,
+            EngineConfig {
+                scheduler_runtime_threads: Some(1),
+                embedder_pool_size: Some(1),
+                embedder_call_timeout_ms: Some(1),
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap()
+        .engine,
+    );
     timed_reader.session.lock_fingerprint =
         crate::admission::fingerprint(std::path::Path::new(&format!("{}.lock", path.display())))
             .unwrap();

@@ -131,7 +131,8 @@ study is historical and removed.
 
 ## Installed 0.3.0 qualification
 
-Inspector `0.3.0` targets FathomDB `0.8.31` (compiled schema `38`) and retains
+Inspector targets FathomDB `0.8.32` (compiled schema `39`, `TABLE_MANIFEST`-backed
+admission, refusing Schema `38` and older) and retains
 the `D4 = B` Docker-free native Ubuntu 24.04 (`glibc 2.39`) qualification stack
 (Chromium + bundled SQLite + Landlock; zero Docker, Ubuntu 22.04, `openbox`,
 `xdotool`, or `sudo`). Build with pinned Rust 1.95.0, locked offline
@@ -286,7 +287,7 @@ fathomdb-inspector-0.3.0-linux-x86_64/
 
 `candidate.json` is unsigned local provenance. It binds actual
 archive/executable bytes to clean packaging HEAD, workspace engine version,
-compiled schema `38`, features and declared `D4 = B` support. It is not a
+compiled schema `39`, features and declared `D4 = B` support. It is not a
 registry signature or proof of bit-reproducible compilation. Verify candidate
 source before releasing and retain the real source SHA even when later
 status/docs commits have a different HEAD. The candidate source remains

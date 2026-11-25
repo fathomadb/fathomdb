@@ -125,6 +125,71 @@ pub(crate) struct Filter {
     pub(crate) collection: Option<String>,
     pub(crate) identity: Option<String>,
     pub(crate) attribute: Option<String>,
+    #[serde(default)]
+    pub(crate) scope: Option<String>,
+}
+
+pub(crate) fn browse_query_for_plan(
+    class: Class,
+    after: i64,
+    filter: &Filter,
+) -> (String, Vec<rusqlite::types::Value>) {
+    use rusqlite::types::Value as SqlValue;
+    if let Some(scope) = filter.scope.as_deref() {
+        match class {
+            Class::Node => (
+                "SELECT rowid,write_cursor,scope FROM canonical_nodes INDEXED BY canonical_nodes_scope_cursor_idx WHERE scope=?1 AND write_cursor>?2 ORDER BY write_cursor LIMIT 100000".into(),
+                vec![SqlValue::Text(scope.into()), SqlValue::Integer(after)],
+            ),
+            Class::Edge => (
+                "SELECT rowid,write_cursor,scope FROM canonical_edges INDEXED BY canonical_edges_scope_cursor_idx WHERE scope=?1 AND write_cursor>?2 ORDER BY write_cursor LIMIT 100000".into(),
+                vec![SqlValue::Text(scope.into()), SqlValue::Integer(after)],
+            ),
+            Class::Current => {
+                if let Some(collection) = filter.collection.as_deref() {
+                    (
+                        "SELECT rowid,write_cursor,scope FROM operational_state INDEXED BY operational_state_scope_collection_cursor_page_idx WHERE scope=?1 AND collection_name=?2 AND write_cursor>?3 ORDER BY write_cursor LIMIT 100000".into(),
+                        vec![
+                            SqlValue::Text(scope.into()),
+                            SqlValue::Text(collection.into()),
+                            SqlValue::Integer(after),
+                        ],
+                    )
+                } else {
+                    (
+                        "SELECT rowid,write_cursor,scope FROM operational_state INDEXED BY operational_state_write_cursor_idx WHERE write_cursor>?1 AND scope=?2 ORDER BY write_cursor LIMIT 100000".into(),
+                        vec![SqlValue::Integer(after), SqlValue::Text(scope.into())],
+                    )
+                }
+            }
+            Class::Log => {
+                if let Some(collection) = filter.collection.as_deref() {
+                    (
+                        "SELECT rowid,write_cursor,scope FROM operational_mutations INDEXED BY operational_mutations_scope_collection_id_idx WHERE scope=?1 AND collection_name=?2 AND id>?3 ORDER BY id LIMIT 100000".into(),
+                        vec![
+                            SqlValue::Text(scope.into()),
+                            SqlValue::Text(collection.into()),
+                            SqlValue::Integer(after),
+                        ],
+                    )
+                } else {
+                    (
+                        "SELECT rowid,write_cursor,scope FROM operational_mutations NOT INDEXED WHERE rowid>?1 AND scope=?2 ORDER BY rowid LIMIT 100000".into(),
+                        vec![SqlValue::Integer(after), SqlValue::Text(scope.into())],
+                    )
+                }
+            }
+        }
+    } else {
+        let ordering = if class == Class::Log { "rowid" } else { "write_cursor" };
+        (
+            format!(
+                "SELECT rowid,write_cursor,scope FROM {} WHERE {ordering}>?1 ORDER BY {ordering} LIMIT 100000",
+                class.table()
+            ),
+            vec![SqlValue::Integer(after)],
+        )
+    }
 }
 #[derive(Clone)]
 struct Locator {
@@ -283,9 +348,9 @@ impl Reader {
             c,
             locator,
             if locator.class.canonical() {
-                &["kind", "logical_id", "source_id"]
+                &["kind", "logical_id", "source_id", "scope"]
             } else {
-                &["collection_name"]
+                &["collection_name", "scope"]
             },
         )
     }
@@ -310,19 +375,19 @@ impl Reader {
         *remaining -= 1;
         let class = locator.class;
         let entries=columns.iter().map(|col|format!("'{col}',CASE WHEN octet_length({col})<=16384 THEN substr(CAST({col} AS TEXT),1,4096) END,'{col}_bytes',octet_length({col}),'{col}_storage',typeof({col})")).collect::<Vec<_>>().join(",");
-        let text: Option<String> = c
+        let fetched: Option<(String, String)> = c
             .query_row(
                 &format!(
-                    "SELECT json_object({entries}) FROM {} WHERE rowid=?1 AND write_cursor=?2",
+                    "SELECT json_object({entries}),scope FROM {} WHERE rowid=?1 AND write_cursor=?2",
                     class.table()
                 ),
                 params![locator.rowid, locator.cursor],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .optional()
             .map_err(|_| "storage")?;
-        let mut record: Value =
-            serde_json::from_str(&text.ok_or("unavailable")?).map_err(|_| "storage")?;
+        let (text, row_scope) = fetched.ok_or("unavailable")?;
+        let mut record: Value = serde_json::from_str(&text).map_err(|_| "storage")?;
         for column in columns {
             if record[format!("{column}_storage")] == "real" {
                 let value = crate::window::Column::open(c, class.table(), column, locator.rowid)?;
@@ -347,7 +412,7 @@ impl Reader {
         let mut inactive = false;
         let mut telemetry = false;
         if class.canonical() {
-            let actual:Option<(i64,String,String,String)>=c.query_row("SELECT rowid,substr(revision_id,1,4096),artifact_role,completeness FROM _fathomdb_artifact_revisions WHERE artifact_class=?1 AND write_cursor=?2",params![class.label(),locator.cursor],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(|_|"storage")?;
+            let actual:Option<(i64,String,String,String)>=c.query_row("SELECT rowid,substr(revision_id,1,4096),artifact_role,completeness FROM _fathomdb_artifact_revisions WHERE scope=?1 AND artifact_class=?2 AND write_cursor=?3",params![row_scope,class.label(),locator.cursor],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(|_|"storage")?;
             if actual.as_ref().map(|r| r.0) != locator.revision_rowid {
                 return Err("reference_expired");
             }
@@ -371,10 +436,11 @@ impl Reader {
                 "typeof(t_valid) IN ('null','integer') AND typeof(t_invalid) IN ('null','integer') AND typeof(superseded_at) IN ('null','integer')"
             };
             (inactive,known)=c.query_row(&format!("SELECT {lifecycle},COALESCE({known_fields},0) FROM {} WHERE rowid=?1 AND write_cursor=?2",class.table()),params![locator.rowid,locator.cursor,c.at_epoch_s],|r|Ok((r.get(0)?,r.get(1)?))).map_err(|_|"storage")?;
-            let closure_sql = "SELECT d.cause FROM _fathomdb_artifact_revisions owner JOIN _fathomdb_source_dependencies dep ON dep.scope=owner.scope AND dep.derived_revision_id=owner.revision_id JOIN _fathomdb_source_links link ON link.scope=owner.scope AND link.artifact_revision_id=owner.revision_id JOIN _fathomdb_source_links origin ON origin.scope=owner.scope AND origin.artifact_revision_id=link.source_revision_id JOIN _fathomdb_dependency_closures d ON d.scope=owner.scope AND d.phase!='complete' AND ((d.root_kind='source_revision' AND d.root_value=link.source_revision_id) OR (d.root_kind='source_bucket' AND d.root_value=origin.source_id)) WHERE owner.artifact_class=?1 AND owner.write_cursor=?2 LIMIT 100001";
+            let closure_sql = "SELECT d.cause FROM _fathomdb_artifact_revisions owner JOIN _fathomdb_source_dependencies dep ON dep.scope=owner.scope AND dep.derived_revision_id=owner.revision_id JOIN _fathomdb_source_links link ON link.scope=owner.scope AND link.artifact_revision_id=owner.revision_id JOIN _fathomdb_source_links origin ON origin.scope=owner.scope AND origin.artifact_revision_id=link.source_revision_id JOIN _fathomdb_dependency_closures d ON d.scope=owner.scope AND d.phase!='complete' AND ((d.root_kind='source_revision' AND d.root_value=link.source_revision_id) OR (d.root_kind='source_bucket' AND d.root_value=origin.source_id)) WHERE owner.scope=?1 AND owner.artifact_class=?2 AND owner.write_cursor=?3 LIMIT 100001";
             let mut statement = c.prepare(closure_sql).map_err(|_| "storage")?;
-            let mut rows =
-                statement.query(params![class.label(), locator.cursor]).map_err(|_| "storage")?;
+            let mut rows = statement
+                .query(params![row_scope, class.label(), locator.cursor])
+                .map_err(|_| "storage")?;
             let mut count = 0;
             while let Some(row) = rows.next().map_err(|_| "storage")? {
                 if *remaining == 0 {
@@ -665,6 +731,7 @@ impl Reader {
         if after < 0
             || limit == 0
             || limit > 200
+            || filter.scope.as_ref().is_some_and(|s| s.len() > 65536)
             || (class.canonical() && filter.collection.is_some())
             || (!class.canonical()
                 && (filter.kind.is_some() || filter.role.is_some() || filter.source.is_some()))
@@ -681,9 +748,11 @@ impl Reader {
         }
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let ordering = if class == Class::Log { "rowid" } else { "write_cursor" };
-        let mut statement=c.prepare(&format!("SELECT rowid,write_cursor FROM {} WHERE {ordering}>?1 ORDER BY {ordering} LIMIT 100000",class.table())).map_err(|_|"storage")?;
-        let mut rows = statement.query([after]).map_err(|_| "storage")?;
+        let (browse_sql, browse_params) = browse_query_for_plan(class, after, &filter);
+        let mut statement = c.prepare(&browse_sql).map_err(|_| "storage")?;
+        let mut rows = statement
+            .query(rusqlite::params_from_iter(browse_params.iter()))
+            .map_err(|_| "storage")?;
         let mut items = vec![];
         let mut examined = 0;
         let mut last = after;
@@ -709,9 +778,16 @@ impl Reader {
             examined += 1;
             let rowid: i64 = row.get(0).map_err(|_| "storage")?;
             let cursor: i64 = row.get(1).map_err(|_| "storage")?;
+            let row_scope: String = row.get(2).map_err(|_| "storage")?;
             let position = if class == Class::Log { rowid } else { cursor };
             let revision_rowid = if class.canonical() {
-                c.query_row("SELECT rowid FROM _fathomdb_artifact_revisions WHERE artifact_class=?1 AND write_cursor=?2",params![class.label(),cursor],|r|r.get(0)).optional().map_err(|_|"storage")?
+                c.query_row(
+                    "SELECT rowid FROM _fathomdb_artifact_revisions WHERE scope=?1 AND artifact_class=?2 AND write_cursor=?3",
+                    params![row_scope, class.label(), cursor],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(|_| "storage")?
             } else {
                 None
             };
@@ -894,7 +970,17 @@ impl Reader {
             json!({"status":"complete","context":Self::finished(context),"scope":{"validated":count,"examined":100000-remaining,"limit":201,"snapshot":"this_request_only"}}),
         )
     }
+    #[allow(dead_code)]
     pub(crate) fn catalog(&mut self) -> Result<Value, &'static str> {
+        self.catalog_scoped(None)
+    }
+    pub(crate) fn catalog_scoped(
+        &mut self,
+        scope_filter: Option<&str>,
+    ) -> Result<Value, &'static str> {
+        if scope_filter.is_some_and(|s| s.len() > 65536) {
+            return Err("unsupported_constraint");
+        }
         let deadline = std::time::Instant::now() + WORK_TIME;
         let mut time_capped = false;
         let c = self.session.connection()?;
@@ -906,8 +992,10 @@ impl Reader {
         let mut projections_complete = true;
         let mut groups_complete = true;
         let mut operational_groups_complete = true;
+        let mut scopes_complete = true;
         let mut counts = json!({});
         let mut groups = std::collections::BTreeMap::<String, usize>::new();
+        let mut scopes_map = std::collections::BTreeMap::<String, [usize; 4]>::new();
         let mut collections = vec![];
         let mut statement=c.prepare("SELECT rowid,kind,octet_length(name) FROM operational_collections ORDER BY name LIMIT 201").map_err(|_|"storage")?;
         let mut rows = statement.query([]).map_err(|_| "storage")?;
@@ -1000,7 +1088,9 @@ impl Reader {
             projections.push(item);
         }
         let metadata_examined = examined;
-        for class in [Class::Node, Class::Edge, Class::Current, Class::Log] {
+        for (class_index, class) in
+            [Class::Node, Class::Edge, Class::Current, Class::Log].into_iter().enumerate()
+        {
             let remaining = 100000_usize.saturating_sub(examined);
             let mut n = 0;
             let mut logical = std::collections::BTreeSet::new();
@@ -1010,7 +1100,7 @@ impl Reader {
             let mut category_capped = false;
             let mut statement = c
                 .prepare(&format!(
-                    "SELECT rowid,write_cursor FROM {} ORDER BY {} LIMIT ?1",
+                    "SELECT rowid,write_cursor,scope FROM {} ORDER BY {} LIMIT ?1",
                     class.table(),
                     if class == Class::Log { "rowid" } else { "write_cursor" }
                 ))
@@ -1021,14 +1111,22 @@ impl Reader {
                     time_capped = true;
                     category_capped = true;
                     exact = false;
+                    scopes_complete = false;
                     break;
                 }
                 examined += 1;
                 scanned += 1;
                 let rowid: i64 = row.get(0).map_err(|_| "storage")?;
                 let cursor: i64 = row.get(1).map_err(|_| "storage")?;
+                let row_scope: String = row.get(2).map_err(|_| "storage")?;
                 let revision_rowid = if class.canonical() {
-                    c.query_row("SELECT rowid FROM _fathomdb_artifact_revisions WHERE artifact_class=?1 AND write_cursor=?2",params![class.label(),cursor],|r|r.get(0)).optional().map_err(|_|"storage")?
+                    c.query_row(
+                        "SELECT rowid FROM _fathomdb_artifact_revisions WHERE scope=?1 AND artifact_class=?2 AND write_cursor=?3",
+                        params![row_scope, class.label(), cursor],
+                        |r| r.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| "storage")?
                 } else {
                     None
                 };
@@ -1037,6 +1135,7 @@ impl Reader {
                 if !classification.known {
                     unknown_classification += 1;
                     groups_complete = false;
+                    scopes_complete = false;
                     if !class.canonical() {
                         operational_groups_complete = false;
                     }
@@ -1044,6 +1143,24 @@ impl Reader {
                     continue;
                 }
                 if classification.inactive && self.session.policy.no_show_inactive {
+                    continue;
+                }
+                if self.session.policy.permits(classification) {
+                    if record["scope_bytes"].as_u64() != Some(row_scope.len() as u64) {
+                        scopes_complete = false;
+                        exact = false;
+                    } else if let Some(entry) = scopes_map.get_mut(&row_scope) {
+                        entry[class_index] += 1;
+                    } else if scopes_map.len() < 200 {
+                        let mut counts_for_scope = [0_usize; 4];
+                        counts_for_scope[class_index] = 1;
+                        scopes_map.insert(row_scope.clone(), counts_for_scope);
+                    } else {
+                        scopes_complete = false;
+                        exact = false;
+                    }
+                }
+                if scope_filter.is_some_and(|target| target != row_scope) {
                     continue;
                 }
                 n += 1;
@@ -1086,6 +1203,7 @@ impl Reader {
             if !category_exact {
                 exact = false;
                 groups_complete = false;
+                scopes_complete = false;
                 if !class.canonical() {
                     operational_groups_complete = false;
                 }
@@ -1101,8 +1219,9 @@ impl Reader {
         let mut projected = 0;
         let mut projected_unknown = 0;
         let mut scanned = 0;
-        let mut statement=c.prepare("SELECT a.write_cursor,n.rowid,r.rowid FROM canonical_attributes a JOIN canonical_nodes n ON n.write_cursor=a.write_cursor LEFT JOIN _fathomdb_artifact_revisions r ON r.artifact_class='node' AND r.write_cursor=a.write_cursor ORDER BY a.rowid LIMIT ?1").map_err(|_|"storage")?;
-        let mut rows = statement.query([remaining as i64]).map_err(|_| "storage")?;
+        let mut statement=c.prepare("SELECT a.write_cursor,n.rowid,r.rowid FROM canonical_attributes a JOIN canonical_nodes n ON n.write_cursor=a.write_cursor LEFT JOIN _fathomdb_artifact_revisions r ON r.scope=n.scope AND r.artifact_class='node' AND r.write_cursor=a.write_cursor WHERE (?1 IS NULL OR n.scope=?1) ORDER BY a.rowid LIMIT ?2").map_err(|_|"storage")?;
+        let mut rows =
+            statement.query(params![scope_filter, remaining as i64]).map_err(|_| "storage")?;
         while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
             if std::time::Instant::now() >= deadline {
                 time_capped = true;
@@ -1140,12 +1259,14 @@ impl Reader {
                  FROM canonical_property_values p \
                  LEFT JOIN canonical_nodes n ON p.entity_class='node' AND n.write_cursor=p.write_cursor \
                  LEFT JOIN canonical_edges e ON p.entity_class='edge' AND e.write_cursor=p.write_cursor \
-                 LEFT JOIN _fathomdb_artifact_revisions r ON r.artifact_class=p.entity_class AND r.write_cursor=p.write_cursor \
-                 WHERE (p.entity_class='node' AND n.rowid IS NOT NULL) OR (p.entity_class='edge' AND e.rowid IS NOT NULL) \
-                 ORDER BY p.entity_class,p.write_cursor,p.attr_name LIMIT ?1",
+                 LEFT JOIN _fathomdb_artifact_revisions r ON r.scope=CASE WHEN p.entity_class='node' THEN n.scope ELSE e.scope END AND r.artifact_class=p.entity_class AND r.write_cursor=p.write_cursor \
+                 WHERE (p.entity_class='node' AND n.rowid IS NOT NULL AND (?1 IS NULL OR n.scope=?1)) \
+                    OR (p.entity_class='edge' AND e.rowid IS NOT NULL AND (?1 IS NULL OR e.scope=?1)) \
+                 ORDER BY p.entity_class,p.write_cursor,p.attr_name LIMIT ?2",
             )
             .map_err(|_| "storage")?;
-        let mut rows = statement.query([cpv_remaining as i64]).map_err(|_| "storage")?;
+        let mut rows =
+            statement.query(params![scope_filter, cpv_remaining as i64]).map_err(|_| "storage")?;
         while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
             if std::time::Instant::now() >= deadline {
                 time_capped = true;
@@ -1236,8 +1357,23 @@ impl Reader {
         collections_complete &= operational_groups_complete
             && counts["current"]["exact"] == true
             && counts["log"]["exact"] == true;
-        exact &= collections_complete && projections_complete && groups_complete;
-        let result = json!({"status":if exact{"complete"}else{"partial"},"database":{"identity":self.session.database_id,"location":self.session.path,"schema":fathomdb_schema::SCHEMA_VERSION,"mode":"owned_engine","model_runtime":if self.session.cached_cpu{"available_cached_cpu"}else{"unavailable_no_model_loaded"},"model_support":if cfg!(feature="cached-cpu"){"compiled_cached_cpu"}else{"not_compiled"}},"context":Self::finished(context),"counts":counts,"groups":groups,"collections":collections,"projections":projections,"scope":{"policy":self.session.policy,"exact":exact,"examined":examined,"metadata_examined":metadata_examined,"work_deadline_millis":WORK_TIME.as_millis(),"time_capped":time_capped,"reason":if time_capped{Some("operation_work_deadline")}else if budget.partial{Some("shared_item_or_byte_cap")}else{None},"collections_complete":collections_complete,"projections_complete":projections_complete,"groups_complete":groups_complete,"returned_metadata_and_groups":budget.returned,"metadata_or_group_truncated":budget.partial||!collections_complete||!projections_complete||!groups_complete,"metadata_bytes_with_envelope_reserve":budget.bytes,"reserved_envelope_bytes":65536,"response_byte_cap":RESPONSE,"response_item_cap":200,"item_scope":"collection/declaration/group entries; fixed envelope and count facts separately bounded","row_cap":100000,"group_limit":200,"ordering":"declarations_then_class_keysets","observed_fields":"use bounded record tree; no exhaustive schema inference"}});
+        scopes_complete &= !time_capped;
+        exact &= collections_complete && projections_complete && groups_complete && scopes_complete;
+        let scopes_list: Vec<Value> = scopes_map
+            .into_iter()
+            .map(|(scope_name, [node, edge, current, log])| {
+                let total = node + edge + current + log;
+                json!({
+                    "scope": scope_name,
+                    "node": node.to_string(),
+                    "edge": edge.to_string(),
+                    "current": current.to_string(),
+                    "log": log.to_string(),
+                    "total": total.to_string(),
+                })
+            })
+            .collect();
+        let result = json!({"status":if exact{"complete"}else{"partial"},"database":{"identity":self.session.database_id,"location":self.session.path,"schema":fathomdb_schema::SCHEMA_VERSION,"mode":"owned_engine","model_runtime":if self.session.cached_cpu{"available_cached_cpu"}else{"unavailable_no_model_loaded"},"model_support":if cfg!(feature="cached-cpu"){"compiled_cached_cpu"}else{"not_compiled"}},"context":Self::finished(context),"counts":counts,"scopes":scopes_list,"groups":groups,"collections":collections,"projections":projections,"scope":{"policy":self.session.policy,"active_scope":scope_filter,"scopes_complete":scopes_complete,"exact":exact,"examined":examined,"metadata_examined":metadata_examined,"work_deadline_millis":WORK_TIME.as_millis(),"time_capped":time_capped,"reason":if time_capped{Some("operation_work_deadline")}else if budget.partial{Some("shared_item_or_byte_cap")}else{None},"collections_complete":collections_complete,"projections_complete":projections_complete,"groups_complete":groups_complete,"returned_metadata_and_groups":budget.returned,"metadata_or_group_truncated":budget.partial||!collections_complete||!projections_complete||!groups_complete,"metadata_bytes_with_envelope_reserve":budget.bytes,"reserved_envelope_bytes":65536,"response_byte_cap":RESPONSE,"response_item_cap":200,"item_scope":"collection/declaration/group entries; fixed envelope and count facts separately bounded","row_cap":100000,"group_limit":200,"ordering":"declarations_then_class_keysets","observed_fields":"use bounded record tree; no exhaustive schema inference"}});
         if serde_json::to_vec(&result).map_err(|_| "storage")?.len() > RESPONSE {
             return Err("budget_exhausted");
         }
@@ -1363,19 +1499,30 @@ impl Reader {
         let mut property_values_complete = true;
         let mut projections_complete = true;
         if locator.class.canonical() {
+            let root_rev_scope: Option<(String, String)> = match locator.revision_rowid {
+                Some(revision) => c
+                    .query_row(
+                        "SELECT revision_id,scope FROM _fathomdb_artifact_revisions WHERE rowid=?1",
+                        [revision],
+                        |r| Ok((r.get(0)?, r.get(1)?)),
+                    )
+                    .optional()
+                    .map_err(|_| "storage")?,
+                None => None,
+            };
             for (kind,sql) in [
-                ("recorded_source","SELECT a.artifact_class,a.write_cursor,a.rowid FROM _fathomdb_artifact_revisions a JOIN _fathomdb_source_links l ON l.source_revision_id=a.revision_id WHERE l.artifact_revision_id=(SELECT revision_id FROM _fathomdb_artifact_revisions WHERE rowid=?1) ORDER BY a.rowid LIMIT 201"),
-                ("recorded_derived","SELECT a.artifact_class,a.write_cursor,a.rowid FROM _fathomdb_artifact_revisions a JOIN _fathomdb_source_links l ON l.artifact_revision_id=a.revision_id WHERE l.source_revision_id=(SELECT revision_id FROM _fathomdb_artifact_revisions WHERE rowid=?1) AND l.artifact_revision_id!=l.source_revision_id ORDER BY a.rowid LIMIT 201")
+                ("recorded_source","SELECT a.artifact_class,a.write_cursor,a.rowid FROM _fathomdb_artifact_revisions a JOIN _fathomdb_source_links l ON a.scope=l.scope AND l.source_revision_id=a.revision_id WHERE l.scope=?1 AND l.artifact_revision_id=?2 ORDER BY a.rowid LIMIT 201"),
+                ("recorded_derived","SELECT a.artifact_class,a.write_cursor,a.rowid FROM _fathomdb_artifact_revisions a JOIN _fathomdb_source_links l ON a.scope=l.scope AND l.artifact_revision_id=a.revision_id WHERE l.scope=?1 AND l.source_revision_id=?2 AND l.artifact_revision_id!=l.source_revision_id ORDER BY a.rowid LIMIT 201")
             ] {
                 let mut targets=vec![];let mut withheld=false;let mut truncated=false;let mut unavailable=false;let mut examined=0;
-                if let Some(revision)=locator.revision_rowid {
-                    let mut statement=c.prepare(sql).map_err(|_|"storage")?;let mut rows=statement.query([revision]).map_err(|_|"storage")?;
+                if let Some((ref rev_id, ref root_scope)) = root_rev_scope {
+                    let mut statement=c.prepare(sql).map_err(|_|"storage")?;let mut rows=statement.query(params![root_scope, rev_id]).map_err(|_|"storage")?;
                     while let Some(row)=rows.next().map_err(|_|"budget_exhausted")? {
                         budget.examined+=1;examined+=1;if examined>200{truncated=true;break;}
                         let class:String=row.get(0).map_err(|_|"storage")?;
                         let class=match class.as_str(){"node"=>Class::Node,"edge"=>Class::Edge,_=>return Err("unknown_classification")};
                         let cursor:i64=row.get(1).map_err(|_|"storage")?;let revision_rowid=Some(row.get(2).map_err(|_|"storage")?);
-                        let rowid:Option<i64>=c.query_row(&format!("SELECT rowid FROM {} WHERE write_cursor=?1",class.table()),[cursor],|r|r.get(0)).optional().map_err(|_|"storage")?;
+                        let rowid:Option<i64>=c.query_row(&format!("SELECT rowid FROM {} WHERE scope=?1 AND write_cursor=?2",class.table()),params![root_scope, cursor],|r|r.get(0)).optional().map_err(|_|"storage")?;
                         if let Some(rowid)=rowid {
                             let target=Locator{class,rowid,cursor,revision_rowid};let(mut record,policy)=Self::summary(&c,&target,self.session.policy)?;
                             if self.session.policy.permits(policy){if !budget.include(&record)?{truncated=true;break;}record["handle"]=json!(self.mint(target));targets.push(record);}else{withheld=true;}

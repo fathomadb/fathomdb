@@ -378,7 +378,7 @@ fn lexical_disclosure_composes_all_eight_real_queue_flags_and_rechecks_each_tran
     let mut reader = Reader::new(Session::attach(&path, Policy::default()).unwrap());
     let first = dispatch(&mut reader, query("body", "queued")).unwrap();
     assert!(first["items"].as_array().unwrap().is_empty());
-    reader.session.engine.withdraw_queued_erasure(&ticket).unwrap();
+    reader.session.engine().unwrap().withdraw_queued_erasure(&ticket).unwrap();
     let next = dispatch(&mut reader, query("body", "queued")).unwrap();
     assert_eq!(
         next["items"].as_array().unwrap().len(),

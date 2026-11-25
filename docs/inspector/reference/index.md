@@ -1,9 +1,10 @@
 # Inspector reference and initial scope
 
-**Inspector 0.3.0 targets FathomDB 0.8.31 (schema 38) with GitHub Release
-archive delivery and local verification.** The implemented native views and
-launch flags below retain their actual request/read contexts, including
-outside-`body` node/edge `properties`, read-only reserved `scope`, historical
+**Inspector targets FathomDB 0.8.32 (schema 39, refusing schema 38 and older)
+with GitHub Release archive delivery and local verification.** The implemented
+native views and launch flags below retain their actual request/read contexts,
+including outside-`body` node/edge `properties`, active-`scope` switching and
+per-view scope filters subordinate to `D-01` nondisclosure, historical
 `as_of` graph exploration (`as_of_write_cursor` / `as_of_epoch_ms`), and
 record-keyed lexical retrieval (`record_keyed_not_merged` on body and
 property routes; `not_inferred` on BM25F). Installed pairing is technically
@@ -12,7 +13,7 @@ qualified; no human-study validation is claimed.
 | Boundary | Initial scope |
 | --- | --- |
 | Interface | Browser GUI served by a local application/service on loopback. |
-| Database | One existing local database per session, at the build's current supported schema (schema 38 for Inspector 0.3.0; schema 37 and older refuse cleanly). |
+| Database | One existing local database per session, at the build's current supported schema (schema 39 for FathomDB 0.8.32, validated via `TABLE_MANIFEST` + 8-column `vec0` guard; schema 38 and older refuse cleanly). |
 | Writes | No Inspector editing, bootstrap, migration, repair or rebuild controls; ordinary Engine lifecycle/worker effects are allowed and disclosed. |
 | Availability | External writers stopped; Inspector may own/start an Engine and its workers. No immutable as-found snapshot guarantee. |
 | Retrieval | Supported real lexical, vector, hybrid, direct-read, and current/historical `as_of` graph operations with their actual contexts. |
@@ -46,11 +47,12 @@ FathomDB's existing SDK platform matrix.
 
 ## Exact producer and model prerequisites
 
-Inspector `0.3.0` builds against the workspace FathomDB Engine targeting
-`0.8.31` (compiled schema `38`, dynamically recorded in `candidate.json` and
-`build-description.json`) and admits closed Schema `38` databases; Schema `37`
-(`0.8.30`) and older or missing-layout stores refuse cleanly. Inspector package
-version `0.3.0` is independent of Engine/SDK versions. Existing retained
+Inspector builds against the workspace FathomDB Engine targeting
+`0.8.32` (compiled schema `39`, dynamically recorded in `candidate.json` and
+`build-description.json`, validated from `fathomdb_schema::TABLE_MANIFEST`) and
+admits closed Schema `39` databases; Schema `38` (`0.8.31`) and older or
+missing-layout stores refuse cleanly. Inspector package version is independent
+of Engine/SDK versions. Existing retained
 legacy/incomplete provenance stays labeled; matching text never supplies an
 origin. Multiple vector source windows are not qualified.
 
@@ -63,7 +65,7 @@ There is no GPU/reranker chooser or model bundle. A successful stored L2 view is
 separate from availability of native cached-CPU hybrid retrieval.
 
 `candidate.json` outside the tar identifies the clean packaging source SHA,
-workspace engine version, compiled schema (`38`), actual compiled build
+workspace engine version, compiled schema (`39`), actual compiled build
 description, archive/executable hashes and qualified `D4 = B` support boundary.
 This is unsigned local provenance, not a registry signature or proof of
 reproducible compilation. Inner `SHA256SUMS` covers bundle files; outer

@@ -1,7 +1,7 @@
 # Inspector concepts
 
-These concepts describe the data and observations in Inspector 0.3.0
-(targeting FathomDB 0.8.31 / schema 38). Installed technical checks cover the
+These concepts describe the data and observations in Inspector
+(targeting FathomDB 0.8.32 / schema 39). Installed technical checks cover the
 selected `D4 = B` Ubuntu 24.04 pairing; the unperformed human study remains
 removed by owner decision.
 
@@ -9,10 +9,13 @@ removed by owner decision.
 
 Canonical nodes and edges are records. A record's kind classifies it; structural
 role is another axis. Edges have endpoints and their own identity and content.
-In Schema 38, canonical nodes and edges can store structured JSON `properties`
-outside `body` (alongside plain-text or JSON `body` documents), and canonical
-and operational tables carry a reserved `scope` column (empty in `0.8.31`,
-displayed read-only without synthesizing multi-tenant rules).
+In Schema 39, canonical nodes and edges can store structured JSON `properties`
+outside `body` (alongside plain-text or JSON `body` documents), and canonical,
+operational, provenance, and erasure tables enforce caller `scope` isolation.
+Inspector discovers visible scopes strictly from rows permitted under the active
+`D-01` disclosure policy so scopes whose only rows are inactive or
+erased-pending remain undisclosed when hidden, and isolates colliding
+`logical_id`, `revision_id`, and `record_key` values across scopes.
 A derived canonical record is still a distinct record, linked to a source by
 recorded provenance where available.
 

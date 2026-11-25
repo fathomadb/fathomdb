@@ -1088,3 +1088,208 @@ pub(crate) fn add_graph_history(path: &Path) {
         .unwrap();
     opened.engine.close().unwrap();
 }
+
+#[allow(dead_code)]
+pub(crate) fn add_scoped(path: &Path) {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, LifecycleState, ScopePolicy,
+        SourceDependencyRegistrationV1, SourceLocator, SourceRevisionId, SourceVersionId,
+    };
+    use sha2::{Digest, Sha256};
+
+    let open_scoped = |policy: ScopePolicy| {
+        Engine::open_with_choice_and_config(
+            path,
+            EmbedderChoice::None,
+            EngineConfig { scope_policy: policy, ..EngineConfig::default() },
+        )
+        .unwrap()
+    };
+
+    // 1. Default ("") scope: declarations, shared-key op-store rows, and default shared-node.
+    {
+        let opened = open_scoped(ScopePolicy::Unscoped);
+        opened
+            .engine
+            .configure_projections(
+                &[projection_spec(
+                    "summary",
+                    &[ProjectionRole::Filterable, ProjectionRole::Searchable],
+                    Some(ProjectionFts::default()),
+                    None,
+                    None,
+                )],
+                &[],
+            )
+            .unwrap();
+        opened
+            .engine
+            .write(&[
+                PreparedWrite::AdminSchema {
+                    name: "scoped-state".into(),
+                    kind: "latest_state".into(),
+                    schema_json: r#"{"type":"object"}"#.into(),
+                    retention_json: "{}".into(),
+                },
+                PreparedWrite::AdminSchema {
+                    name: "scoped-log".into(),
+                    kind: "append_only_log".into(),
+                    schema_json: r#"{"type":"object"}"#.into(),
+                    retention_json: "{}".into(),
+                },
+                node(
+                    "shared-node",
+                    r#"{"title":"Default Shared Title","summary":"shared orchid default-only-token"}"#,
+                ),
+            ])
+            .unwrap();
+        opened
+            .engine
+            .write(&[
+                PreparedWrite::OpStore {
+                    collection: "scoped-state".into(),
+                    record_key: "shared-key".into(),
+                    schema_id: None,
+                    body: r#"{"owner":"default"}"#.into(),
+                },
+                PreparedWrite::OpStore {
+                    collection: "scoped-log".into(),
+                    record_key: "shared-key".into(),
+                    schema_id: None,
+                    body: r#"{"owner":"default"}"#.into(),
+                },
+            ])
+            .unwrap();
+        opened.engine.drain(15_000).unwrap();
+        opened.engine.close().unwrap();
+    }
+
+    // 2. Scopes "alpha" and "beta" with colliding logical_id, revision_id, and record_key.
+    for (scope_name, title_prefix, unique_token) in
+        [("alpha", "Alpha", "alpha-only-token"), ("beta", "Beta", "beta-only-token")]
+    {
+        let src_body = format!(
+            r#"{{"title":"{title_prefix} Source","summary":"{scope_name} source orchid {unique_token}"}}"#
+        );
+        let digest: String =
+            Sha256::digest(src_body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+        let derived_prov = |rev: &str| {
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(rev).unwrap(),
+                SourceVersionId::new("shared-v1").unwrap(),
+                SourceRevisionId::new("shared-src-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest.clone()).unwrap(),
+            )
+        };
+        let opened = open_scoped(ScopePolicy::single(scope_name));
+        opened
+            .engine
+            .write(&[
+                provenanced_node(
+                    Some("shared-source"),
+                    &src_body,
+                    "fixture:scoped",
+                    None,
+                    WriteProvenanceV1::canonical(
+                        ArtifactRevisionId::new("shared-src-r1").unwrap(),
+                        SourceVersionId::new("shared-v1").unwrap(),
+                    ),
+                ),
+                provenanced_node(
+                    Some("shared-derived"),
+                    &format!(
+                        r#"{{"title":"{title_prefix} Derived","summary":"{scope_name} derived orchid {unique_token}"}}"#
+                    ),
+                    "fixture:scoped",
+                    None,
+                    derived_prov("shared-der-r1"),
+                ),
+                provenanced_node(
+                    Some("shared-node"),
+                    &format!(
+                        r#"{{"title":"{title_prefix} Shared Title","summary":"shared orchid {unique_token}"}}"#
+                    ),
+                    "fixture:scoped",
+                    None,
+                    derived_prov("shared-node-r1"),
+                ),
+                provenanced_node(
+                    Some("shared-peer"),
+                    &format!(
+                        r#"{{"title":"{title_prefix} Peer","summary":"{scope_name} peer orchid {unique_token}"}}"#
+                    ),
+                    "fixture:scoped",
+                    None,
+                    derived_prov("shared-peer-r1"),
+                ),
+                provenanced_edge(
+                    "relates",
+                    "shared-node",
+                    "shared-peer",
+                    "fixture:scoped",
+                    Some("shared-edge"),
+                    None,
+                    Some(0.95),
+                    None,
+                    None,
+                    derived_prov("shared-edge-r1"),
+                ),
+                PreparedWrite::OpStore {
+                    collection: "scoped-state".into(),
+                    record_key: "shared-key".into(),
+                    schema_id: None,
+                    body: format!(r#"{{"owner":"{scope_name}"}}"#),
+                },
+                PreparedWrite::OpStore {
+                    collection: "scoped-log".into(),
+                    record_key: "shared-key".into(),
+                    schema_id: None,
+                    body: format!(r#"{{"owner":"{scope_name}"}}"#),
+                },
+            ])
+            .unwrap();
+        opened
+            .engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new("shared-dep", "shared-src-r1", "shared-der-r1")
+                    .unwrap(),
+            )
+            .unwrap();
+        opened.engine.drain(15_000).unwrap();
+        opened.engine.close().unwrap();
+    }
+
+    // 3. Scope "hidden-inactive": ONLY inactive (pending + soft-deleted) rows for D-01 proof.
+    {
+        let opened = open_scoped(ScopePolicy::single("hidden-inactive"));
+        opened
+            .engine
+            .write(&[
+                node_with(
+                    "document",
+                    Some("secret-pending"),
+                    r#"{"title":"Hidden Pending","summary":"hidden-inactive-token"}"#,
+                    "fixture:hidden",
+                    InitialState::Pending,
+                    Some("pending-only"),
+                    None,
+                    None,
+                ),
+                node_with(
+                    "document",
+                    Some("secret-deleted"),
+                    r#"{"title":"Hidden Deleted","summary":"hidden-inactive-token"}"#,
+                    "fixture:hidden",
+                    InitialState::Active,
+                    None,
+                    None,
+                    None,
+                ),
+            ])
+            .unwrap();
+        opened.engine.transition("secret-deleted", LifecycleState::Deleted, None).unwrap();
+        opened.engine.drain(15_000).unwrap();
+        opened.engine.close().unwrap();
+    }
+}

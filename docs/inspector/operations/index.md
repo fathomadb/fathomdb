@@ -1,11 +1,12 @@
 # Inspector operating boundaries
 
-The local Inspector 0.3.0 application starts and owns a FathomDB Engine
-(targeting 0.8.31 / schema 38) to inspect one existing Schema 38 database
-(Schema 37 / `0.8.30` and older databases refuse cleanly). These boundaries
-apply to all implemented record, outside-`body` `properties` / reserved `scope`,
-record-keyed lexical, vector, current and historical `as_of` graph, provenance,
-and comparison views.
+The local Inspector application starts and owns a FathomDB Engine
+(targeting 0.8.32 / schema 39) to inspect one existing Schema 39 database
+(Schema 38 / `0.8.31` and older databases refuse cleanly). These boundaries
+apply to all implemented record, outside-`body` `properties`, active-`scope`
+(subordinate to `D-01` nondisclosure so hidden-only scopes never appear in
+`catalog().scopes`, counts, or UI selectors), record-keyed lexical, vector,
+current and historical `as_of` graph, provenance, and comparison views.
 
 ## Before attachment
 

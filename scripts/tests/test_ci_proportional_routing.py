@@ -29,6 +29,7 @@ PATHS_FILTER_PIN = "fbd0ab8f3e69293af611ebaee6363fc25e6d187d"
 
 SCOPED_DRIVERS = {
     "verify": ("rust", "python", "typescript", "inspector", "verify_harness", "rust_test_harness"),
+    "inspector-browser-smoke": ("inspector",),
     "rust-workspace-race-report": ("rust", "rust_test_harness"),
     "security": ("rust", "python", "typescript", "security_harness"),
     "default-embedder-tests": ("rust", "python", "typescript"),
@@ -459,9 +460,9 @@ def main() -> int:
         "changes does not export the Inspector path classification",
     )
     scenarios = (
-        ("inspector-source", ("src/inspector/src/worker.rs",), {"inspector": "true", "rust": "false"}, {"verify"}, True),
-        ("inspector-assets", ("src/inspector/assets/app.js",), {"inspector": "true", "rust": "false", "typescript": "false"}, {"verify"}, True),
-        ("inspector-package", ("src/inspector/tools/package.sh",), {"inspector": "true", "rust": "false"}, {"verify"}, True),
+        ("inspector-source", ("src/inspector/src/worker.rs",), {"inspector": "true", "rust": "false"}, {"verify", "inspector-browser-smoke"}, True),
+        ("inspector-assets", ("src/inspector/assets/app.js",), {"inspector": "true", "rust": "false", "typescript": "false"}, {"verify", "inspector-browser-smoke"}, True),
+        ("inspector-package", ("src/inspector/tools/package.sh",), {"inspector": "true", "rust": "false"}, {"verify", "inspector-browser-smoke"}, True),
         ("inspector-markdown", ("src/inspector/README.md",), {"inspector": "true", "rust": "false"}, set(), False),
         ("inspector-source-lite", ("src/inspector/src/worker.rs",), {"inspector": "true", "rust": "false"}, set(), True),
         ("release-state", ("dev/plans/release-state-0.8.30.json",), {}, set(), False),
@@ -475,7 +476,7 @@ def main() -> int:
             "release-state-and-rust",
             ("dev/plans/release-state-0.8.30.json", "src/rust/crates/fathomdb-engine/src/lib.rs"),
             {"rust": "true"},
-            set(SCOPED_DRIVERS),
+            set(SCOPED_DRIVERS) - {"inspector-browser-smoke"},
             True,
         ),
         (
@@ -545,7 +546,7 @@ def main() -> int:
             "rust-source",
             ("src/rust/crates/fathomdb/src/lib.rs",),
             {"rust": "true"},
-            set(SCOPED_DRIVERS),
+            set(SCOPED_DRIVERS) - {"inspector-browser-smoke"},
             True,
         ),
         (

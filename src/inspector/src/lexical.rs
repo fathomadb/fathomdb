@@ -180,6 +180,8 @@ pub(crate) struct Query {
     pub(crate) filter: LexicalFilter,
     #[serde(default)]
     pub(crate) view: LexicalView,
+    #[serde(default)]
+    pub(crate) scope: Option<String>,
     pub(crate) limit: usize,
 }
 fn engine_error(error: EngineError) -> &'static str {
@@ -241,15 +243,31 @@ impl Reader {
         c: &crate::session::ReadConnection,
         class: Class,
         cursor: i64,
+        scope: Option<&str>,
         remaining: &mut usize,
     ) -> Result<Vec<Value>, &'static str> {
         let mut statement = c
-            .prepare(&format!("SELECT rowid FROM {} WHERE write_cursor=?1 LIMIT 3", class.table()))
+            .prepare(&format!(
+                "SELECT rowid,scope FROM {} WHERE write_cursor=?1 AND (?2 IS NULL OR scope=?2) LIMIT 3",
+                class.table()
+            ))
             .map_err(|_| "storage")?;
         let mut origins = vec![];
-        for row in statement.query_map([cursor], |r| r.get::<_, i64>(0)).map_err(|_| "storage")? {
-            let rowid = row.map_err(|_| "storage")?;
-            let revision_rowid=c.query_row("SELECT rowid FROM _fathomdb_artifact_revisions WHERE artifact_class=?1 AND write_cursor=?2",params![class.label(),cursor],|r|r.get(0)).optional().map_err(|_|"storage")?;
+        for row in statement
+            .query_map(params![cursor, scope], |r| {
+                Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+            })
+            .map_err(|_| "storage")?
+        {
+            let (rowid, row_scope) = row.map_err(|_| "storage")?;
+            let revision_rowid = c
+                .query_row(
+                    "SELECT rowid FROM _fathomdb_artifact_revisions WHERE scope=?1 AND artifact_class=?2 AND write_cursor=?3",
+                    params![row_scope, class.label(), cursor],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(|_| "storage")?;
             let locator = Locator { class, rowid, cursor, revision_rowid };
             let (record, policy) = Self::summary_fields_budget(
                 c,
@@ -271,20 +289,22 @@ impl Reader {
         if query.route == Route::Bm25f {
             return self.lexical_bm25f(&query, filter, view);
         }
+        let target_scope = query.scope.as_deref().unwrap_or("");
         let admission = self.lexical_admission(&query)?;
+        self.session.ensure_engine_scope(target_scope).map_err(|f| f.error)?;
         let started = crate::session::epoch_ms();
         let mut options = SnippetOptions::default();
         options.max_bytes = 512;
         options.highlights = true;
         let result = match query.route {
-            Route::Body => self.session.engine.search_text_only_filtered_with_snippets(
+            Route::Body => self.session.engine()?.search_text_only_filtered_with_snippets(
                 &query.query,
                 filter,
                 &view,
                 query.limit,
                 Some(&options),
             ),
-            Route::Property => self.session.engine.search_projected_text_with_limit(
+            Route::Property => self.session.engine()?.search_projected_text_with_limit(
                 &query.query,
                 query.property.as_deref().ok_or("unsupported_constraint")?,
                 filter,
@@ -299,7 +319,7 @@ impl Reader {
         let c = self.session.connection()?;
         let context = self.context(&c)?;
         let metadata = Self::lexical_metadata(&c, &query)?;
-        let query_context = json!({"route":query.route,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"projection_cursor":result.projection_cursor.to_string(),"snapshot":"engine_query_reader_only; no authenticated snapshot token","later_checks":"context is a separate policy/origin read"});
+        let query_context = json!({"route":query.route,"engine_scope":self.session.engine_scope,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"projection_cursor":result.projection_cursor.to_string(),"snapshot":"engine_query_reader_only; no authenticated snapshot token","later_checks":"context is a separate policy/origin read"});
         let mut items = vec![];
         let mut withheld = 0;
         let mut partial = false;
@@ -313,14 +333,15 @@ impl Reader {
             };
             let cursor =
                 i64::try_from(hit.write_cursor).map_err(|_| "unsupported_value_encoding")?;
-            let origins = match self.lexical_origins(&c, class, cursor, &mut remaining) {
-                Ok(origins) => origins,
-                Err("refused" | "unavailable" | "reference_expired") => {
-                    withheld += 1;
-                    continue;
-                }
-                Err(error) => return Err(error),
-            };
+            let origins =
+                match self.lexical_origins(&c, class, cursor, Some(target_scope), &mut remaining) {
+                    Ok(origins) => origins,
+                    Err("refused" | "unavailable" | "reference_expired") => {
+                        withheld += 1;
+                        continue;
+                    }
+                    Err(error) => return Err(error),
+                };
             if origins.is_empty() {
                 withheld += 1;
                 continue;
@@ -356,11 +377,13 @@ impl Reader {
         if filter.is_some() || view != ReadView::default() {
             return Err("unsupported_constraint");
         }
+        let target_scope = query.scope.as_deref().unwrap_or("");
         let admission = self.lexical_admission(query)?;
+        self.session.ensure_engine_scope(target_scope).map_err(|f| f.error)?;
         let started = crate::session::epoch_ms();
         let ranked = self
             .session
-            .engine
+            .engine()?
             .bm25f_search(&query.query, &fathomdb_engine::Bm25fQueryPlan::default())
             .map_err(engine_error)?;
         let ended = crate::session::epoch_ms();
@@ -378,7 +401,13 @@ impl Reader {
                 return Err("unsupported_value_encoding");
             }
             let cursor = i64::try_from(cursor).map_err(|_| "unsupported_value_encoding")?;
-            let origins = match self.lexical_origins(&c, Class::Node, cursor, &mut remaining) {
+            let origins = match self.lexical_origins(
+                &c,
+                Class::Node,
+                cursor,
+                Some(target_scope),
+                &mut remaining,
+            ) {
                 Ok(origins) => origins,
                 Err("refused" | "unavailable" | "reference_expired") => {
                     withheld += 1;
@@ -392,8 +421,8 @@ impl Reader {
             }
             let rowid: i64 = c
                 .query_row(
-                    "SELECT rowid FROM canonical_nodes WHERE write_cursor=?1",
-                    [cursor],
+                    "SELECT rowid FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
+                    params![target_scope, cursor],
                     |r| r.get(0),
                 )
                 .map_err(|_| "unavailable")?;
@@ -410,7 +439,7 @@ impl Reader {
             items.push(item);
         }
         Self::lexical_bounded(
-            json!({"status":if partial{"partial"}else{"complete"},"items":items,"request":query,"admission":admission,"metadata":metadata,"query_context":{"route":"bm25f","read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"snapshot":"native_bm25f_no_snapshot_carrier","original_payload":"not_supplied","projection_cursor":null},"context":Self::finished(context),"scope":{"score_family":"native_bm25f","score_direction":"higher_better","native_returned":native_count,"returned":items.len(),"withheld":withheld,"rank_gaps":"original_native_ranks_preserved","limit":query.limit,"native_limit":null,"output_limit":"inspector_truncation_after_native_ranking","own_node_validity":"not_filtered_by_native_bm25f","eligibility":"native_active_current_and_dependency_source_eligibility","query_interpretation":"native_tokenizer_OR_terms","weights":{"kind":1,"body":1,"status":1},"b":"0.75","k1":"1.2","policy":self.session.policy,"response_byte_cap":RESPONSE,"partial":partial,"absence":"not_proven_by_bounded_or_policy_filtered_results"}}),
+            json!({"status":if partial{"partial"}else{"complete"},"items":items,"request":query,"admission":admission,"metadata":metadata,"query_context":{"route":"bm25f","engine_scope":self.session.engine_scope,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"snapshot":"native_bm25f_no_snapshot_carrier","original_payload":"not_supplied","projection_cursor":null},"context":Self::finished(context),"scope":{"score_family":"native_bm25f","score_direction":"higher_better","native_returned":native_count,"returned":items.len(),"withheld":withheld,"rank_gaps":"original_native_ranks_preserved","limit":query.limit,"native_limit":null,"output_limit":"inspector_truncation_after_native_ranking","own_node_validity":"not_filtered_by_native_bm25f","eligibility":"native_active_current_and_dependency_source_eligibility","query_interpretation":"native_tokenizer_OR_terms","weights":{"kind":1,"body":1,"status":1},"b":"0.75","k1":"1.2","policy":self.session.policy,"response_byte_cap":RESPONSE,"partial":partial,"absence":"not_proven_by_bounded_or_policy_filtered_results"}}),
         )
     }
 }

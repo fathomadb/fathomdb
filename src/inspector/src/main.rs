@@ -129,6 +129,11 @@ mod export_tests;
 mod disclosure_tests;
 
 #[cfg(test)]
+#[path = "../tests/integration/scope.rs"]
+#[cfg(target_os = "linux")]
+mod scope_tests;
+
+#[cfg(test)]
 #[path = "../tests/integration/preflight_guards.rs"]
 #[cfg(target_os = "linux")]
 mod preflight_guard_tests;

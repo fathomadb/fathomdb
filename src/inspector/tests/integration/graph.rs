@@ -114,7 +114,7 @@ fn graph_and_history_obey_all_eight_disclosure_combinations_and_fresh_withdrawal
     let current = handle(&mut r, Class::Node, "derived", true);
     r.session.policy = Policy::default();
     assert_eq!(r.investigate(&current), Err("refused"));
-    r.session.engine.withdraw_queued_erasure(&ticket).unwrap();
+    r.session.engine().unwrap().withdraw_queued_erasure(&ticket).unwrap();
     assert!(r.investigate(&current).is_ok());
     assert!(r.graph(&current, Direction::Outgoing, None, 1, vec![current.clone()]).is_ok());
     r.session.close().unwrap();
@@ -686,7 +686,7 @@ fn provenance_partial_utf8_spans_and_negative_boundaries_distinguish_raw_links_f
     //    five targets side-by-side: whole & valid excerpt are Registered; empty, bad-digest,
     //    and mid-UTF-8 boundaries all evaluate to NotRegistered.
     r.session.cached_cpu = true;
-    let search_prov = r.serving("provsentinel", 10).unwrap();
+    let search_prov = r.serving("provsentinel", 10, None).unwrap();
     let search_dep: std::collections::BTreeMap<String, String> = search_prov["items"]
         .as_array()
         .unwrap()

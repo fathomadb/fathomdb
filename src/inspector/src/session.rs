@@ -1,7 +1,7 @@
 use crate::admission::{admit, fingerprint, readonly, Fingerprint};
 use crate::failure::Failure;
 use crate::policy::Policy;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, ScopePolicy};
 use rusqlite::Connection;
 use std::cell::OnceCell;
 use std::path::{Path, PathBuf};
@@ -87,8 +87,20 @@ pub(crate) fn epoch_ms() -> u128 {
         .unwrap_or_default()
         .as_millis()
 }
+fn valid_engine_scope(scope: &str) -> bool {
+    if scope.is_empty() {
+        return true;
+    }
+    scope != "*"
+        && scope.len() <= 128
+        && !scope.bytes().any(|b| b == 0x1e)
+        && !scope.chars().any(char::is_control)
+        && scope.trim() == scope
+}
 pub(crate) struct Session {
-    pub(crate) engine: Engine,
+    pub(crate) engine: Option<Engine>,
+    pub(crate) engine_scope: String,
+    open_default_embedder: bool,
     pub(crate) cached_cpu: bool,
     pub(crate) private_root: Option<PathBuf>,
     pub(crate) source_cache: Option<PathBuf>,
@@ -120,6 +132,7 @@ impl Session {
                 scheduler_runtime_threads: Some(1),
                 embedder_pool_size: Some(1),
                 embedder_call_timeout_ms: Some(25_000),
+                scope_policy: ScopePolicy::Unscoped,
                 ..EngineConfig::default()
             },
         )
@@ -135,7 +148,9 @@ impl Session {
         let lock_fingerprint = fingerprint(Path::new(&format!("{}.lock", admitted.path.display())))
             .map_err(|_| Failure::startup())?;
         Ok(Self {
-            engine: opened.engine,
+            engine: Some(opened.engine),
+            engine_scope: String::new(),
+            open_default_embedder: cached_cpu,
             cached_cpu,
             private_root: None,
             source_cache: None,
@@ -146,6 +161,56 @@ impl Session {
             database_id,
             policy,
         })
+    }
+    pub(crate) fn engine(&self) -> Result<&Engine, &'static str> {
+        self.engine.as_ref().ok_or("attachment_expired")
+    }
+    pub(crate) fn ensure_engine_scope(&mut self, target_scope: &str) -> Result<(), Failure> {
+        if self.engine_scope == target_scope && self.engine.is_some() {
+            return Ok(());
+        }
+        if !valid_engine_scope(target_scope) {
+            return Err(Failure::read("invalid_range"));
+        }
+        let lock_path = PathBuf::from(format!("{}.lock", self.path.display()));
+        if fingerprint(&self.path).map_err(|_| Failure::read("attachment_expired"))?
+            != self.fingerprint
+            || fingerprint(&lock_path).map_err(|_| Failure::read("attachment_expired"))?
+                != self.lock_fingerprint
+        {
+            return Err(Failure::read("attachment_expired"));
+        }
+        if let Some(previous) = self.engine.take() {
+            previous.close().map_err(|_| Failure::read("attachment_expired"))?;
+        }
+        let scope_policy = if target_scope.is_empty() {
+            ScopePolicy::Unscoped
+        } else {
+            ScopePolicy::read_only(vec![target_scope.to_string()])
+        };
+        let opened = Engine::open_with_choice_and_config(
+            &self.path,
+            if self.open_default_embedder { EmbedderChoice::Default } else { EmbedderChoice::None },
+            EngineConfig {
+                scheduler_runtime_threads: Some(1),
+                embedder_pool_size: Some(1),
+                embedder_call_timeout_ms: Some(25_000),
+                scope_policy,
+                ..EngineConfig::default()
+            },
+        )
+        .map_err(|_| Failure::read("attachment_expired"))?;
+        let current_fp =
+            fingerprint(&self.path).map_err(|_| Failure::read("attachment_expired"))?;
+        let current_lock_fp =
+            fingerprint(&lock_path).map_err(|_| Failure::read("attachment_expired"))?;
+        if current_fp != self.fingerprint || current_lock_fp != self.lock_fingerprint {
+            let _ = opened.engine.close();
+            return Err(Failure::read("attachment_expired"));
+        }
+        self.engine = Some(opened.engine);
+        self.engine_scope = target_scope.to_string();
+        Ok(())
     }
     pub(crate) fn connection(&self) -> Result<ReadConnection, &'static str> {
         let started_epoch_ms = epoch_ms();
@@ -185,7 +250,10 @@ impl Session {
             at_epoch_s: (started_epoch_ms / 1000) as i64,
         })
     }
-    pub(crate) fn close(self) -> Result<(), &'static str> {
-        self.engine.close().map_err(|_| "close_failed")
+    pub(crate) fn close(mut self) -> Result<(), &'static str> {
+        match self.engine.take() {
+            Some(engine) => engine.close().map_err(|_| "close_failed"),
+            None => Ok(()),
+        }
     }
 }

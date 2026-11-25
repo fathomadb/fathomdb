@@ -20,7 +20,10 @@ struct Initial {
 #[derive(Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 enum Request {
-    Catalog {},
+    Catalog {
+        #[serde(default)]
+        scope: Option<String>,
+    },
     Check {
         handle: Option<String>,
         #[serde(default)]
@@ -91,6 +94,8 @@ enum Request {
         filter: crate::storage::lexical::LexicalFilter,
         #[serde(default)]
         view: crate::storage::lexical::LexicalView,
+        #[serde(default)]
+        scope: Option<String>,
         limit: usize,
     },
     Neighborhood {
@@ -102,6 +107,8 @@ enum Request {
     Serving {
         query: String,
         limit: usize,
+        #[serde(default)]
+        scope: Option<String>,
     },
     Vectors {
         handle: String,
@@ -161,9 +168,11 @@ fn fixture(
             if identity.is_empty() || identity.len() > 65536 {
                 return Err("invalid_range");
             }
+            reader.session.ensure_engine_scope("").map_err(|_| "fixture_failed")?;
             reader
                 .session
-                .engine
+                .engine()
+                .map_err(|_| "fixture_failed")?
                 .transition(
                     &identity,
                     if deleted {
@@ -180,7 +189,7 @@ fn fixture(
 }
 fn dispatch(reader: &mut Reader, value: Value) -> Result<Value, &'static str> {
     match serde_json::from_value(value).map_err(|_| "unsupported_operation")? {
-        Request::Catalog {} => reader.catalog(),
+        Request::Catalog { scope } => reader.catalog_scoped(scope.as_deref()),
         Request::Check { handle, handles, metadata_handles } => {
             reader.check_many(handle.as_deref(), &handles, &metadata_handles)
         }
@@ -234,13 +243,14 @@ fn dispatch(reader: &mut Reader, value: Value) -> Result<Value, &'static str> {
             reader.graph_as_of(&handle, direction, kind, depth, expanded, as_of)
         }
         Request::Associations { handle } => reader.associations(&handle),
-        Request::Lexical { route, query, property, filter, view, limit } => {
+        Request::Lexical { route, query, property, filter, view, scope, limit } => {
             reader.lexical(crate::storage::lexical::Query {
                 route,
                 query,
                 property,
                 filter,
                 view,
+                scope,
                 limit,
             })
         }
@@ -250,7 +260,7 @@ fn dispatch(reader: &mut Reader, value: Value) -> Result<Value, &'static str> {
             after.parse().map_err(|_| "invalid_range")?,
             limit,
         ),
-        Request::Serving { query, limit } => reader.serving(&query, limit),
+        Request::Serving { query, limit, scope } => reader.serving(&query, limit, scope.as_deref()),
         Request::Vectors { handle } => reader.vectors(&handle),
         Request::Indexed { handle, key, offset, limit } => reader.indexed(
             &handle,

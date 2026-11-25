@@ -24,11 +24,13 @@ sha256sum --check SHA256SUMS
 
 Omit the database path to select it in the local UI. Close the application before
 removing only its owned extraction folder/archive; preserve databases and caches.
-Stop all external writers before attach. Inspector `0.3.0` builds against
-FathomDB `0.8.31` Engine source (compiled schema `38`, bundled SQLite) and
-admits closed Schema `38` databases; Schema `37` (`0.8.30`) and older or
-non-conforming layouts refuse cleanly without mutating the file. Normal owned
-Engine startup/background/shutdown can change files after admission.
+Stop all external writers before attach. Inspector builds against
+FathomDB `0.8.32` Engine source (compiled schema `39`, bundled SQLite,
+`TABLE_MANIFEST`-backed table/column admission and 8-column `vec0` `scope TEXT`
+shape validation) and admits closed Schema `39` databases; Schema `38`
+(`0.8.31`) and older or non-conforming layouts refuse cleanly without mutating
+the file. Normal owned Engine startup/background/shutdown can change files after
+admission.
 Missing/held lock, nonempty initial WAL/journal, unsupported schema/layout/encoding
 and corrupt input refuse. Preserve original files/sidecars; do not delete WAL or
 create a missing lock to force admission. There is no migration, recovery or
@@ -56,12 +58,16 @@ stored/text inspection when CPU assets are unavailable. No GPU/reranker chooser.
 Browse records by bounded stored title/name plus exact identity; inspect complete
 `body` documents (plain text or JSON), outside-`body` typed node and edge
 `properties` (expandable tree and exact copy preserving 64-bit integer lexemes
-outside `2^53`, `-0`, empty strings, and `SQL NULL`), read-only reserved `scope`
-(empty in `0.8.31`), metadata, and scalar values. Indexed text provides effective
-property choices and nearby validation; original requests and separately timed
-evidence remain distinguishable, and body/property lexical results remain
-record-keyed rather than merged across equal bodies. Stored vector/L2
-neighborhoods retain exact origins. Directed graph branches support both current
+outside `2^53`, `-0`, empty strings, and `SQL NULL`), active-`scope` switching
+and scope filters across inventory, list, lexical, serving, and graph views
+(uncluttered on single-scope `""` stores; strictly subordinate to `D-01`
+nondisclosure so scopes whose only rows are hidden by `--no-show-inactive` or
+default erased hiding never appear in `catalog().scopes` or dropdowns), metadata,
+and scalar values. Indexed text provides effective property choices and nearby
+validation; original requests and separately timed evidence remain
+distinguishable, and body/property lexical results remain record-keyed rather
+than merged across equal bodies. Stored vector/L2 neighborhoods retain exact
+origins within the seed's scope. Directed graph branches support both current
 and historical `as_of` snapshots (`as_of_write_cursor` or `as_of_epoch_ms`,
 mutually exclusive) across stored-adjacency and native engine traversals while
 retaining explicit scope; source/dependency/history navigation and Back preserve

@@ -9,21 +9,25 @@ status: ACTIVE
 
 # Inspector user needs
 
-Current delivery scope is Inspector `0.3.0`, aligned to FathomDB `0.8.31`
-(Schema `38`) under [Slice 60](../plans/0.8.31/features/slice-60/plan.md)
-(`R31-08`), building on the completed [owner-adopted 0.2.0](plans/0.2.0/scope.md)
-and `0.2.1` baselines. Functional INS/V01/X, T-01–T-05, High investigation
-goals, and `AC31-60-*` requirements remain required. Inspector `0.3.0` adds
-Schema `38` admission, outside-`body` node/edge `properties` and read-only
-reserved `scope` inspection, historical `as_of` graph exploration subordinate
-to the 8-flag `D-01` erasure policy, `--scoped` default `local-ci.sh`,
-bounded `P7-02` subprocess/browser timeouts, retained `D4 = B` native Ubuntu
-24.04 (`glibc 2.39`) Chromium + bundled SQLite qualification, and GitHub
-Release artifact delivery via `.github/workflows/release.yml`
-(`build-inspector`). The five-person study remains removed by owner decision
+Current delivery scope targets FathomDB `0.8.32` (Schema `39`,
+`TABLE_MANIFEST`-backed admission refusing Schema `38` and older) under
+[Slice 30](../plans/0.8.32/features/slice-30/plan.md) (`R32-06`), building on
+the `0.3.0` (`0.8.31`, Schema `38`), `0.2.1` (`0.8.30`), and
+[owner-adopted 0.2.0](plans/0.2.0/scope.md) baselines. Functional INS/V01/X,
+T-01–T-05, High investigation goals, `AC31-60-*`, and `R32-06` requirements
+remain required. Inspector adds `TABLE_MANIFEST`-backed Schema `39` admission,
+an active-`scope` switcher and per-view scope filters strictly subordinate to
+the 8-flag `D-01` erasure/inactive nondisclosure policy, outside-`body`
+node/edge `properties` inspection, historical `as_of` graph exploration,
+hosted `inspector-browser-smoke` Playwright CI coverage in
+`.github/workflows/ci.yml`, `--scoped` default `local-ci.sh`, bounded `P7-02`
+subprocess/browser timeouts, retained `D4 = B` native Ubuntu 24.04 (`glibc 2.39`)
+Chromium + bundled SQLite qualification, and GitHub Release artifact delivery
+via `.github/workflows/release.yml` (`build-inspector`). The five-person study
+remains removed by owner decision
 ([INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)); no human sessions
-occurred or count as passed. Historical `0.2.0` / `0.2.1` source/design
-evidence retains its actual version and execution scope.
+occurred or count as passed. Historical `0.2.0` / `0.2.1` / `0.3.0`
+source/design evidence retains its actual version and execution scope.
 
 ## Purpose and status
 
@@ -38,9 +42,10 @@ The broader needs inventory is informed by research into existing tools;
 the owner has placed the assessed Need and Should actions in Inspector v0.2.0
 scope. Usability targets and unresolved detailed contracts remain proposals.
 Inspector versions are separate from FathomDB database release numbering.
-Inspector `0.3.0` targets FathomDB `0.8.31` (Schema `38`), superseding the
-earlier `0.2.1` (`0.8.30`, Schema `37`) and `0.2.0` (`0.8.29`) records; the
-original preparation material retains its historical source context.
+Inspector currently targets FathomDB `0.8.32` (Schema `39`), superseding the
+earlier `0.3.0` (`0.8.31`, Schema `38`), `0.2.1` (`0.8.30`, Schema `37`), and
+`0.2.0` (`0.8.29`) records; the original preparation material retains its
+historical source context.
 
 The Inspector is a tool for inspecting a database, not a tutor or explanatory
 agent. Users build their mental model through documentation and operation of

@@ -40,13 +40,14 @@ fn reactivated_canonical_source_is_not_classified_from_its_historical_closure() 
         Session::attach(&path, Policy { no_show_inactive: true, ..Policy::default() }).unwrap(),
     );
     r.session
-        .engine
+        .engine()
+        .unwrap()
         .register_source_dependency(
             SourceDependencyRegistrationV1::new("dep", "source-r1", "derived-r1").unwrap(),
         )
         .unwrap();
-    r.session.engine.transition("source", LifecycleState::Deleted, None).unwrap();
-    r.session.engine.transition("source", LifecycleState::Active, None).unwrap();
+    r.session.engine().unwrap().transition("source", LifecycleState::Deleted, None).unwrap();
+    r.session.engine().unwrap().transition("source", LifecycleState::Active, None).unwrap();
     let p = r
         .page(Class::Node, 0, 200, Filter { identity: Some("source".into()), ..Filter::default() })
         .unwrap();
@@ -106,7 +107,8 @@ fn materialized_attribute_has_its_own_exact_origin_and_full_chunk_access() {
         "attribute handle cannot be coerced to canonical record"
     );
     r.session
-        .engine
+        .engine()
+        .unwrap()
         .transition("large-attribute", fathomdb_engine::LifecycleState::Deleted, None)
         .unwrap();
     assert!(
@@ -223,7 +225,11 @@ fn projection_presence_constraint_returns_only_exact_scalar_materialization_orig
         assert_eq!(r.page(class, 0, 10, filter("title")), Err("unsupported_constraint"));
     }
     r.session.policy.no_show_inactive = true;
-    r.session.engine.transition("source", fathomdb_engine::LifecycleState::Deleted, None).unwrap();
+    r.session
+        .engine()
+        .unwrap()
+        .transition("source", fathomdb_engine::LifecycleState::Deleted, None)
+        .unwrap();
     let page = r.page(Class::Node, 0, 200, filter("title")).unwrap();
     assert_eq!(page["items"].as_array().unwrap().len(), 1);
     assert_eq!(page["items"][0]["logical_id"], "derived");

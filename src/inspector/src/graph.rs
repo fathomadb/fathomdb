@@ -133,10 +133,18 @@ impl Reader {
     fn graph_locator(
         c: &crate::session::ReadConnection,
         class: Class,
+        scope: &str,
         rowid: i64,
         cursor: i64,
     ) -> Result<Locator, &'static str> {
-        let revision_rowid = c.query_row("SELECT rowid FROM _fathomdb_artifact_revisions WHERE artifact_class=?1 AND write_cursor=?2",params![class.label(),cursor],|r|r.get(0)).optional().map_err(|_|"storage")?;
+        let revision_rowid = c
+            .query_row(
+                "SELECT rowid FROM _fathomdb_artifact_revisions WHERE scope=?1 AND artifact_class=?2 AND write_cursor=?3",
+                params![scope, class.label(), cursor],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|_| "storage")?;
         Ok(Locator { class, rowid, cursor, revision_rowid })
     }
     fn graph_text(
@@ -191,12 +199,18 @@ impl Reader {
     fn graph_scan(
         c: &crate::session::ReadConnection,
         class: Class,
+        scope: &str,
         identities: &BTreeSet<String>,
         budget: &mut Budget,
     ) -> Result<(Vec<Locator>, bool), &'static str> {
         let deadline = std::time::Instant::now() + WORK_TIME;
-        let mut statement = c.prepare(&format!("SELECT rowid,write_cursor,octet_length(logical_id),CASE WHEN octet_length(logical_id)<=65536 THEN logical_id END FROM {} ORDER BY rowid LIMIT 100001",class.table())).map_err(|_|"storage")?;
-        let mut rows = statement.query([]).map_err(|_| "storage")?;
+        let mut statement = c
+            .prepare(&format!(
+                "SELECT rowid,write_cursor,octet_length(logical_id),CASE WHEN octet_length(logical_id)<=65536 THEN logical_id END FROM {} WHERE scope=?1 ORDER BY rowid LIMIT 100001",
+                class.table()
+            ))
+            .map_err(|_| "storage")?;
+        let mut rows = statement.query([scope]).map_err(|_| "storage")?;
         let mut keys = 0usize;
         let mut targets = vec![];
         let mut complete = true;
@@ -221,6 +235,7 @@ impl Reader {
                 targets.push(Self::graph_locator(
                     c,
                     class,
+                    scope,
                     row.get(0).map_err(|_| "storage")?,
                     row.get(1).map_err(|_| "storage")?,
                 )?);
@@ -270,8 +285,10 @@ impl Reader {
             )
             .optional()
             .map_err(|_| "storage")?;
-        row.map(|(rowid, write_cursor)| Self::graph_locator(c, Class::Node, rowid, write_cursor))
-            .transpose()
+        row.map(|(rowid, write_cursor)| {
+            Self::graph_locator(c, Class::Node, scope, rowid, write_cursor)
+        })
+        .transpose()
     }
     fn edge_alive_at(
         c: &crate::session::ReadConnection,
@@ -344,6 +361,10 @@ impl Reader {
                 Self::summary_fields_budget(&c, l, l.class.fields(), None, &mut budget.work)?;
             if !self.session.policy.permits(policy) {
                 return Err("refused");
+            }
+            let anchor_scope = Self::graph_text(&c, l, "scope")?.unwrap_or_default();
+            if anchor_scope != scope {
+                return Err("unsupported_constraint");
             }
             if let Some(id) = Self::graph_text(&c, l, "logical_id")? {
                 expansions.insert(id.clone());
@@ -540,7 +561,8 @@ impl Reader {
                         break;
                     }
                     budget.incident += 1;
-                    let locator = Self::graph_locator(&c, Class::Edge, rowid, write_cursor)?;
+                    let locator =
+                        Self::graph_locator(&c, Class::Edge, &scope, rowid, write_cursor)?;
                     if edges.contains_key(&key(&locator)) {
                         continue;
                     }
@@ -604,7 +626,7 @@ impl Reader {
             }
         } else {
             let (candidates, complete) =
-                Self::graph_scan(&c, Class::Node, &identities, &mut budget)?;
+                Self::graph_scan(&c, Class::Node, &scope, &identities, &mut budget)?;
             resolved = complete;
             for locator in candidates {
                 if nodes.contains_key(&key(&locator)) {
@@ -671,9 +693,17 @@ impl Reader {
 impl Reader {
     fn revision_locator(
         c: &crate::session::ReadConnection,
+        scope: &str,
         revision: &str,
     ) -> Result<Option<Locator>, &'static str> {
-        let row:Option<(String,i64,i64)>=c.query_row("SELECT artifact_class,write_cursor,rowid FROM _fathomdb_artifact_revisions WHERE revision_id=?1",[revision],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|_|"storage")?;
+        let row: Option<(String, i64, i64)> = c
+            .query_row(
+                "SELECT artifact_class,write_cursor,rowid FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2",
+                params![scope, revision],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()
+            .map_err(|_| "storage")?;
         let Some((class, cursor, revision_rowid)) = row else {
             return Ok(None);
         };
@@ -684,8 +714,8 @@ impl Reader {
         };
         let rowid = c
             .query_row(
-                &format!("SELECT rowid FROM {} WHERE write_cursor=?1", class.table()),
-                [cursor],
+                &format!("SELECT rowid FROM {} WHERE scope=?1 AND write_cursor=?2", class.table()),
+                params![scope, cursor],
                 |r| r.get(0),
             )
             .optional()
@@ -721,11 +751,12 @@ impl Reader {
         }
         let mut revisions = vec![];
         let mut links = vec![];
+        let root_scope = Self::graph_text(&c, &root, "scope")?.unwrap_or_default();
         let id = Self::graph_text(&c, &root, "logical_id")?;
         let mut history_complete;
         if let Some(id) = id {
             let (candidates, complete) =
-                Self::graph_scan(&c, root.class, &BTreeSet::from([id]), &mut budget)?;
+                Self::graph_scan(&c, root.class, &root_scope, &BTreeSet::from([id]), &mut budget)?;
             history_complete = complete;
             for locator in candidates {
                 if let Some(target) = self.graph_record(&c, &locator, &mut budget)? {
@@ -765,7 +796,7 @@ impl Reader {
                     budget.incident+=1;
                     let target_revision:Option<String>=row.get(0).map_err(|_|"storage")?;
                     let mut target=None;
-                    if let Some(revision)=target_revision.as_deref(){if let Some(locator)=Self::revision_locator(&c,revision)?{target=self.graph_record(&c,&locator,&mut budget)?;}}
+                    if let Some(revision)=target_revision.as_deref(){if let Some(locator)=Self::revision_locator(&c,&scope,revision)?{target=self.graph_record(&c,&locator,&mut budget)?;}}
                     let metadata=if target.is_some(){json!({"dependency_id":row.get::<_,Option<String>>(1).map_err(|_|"storage")?,"registered_generation":row.get::<_,Option<i64>>(2).map_err(|_|"storage")?.map(|n|n.to_string()),"locator_kind":row.get::<_,String>(3).map_err(|_|"storage")?,"start_byte":row.get::<_,Option<i64>>(4).map_err(|_|"storage")?.map(|n|n.to_string()),"end_byte":row.get::<_,Option<i64>>(5).map_err(|_|"storage")?.map(|n|n.to_string()),"hash_algorithm":row.get::<_,String>(6).map_err(|_|"storage")?,"hash_digest":row.get::<_,String>(7).map_err(|_|"storage")?,"dependency_id_bytes":row.get::<_,Option<usize>>(8).map_err(|_|"storage")?})}else{Value::Null};
                     let link=json!({"kind":kind,"resolution":if target.is_some(){"exact_revision"}else{"unavailable_or_withheld"},"target":target,"metadata":metadata});
                     if !budget.include(&link,revisions.len()+links.len()){break;}
@@ -829,7 +860,7 @@ impl Reader {
                 .collect::<Vec<_>>()
                 .join(",");
             let source = if table == "canonical_nodes" {
-                ",EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions a WHERE a.artifact_class='node' AND a.write_cursor=canonical_nodes.write_cursor AND a.artifact_role='canonical_source')"
+                ",EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions a WHERE a.scope=canonical_nodes.scope AND a.artifact_class='node' AND a.write_cursor=canonical_nodes.write_cursor AND a.artifact_role='canonical_source')"
             } else {
                 ""
             };
@@ -905,7 +936,7 @@ impl Reader {
         if seed.class != Class::Node {
             return Err("unsupported_constraint");
         }
-        let id = {
+        let (id, seed_scope) = {
             let c = self.session.connection()?;
             let mut work = 1000;
             let (_, p) =
@@ -913,12 +944,15 @@ impl Reader {
             if !self.session.policy.permits(p) {
                 return Err("refused");
             }
-            Self::graph_text(&c, &seed, "logical_id")?.ok_or("unsupported_constraint")?
+            let id = Self::graph_text(&c, &seed, "logical_id")?.ok_or("unsupported_constraint")?;
+            let seed_scope = Self::graph_text(&c, &seed, "scope")?.unwrap_or_default();
+            (id, seed_scope)
         };
         let admission = self.graph_admission()?;
+        self.session.ensure_engine_scope(&seed_scope).map_err(|f| f.error)?;
         let frozen = self
             .session
-            .engine
+            .engine()?
             .freeze_read_context(
                 &ReadContextV1::new(ReadView::default(), SearchFilter::default())
                     .map_err(|_| "native_query_refused")?,
@@ -948,7 +982,7 @@ impl Reader {
             AsOf::EpochMs(epoch_ms) => expand_request.with_as_of_epoch_ms(epoch_ms),
         };
         let started = crate::session::epoch_ms();
-        let expand_result = self.session.engine.graph_expand(&expand_request);
+        let expand_result = self.session.engine()?.graph_expand(&expand_request);
         let ended = crate::session::epoch_ms();
         let c = self.session.connection()?;
         let context = self.context(&c)?;
@@ -968,7 +1002,7 @@ impl Reader {
                     && err.reason
                         == fathomdb_engine::GraphExpansionErrorReasonV1::GraphSeedUnavailable =>
             {
-                let value = json!({"status":"complete","items":[],"admission":admission,"request":{"seed_kind":"explicit_logical; not_exact_historical_revision","seed_logical_id":id,"seed_reference":{"class":"node","key":key(&seed),"handle":handle},"direction":direction,"kind":kind,"depth":depth,"as_of":as_of_meta,"result_limit":50,"max_work_units":1000},"query_context":{"route":"engine_frozen_graph_expand","snapshot":"native_frozen_graph_expand","as_of":as_of_meta,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"effective_valid_at":frozen.effective_valid_at.to_string(),"frozen_token":frozen.token,"work_units":0,"complete":true,"read_mode":"Frozen","correlation_id":null,"projection_origin":null,"projection_readiness":null,"seed_absent_at_as_of":true},"context":Self::finished(context),"scope":{"route":"actual_serving_graph_evidence","as_of":as_of_meta,"native_returned":0,"returned":0,"withheld":0,"hydration_snapshot":"separate_later_policy_read","absence_cause":"seed_absent_at_as_of","rank":"not_applicable","policy":self.session.policy}});
+                let value = json!({"status":"complete","items":[],"admission":admission,"request":{"seed_kind":"explicit_logical; not_exact_historical_revision","seed_logical_id":id,"seed_reference":{"class":"node","key":key(&seed),"handle":handle},"direction":direction,"kind":kind,"depth":depth,"as_of":as_of_meta,"result_limit":50,"max_work_units":1000},"query_context":{"route":"engine_frozen_graph_expand","engine_scope":self.session.engine_scope,"snapshot":"native_frozen_graph_expand","as_of":as_of_meta,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"effective_valid_at":frozen.effective_valid_at.to_string(),"frozen_token":frozen.token,"work_units":0,"complete":true,"read_mode":"Frozen","correlation_id":null,"projection_origin":null,"projection_readiness":null,"seed_absent_at_as_of":true},"context":Self::finished(context),"scope":{"route":"actual_serving_graph_evidence","as_of":as_of_meta,"native_returned":0,"returned":0,"withheld":0,"hydration_snapshot":"separate_later_policy_read","absence_cause":"seed_absent_at_as_of","rank":"not_applicable","policy":self.session.policy}});
                 if serde_json::to_vec(&value).map_err(|_| "storage")?.len() > RESPONSE {
                     return Err("budget_exhausted");
                 }
@@ -1000,8 +1034,10 @@ impl Reader {
                         )
                         .optional()
                         .map_err(|_| "storage")?;
-                    row.map(|(rowid, cursor)| Self::graph_locator(&c, Class::Node, rowid, cursor))
-                        .transpose()?
+                    row.map(|(rowid, cursor)| {
+                        Self::graph_locator(&c, Class::Node, &scope, rowid, cursor)
+                    })
+                    .transpose()?
                 };
                 let Some(locator) = locator else {
                     allowed = false;
@@ -1019,13 +1055,16 @@ impl Reader {
                 continue;
             }
             let Some(target_locator) =
-                Self::revision_locator(&c, sidecar.target_artifact_revision_id.as_str())?
+                Self::revision_locator(&c, &scope, sidecar.target_artifact_revision_id.as_str())?
             else {
                 withheld += 1;
                 continue;
             };
-            let Some(edge_locator) =
-                Self::revision_locator(&c, sidecar.terminal_edge_artifact_revision_id.as_str())?
+            let Some(edge_locator) = Self::revision_locator(
+                &c,
+                &scope,
+                sidecar.terminal_edge_artifact_revision_id.as_str(),
+            )?
             else {
                 withheld += 1;
                 continue;
@@ -1056,7 +1095,7 @@ impl Reader {
             items.push(item);
         }
         let explanation = result.explanation.as_ref();
-        let value = json!({"status":if budget.partial{"partial"}else{"complete"},"items":items,"admission":admission,"request":{"seed_kind":"explicit_logical; not_exact_historical_revision","seed_logical_id":id,"seed_reference":{"class":"node","key":key(&seed),"handle":handle},"direction":direction,"kind":kind,"depth":depth,"as_of":as_of_meta,"result_limit":50,"max_work_units":1000},"query_context":{"route":"engine_frozen_graph_expand","snapshot":"native_frozen_graph_expand","as_of":as_of_meta,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"effective_valid_at":frozen.effective_valid_at.to_string(),"frozen_token":frozen.token,"work_units":result.work_units,"complete":result.complete,"read_mode":explanation.map(|e|format!("{:?}",e.read_mode)),"correlation_id":explanation.map(|e|&e.correlation_id),"projection_origin":explanation.map(|e|format!("{:?}",e.projection_origin)),"projection_readiness":explanation.map(|e|format!("{:?}",e.projection_readiness))},"context":Self::finished(context),"scope":{"route":"actual_serving_graph_evidence","as_of":as_of_meta,"native_returned":result.targets.len(),"returned":items.len(),"withheld":withheld,"hydration_snapshot":"separate_later_policy_read","absence_cause":"undetermined","rank":"not_applicable","policy":self.session.policy}});
+        let value = json!({"status":if budget.partial{"partial"}else{"complete"},"items":items,"admission":admission,"request":{"seed_kind":"explicit_logical; not_exact_historical_revision","seed_logical_id":id,"seed_reference":{"class":"node","key":key(&seed),"handle":handle},"direction":direction,"kind":kind,"depth":depth,"as_of":as_of_meta,"result_limit":50,"max_work_units":1000},"query_context":{"route":"engine_frozen_graph_expand","engine_scope":self.session.engine_scope,"snapshot":"native_frozen_graph_expand","as_of":as_of_meta,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"effective_valid_at":frozen.effective_valid_at.to_string(),"frozen_token":frozen.token,"work_units":result.work_units,"complete":result.complete,"read_mode":explanation.map(|e|format!("{:?}",e.read_mode)),"correlation_id":explanation.map(|e|&e.correlation_id),"projection_origin":explanation.map(|e|format!("{:?}",e.projection_origin)),"projection_readiness":explanation.map(|e|format!("{:?}",e.projection_readiness))},"context":Self::finished(context),"scope":{"route":"actual_serving_graph_evidence","as_of":as_of_meta,"native_returned":result.targets.len(),"returned":items.len(),"withheld":withheld,"hydration_snapshot":"separate_later_policy_read","absence_cause":"undetermined","rank":"not_applicable","policy":self.session.policy}});
         if serde_json::to_vec(&value).map_err(|_| "storage")?.len() > RESPONSE {
             return Err("budget_exhausted");
         }

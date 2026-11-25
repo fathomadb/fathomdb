@@ -10,11 +10,14 @@ hybrid serving. Slice 50 adds directed stored graph exploration, recorded
 dependency/source investigation, retained history and actual frozen graph evidence
 in [adopted 0.2.0](../../dev/inspector/plans/0.2.0/scope.md).
 Slice 60 adds bounded A/B observation comparison and complete person investigation.
-The source package is `0.3.0`, targeting FathomDB `0.8.31` (compiled Schema
-`38`) on native Ubuntu 24.04 (`glibc 2.39`) with outside-`body` node/edge
-`properties` inspection, read-only reserved `scope` display, historical `as_of`
-stored and native graph exploration, default `local-ci.sh --scoped` checks, and
-GitHub Release artifact delivery via the `build-inspector` job in
+The source package targets FathomDB `0.8.32` (compiled Schema `39`, validated
+from `fathomdb_schema::TABLE_MANIFEST` plus the 8-column `vec0` `scope TEXT`
+shape guard) on native Ubuntu 24.04 (`glibc 2.39`) with outside-`body` node/edge
+`properties` inspection, an active-`scope` switcher and per-view scope filters
+strictly subordinate to `D-01` nondisclosure, historical `as_of` stored and
+native graph exploration, default `local-ci.sh --scoped` checks, hosted
+`inspector-browser-smoke` CI coverage in `.github/workflows/ci.yml`, and GitHub
+Release artifact delivery via the `build-inspector` job in
 `.github/workflows/release.yml`. See the
 [0.3.0 release notes](../../docs/inspector/releases/0.3.0.md) (and the earlier
 [0.2.1 plan](../../dev/inspector/plans/0.2.1/README.md) and
@@ -23,9 +26,17 @@ local candidate distributions promote to ignored `dist/inspector/0.3.0/`
 (`dist/inspector/0.2.1/` and `dist/inspector/0.2.0/` remain separate). No
 human-validation claim is made.
 
-This branch targets the `release/0.8.31` Engine/schema (compiled format `38`).
-Inspector `0.3.0` admits Schema `38` stores and cleanly refuses Schema `37`
-(`0.8.30`) and older or missing-layout stores without mutating files.
+This branch targets the `0.8.32` Engine/schema (compiled format `39`).
+Inspector admits Schema `39` stores and cleanly refuses Schema `38`
+(`0.8.31`) and older or missing-layout stores without mutating files.
+
+Active-`scope` inspection discovers scopes strictly from rows visible under the
+active disclosure policy (`--no-show-inactive` and default erased/telemetry
+hiding): a scope whose only rows are inactive, deleted, or erased-pending does
+not appear in `catalog().scopes`, counts, or UI selectors. Single-scope `""`
+stores stay uncluttered; multi-scope stores expose the active-`scope` switcher
+in Inventory, index-backed scoped list filters, per-scope native Engine
+switching for lexical/serving/graph traversals, and scope badges across views.
 
 ## Build and launch
 
@@ -106,6 +117,7 @@ Python environment or install editable native bindings from a worktree.
 cargo clippy -p fathomdb-inspector --all-targets --offline -- -D warnings
 cargo test -p fathomdb-inspector --offline
 cargo build -p fathomdb-inspector --bins --examples --features cached-cpu --offline
+node --test --test-concurrency=1 src/inspector/tests/browser/api.mjs src/inspector/tests/browser/ux.mjs src/inspector/tests/browser/scope.mjs
 node --test --test-concurrency=1 src/inspector/tests/browser/lexical.mjs src/inspector/tests/browser/workspace.mjs
 node --test --test-concurrency=1 src/inspector/tests/browser/document.mjs
 node --test --test-concurrency=1 src/inspector/tests/browser/metadata.mjs

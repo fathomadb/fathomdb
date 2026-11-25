@@ -1,17 +1,24 @@
 # Inspector ROADMAP
 
-## Current 0.3.0 release line (FathomDB 0.8.31 / Schema 38)
+## Current release line (FathomDB 0.8.32 / Schema 39)
 
-Inspector `0.3.0` upgrades Inspector onto FathomDB `0.8.31` (schema `38`) and
+Inspector upgrades onto FathomDB `0.8.32` (schema `39`) and
 carries forward local attachment, complete record/tree inspection, native
 record-keyed FTS/BM25, stored vectors/L2, cache-only CPU hybrid, interactive
 directed graph, whole-body and partial UTF-8 source/dependency/history
 inspection, and in-session comparison of two actual observations. It adds:
 
-- **Schema `38` admission & reserved `scope`:** Strict Schema `38` admission
-  (`compiled_schema = 38`), refusing Schema `37` (`0.8.30`) cleanly, with
-  read-only `scope` visibility (empty in `0.8.31`; multi-tenant scope semantics
-  belong to `0.8.32`).
+- **Schema `39` `TABLE_MANIFEST`-backed admission & active-`scope` UI:** Strict
+  Schema `39` admission (`compiled_schema = 39`, driven by
+  `fathomdb_schema::TABLE_MANIFEST` plus the 8-column `vec0` `scope TEXT` shape
+  guard), refusing Schema `38` (`0.8.31`) and older cleanly; active-`scope`
+  Inventory switcher and per-view scope filters across list, lexical, serving,
+  and graph views (uncluttered on single-scope `""` stores; strictly
+  subordinate to `D-01` nondisclosure so hidden-only scopes never appear in
+  `catalog().scopes`, counts, or dropdowns).
+- **Hosted CI browser smoke:** `inspector-browser-smoke` job in
+  `.github/workflows/ci.yml` running tooling, JS unit, and live headless
+  Playwright checks (`api.mjs`, `ux.mjs`, `scope.mjs`).
 - **Outside-`body` node & edge `properties`:** Expandable structured-value
   inspection (`detail_field`, `chunk`, `tree`), exact copy preserving 64-bit
   integer precision outside `2^53`, `-0`, empty strings, and `SQL NULL`,
@@ -54,9 +61,9 @@ GTK4/WebKitGTK or Docker). The native binary requires at most GLIBC 2.39
 unbounded newer-platform matrix. Inspector versions are independent of the
 FathomDB database release numbering.
 
-`0.3.0` excludes Engine/SDK/MCP/schema/ranker changes, multi-tenant `scope`
-filtering (`0.8.32`), editing/admin/repair, remote/multiuser or extra
-platforms, live-app attachment and historical-schema readers. Saved
+The current release excludes Engine/SDK/MCP/schema/ranker changes,
+editing/admin/repair, remote/multiuser or extra platforms, live-app attachment
+and historical-schema readers. Saved
 queries/workspaces, general export, richer facets/statistics, advanced vector
 maps/ANN/relevance experiments and graph analytics remain later candidates. No
 tutorials, model training, GPU acceleration or plugin framework is added.

@@ -1,6 +1,6 @@
 # Inspection views
 
-Inspector 0.3.0 implements these views for FathomDB 0.8.31 (schema 38). They
+Inspector implements these views for FathomDB 0.8.32 (schema 39). They
 coordinate exact record identity and separately observed context; physical
 representations may contain copied content. Installed technical checks cover
 the selected `D4 = B` Ubuntu 24.04 pairing; the unperformed five-person study
@@ -8,15 +8,15 @@ remains removed by owner decision.
 
 | View | What it presents | Typical operation |
 | --- | --- | --- |
-| Structure and contents | FathomDB nodes, edges, kinds/roles, reserved `scope`, operational collections, projections (with `entity_class` / `vector_kinds`), and scoped counts. | Choose a category and browse a bounded page. |
-| Record detail | Readable plain-text or JSON `body`, expandable outside-`body` `properties` tree and exact copy (preserving 64-bit integer lexemes outside `2^53`), read-only reserved `scope`, attributes, exact identity/revision, and recorded metadata. | Open complete `body` or `properties`, copy exact values, and follow a verified relationship. |
-| FTS/BM25 | Indexed content and origins, node-eligible declared property choices, actual request route, ranked matches, and available lexical evidence. | Run a text request and navigate from a result to its record. |
-| Vectors | Profile/dimension/representation facts, custom enrolled vector kinds, readiness, and a metric-faithful similarity neighborhood. | Inspect measured distances and candidate-selection scope, then open an origin. |
-| Graph | Directed nodes/edges, kinds, selectable detail (including inline node/edge `properties` when permitted), current or historical `as_of` snapshot selector (`as_of_write_cursor` or `as_of_epoch_ms`), and bounded expansion/collapse. | Expand a current or historical `as_of` neighborhood (stored or native) and inspect an edge's own content and properties. |
-| Associations and results | Verified record-to-representation links (including node and edge `canonical_property_values`) and retained request observations. | Pin two bounded observations (including distinct `as_of` graph snapshots); compare typed membership and actual per-method rank/metric beside original requests/contexts. |
+| Structure and contents | FathomDB nodes, edges, kinds/roles, active-`scope` switcher (subordinate to `D-01`), operational collections, projections (with `entity_class` / `vector_kinds`), and scoped counts. | Select an active scope (on multi-scope stores), choose a category, and browse an index-backed bounded page. |
+| Record detail | Readable plain-text or JSON `body`, expandable outside-`body` `properties` tree and exact copy (preserving 64-bit integer lexemes outside `2^53`), record `scope`, attributes, exact identity/revision, and recorded metadata. | Open complete `body` or `properties`, copy exact values, and follow a verified relationship within the record's scope. |
+| FTS/BM25 | Indexed content and origins, scope selector, node-eligible declared property choices, actual request route, ranked matches, and available lexical evidence. | Run a scoped text request and navigate from a result to its record. |
+| Vectors | Profile/dimension/representation facts, custom enrolled vector kinds, serving scope selector, readiness, and a scope-isolated metric-faithful similarity neighborhood. | Inspect measured distances and candidate-selection scope, then open an origin. |
+| Graph | Directed nodes/edges within the seed's scope, kinds, selectable detail (including inline node/edge `properties` when permitted), current or historical `as_of` snapshot selector (`as_of_write_cursor` or `as_of_epoch_ms`), and bounded expansion/collapse. | Expand a current or historical `as_of` neighborhood (stored or native) and inspect an edge's own content and properties. |
+| Associations and results | Verified scope-qualified record-to-representation links (including node and edge `canonical_property_values`) and retained request observations. | Pin two bounded observations (including distinct `as_of` graph snapshots); compare typed membership and actual per-method rank/metric beside original requests/contexts. |
 
 The directed SVG graph has a synchronized relationship list for exact values
-and keyboard selection, expansion and collapse. In Schema 38, the Graph view
+and keyboard selection, expansion and collapse. The Graph view
 also offers a `Snapshot` selector (`Current`, `At write cursor`, or `At commit
 time (ms)`) shared across stored-adjacency and native engine traversal; inputs
 are validated locally before dispatch so typos do not evict cached observations,

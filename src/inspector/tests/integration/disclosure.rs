@@ -225,11 +225,18 @@ fn queued_erasure_content_obeys_all_eight_launches_without_changing_engine_polic
                 let policy = Policy { no_show_inactive: n, show_erased: e, show_payloads: t };
                 let mut reader = Reader::new(Session::attach(&path, policy).unwrap());
                 assert_eq!(
-                    reader.session.engine.physical_erasure_policy(),
+                    reader.session.engine().unwrap().physical_erasure_policy(),
                     PhysicalErasurePolicy::ExplicitMaintenance
                 );
                 assert_eq!(
-                    reader.session.engine.physical_erasure_status(&ticket).unwrap().unwrap().phase,
+                    reader
+                        .session
+                        .engine()
+                        .unwrap()
+                        .physical_erasure_status(&ticket)
+                        .unwrap()
+                        .unwrap()
+                        .phase,
                     ErasurePhase::Queued
                 );
                 let page = reader
@@ -367,7 +374,7 @@ fn substantial_real_queue_keeps_catalog_and_unrelated_page_usable_and_fresh() {
     let handle = page["items"][0]["handle"].as_str().unwrap().to_string();
     assert_eq!(reader.detail(&handle).unwrap_err(), "refused");
     assert_eq!(
-        reader.session.engine.withdraw_queued_erasure(&ticket).unwrap(),
+        reader.session.engine().unwrap().withdraw_queued_erasure(&ticket).unwrap(),
         WithdrawResult::WithdrawnBeforeRemoval
     );
     let current =
@@ -375,7 +382,7 @@ fn substantial_real_queue_keeps_catalog_and_unrelated_page_usable_and_fresh() {
     assert_eq!(current["record"]["retained_erasure_pending"], false);
     assert_eq!(current["content"]["text"], "queued body");
     assert_eq!(
-        reader.session.engine.physical_erasure_policy(),
+        reader.session.engine().unwrap().physical_erasure_policy(),
         PhysicalErasurePolicy::ExplicitMaintenance
     );
     reader.session.close().unwrap();

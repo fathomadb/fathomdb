@@ -9,17 +9,36 @@ status: ACTIVE
 
 # Inspector ROADMAP
 
-Inspector `0.3.0` (`R31-08`, [Slice 60](../plans/0.8.31/features/slice-60/plan.md))
-owns the current release line, upgrading the completed `0.2.1`
-([scope](plans/0.2.1/scope.md), [plan](plans/0.2.1/README.md)) and
-[0.2.0 ladder](plans/0.2.0/README.md) onto FathomDB `0.8.31` (Schema `38`)
-while retaining `D4 = B` native Ubuntu 24.04 (`glibc 2.39`) Chromium + bundled
-SQLite qualification (zero Docker, `openbox`, `xdotool`, or `sudo`) and adding
-automated GitHub Release artifact delivery via `.github/workflows/release.yml`
-(`build-inspector`). The five-person UX study remains removed by owner decision
+Current delivery targets FathomDB `0.8.32` (Schema `39`, `R32-06`,
+[Slice 30](../plans/0.8.32/features/slice-30/plan.md)), building on Inspector
+`0.3.0` (`R31-08`, [Slice 60](../plans/0.8.31/features/slice-60/plan.md)),
+`0.2.1` ([scope](plans/0.2.1/scope.md), [plan](plans/0.2.1/README.md)), and the
+[0.2.0 ladder](plans/0.2.0/README.md), while retaining `D4 = B` native Ubuntu
+24.04 (`glibc 2.39`) Chromium + bundled SQLite qualification (zero Docker,
+`openbox`, `xdotool`, or `sudo`), hosted `inspector-browser-smoke` CI coverage,
+and automated GitHub Release artifact delivery via
+`.github/workflows/release.yml` (`build-inspector`). The five-person UX study
+remains removed by owner decision
 ([INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)).
 
-## 0.3.0 — FathomDB 0.8.31 / Schema 38 and GitHub Release delivery
+## 0.8.32 / Schema 39 — `TABLE_MANIFEST` admission, active-`scope` UI & CI smoke
+
+- **Schema `39` `TABLE_MANIFEST`-backed admission:** Strict Schema `39`
+  admission (`compiled_schema = 39`) driven by `fathomdb_schema::TABLE_MANIFEST`
+  plus the 8-column `vec0` (`scope TEXT`) `malformed_vector_shape` guard,
+  refusing Schema `38` (`0.8.31`) and older cleanly.
+- **Active-`scope` UI subordinate to `D-01`:** Per-scope `catalog().scopes`
+  discovery strictly filtered by `--no-show-inactive` and default erased hiding
+  (hidden-only scopes never leak), active-`scope` Inventory switcher and
+  per-view scope controls across list, lexical, serving, and graph views
+  (uncluttered on single-scope `""` stores), Schema-39 index-backed scoped
+  paging, scope-qualified SQL joins, and `Session::ensure_engine_scope` native
+  Engine scope switching.
+- **Hosted Playwright CI smoke:** `inspector-browser-smoke` job in
+  `.github/workflows/ci.yml` executing tooling, JS unit, and live headless
+  Playwright suites (`api.mjs`, `ux.mjs`, `scope.mjs`).
+
+## 0.3.0 — FathomDB 0.8.31 / Schema 38 and GitHub Release delivery (completed)
 
 - **Schema `38` admission & reserved `scope`:** Strict Schema `38` admission
   (`compiled_schema = 38`), rejecting Schema `37` (`0.8.30`) cleanly, validating

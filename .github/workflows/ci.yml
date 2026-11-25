@@ -459,6 +459,65 @@ jobs:
           path: ${{ runner.temp }}/fathomdb-agent-spill-logs
           if-no-files-found: error
 
+  # 0.8.32 Slice 30 (WP-30C): Inspector tooling, JS unit, and live Playwright
+  # browser smoke (api.mjs, ux.mjs, scope.mjs) scoped to Inspector changes and
+  # full release qualification. Pinned Playwright installs into $RUNNER_TEMP so
+  # tracked workspace manifests stay untouched.
+  inspector-browser-smoke:
+    needs: changes
+    if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.inspector == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "26.13.1"
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Inspector tooling tests
+        run: python3 -m unittest discover -s src/inspector/tests/tools -p 'test_*.py'
+      - name: Inspector JS unit tests
+        run: node --test src/inspector/tests/unit/comparison.mjs src/inspector/tests/unit/ux.mjs
+      - name: Build Inspector binary and examples
+        run: cargo build --locked -p fathomdb-inspector --bins --examples
+      - name: Install pinned Playwright and Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/inspector-pw"
+          npm --prefix "$RUNNER_TEMP/inspector-pw" install --no-save playwright@1.62.1
+          npx --prefix "$RUNNER_TEMP/inspector-pw" playwright install --with-deps chromium
+      - name: Run Inspector Playwright browser smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          PW_DIR="$RUNNER_TEMP/inspector-pw"
+          export PW_DIR
+          INSPECTOR_PLAYWRIGHT="$PW_DIR/node_modules/playwright/index.mjs"
+          INSPECTOR_CHROMIUM="$(node -e 'console.log(require(process.env.PW_DIR + "/node_modules/playwright").chromium.executablePath())')"
+          export INSPECTOR_PLAYWRIGHT INSPECTOR_CHROMIUM
+          node --test --test-concurrency=1 \
+            src/inspector/tests/browser/api.mjs \
+            src/inspector/tests/browser/ux.mjs \
+            src/inspector/tests/browser/scope.mjs
+
   # TC-74 diagnostic only: retain the parallel workspace run as an artifact
   # without allowing its known scheduling-sensitive failures to gate a release.
   rust-workspace-race-report:

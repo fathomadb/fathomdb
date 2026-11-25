@@ -3,19 +3,21 @@ title: Inspector requirements
 date: 2026-11-23
 product: FathomDB Inspector
 target_release: 0.3.0
-desc: Product requirements and adopted scope through Inspector 0.3.0 (FathomDB 0.8.31 / Schema 38)
+desc: Product requirements and adopted scope through FathomDB 0.8.32 / Schema 39
 status: ACTIVE
 ---
 
 # Inspector requirements
 
-Current delivery scope is Inspector `0.3.0` for FathomDB `0.8.31` (Schema `38`),
-owned by [Slice 60](../plans/0.8.31/features/slice-60/plan.md) (`R31-08` /
-`AC31-60-01`..`AC31-60-09`), extending the completed
+Current delivery scope targets FathomDB `0.8.32` (Schema `39`,
+`TABLE_MANIFEST`-backed admission refusing Schema `38` and older) under
+[Slice 30](../plans/0.8.32/features/slice-30/plan.md) (`R32-06`), building on
+Inspector `0.3.0` ([Slice 60](../plans/0.8.31/features/slice-60/plan.md),
+`R31-08` / `AC31-60-01`..`AC31-60-09`) and the completed
 [owner-adopted 0.2.0](plans/0.2.0/scope.md) and `0.2.1` baselines. Functional
-INS/V01/X, T-01–T-05, High investigation goals, and `AC31-60-*` requirements
-remain required; repo-level `dev/acceptance.md` stays locked. The five-person
-study remains removed by owner decision
+INS/V01/X, T-01–T-05, High investigation goals, `AC31-60-*`, and `R32-06`
+requirements remain required; repo-level `dev/acceptance.md` stays locked. The
+five-person study remains removed by owner decision
 ([INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)); no human sessions
 occurred or count as passed. Historical `0.2.0` / `0.2.1` source/design
 evidence retains its actual version and execution scope.
@@ -204,7 +206,34 @@ exact-origin/policy reads have their own scope, never an invented query snapshot
 Native allocation and relaxed scratch amplification require bounded admission;
 resource refusal is explicit and does not waive positive lexical functionality.
 
-### Inspector 0.3.0 / FathomDB 0.8.31 contract additions (Schema 38)
+### FathomDB 0.8.32 contract additions (Schema 39 & active-`scope` UI)
+
+FathomDB `0.8.32` Slice 30 (`R32-06`) upgrades Inspector onto Schema `39` while
+preserving all `0.2.x` and `0.3.0` contracts:
+
+- **Schema 39 `TABLE_MANIFEST`-backed admission:** Admit only Schema `39`
+  (`compiled_schema = 39`), iterating `fathomdb_schema::TABLE_MANIFEST` as the
+  single source of truth while keeping per-table column validation and the
+  8-column `vec0` (`scope TEXT`) `malformed_vector_shape` guard. Schema `38`
+  (`0.8.31`) and older or missing-layout stores refuse cleanly without mutating
+  files.
+- **Active-`scope` UI & multi-scope isolation subordinate to `D-01`:** Discover
+  visible scopes in `catalog().scopes` strictly over rows permitted by the
+  active disclosure policy (`--no-show-inactive`, default erased/telemetry
+  hiding): a scope whose only rows are inactive, deleted, or erased-pending
+  must never appear in `catalog().scopes`, counts, or UI selectors. Keep
+  single-scope `""` stores uncluttered; expose an active-`scope` switcher in
+  Inventory, index-backed scoped `page` filters (Schema 39 composite indexes
+  with zero full table `SCAN` and zero `TEMP B-TREE`), per-scope native Engine
+  reopening (`Session::ensure_engine_scope`) for lexical/serving/graph
+  traversals, and scope-qualified SQL joins across `associations`,
+  `investigate`, `graph`, `lexical`, `serving`, and `neighborhood`.
+- **Hosted CI browser smoke (`inspector-browser-smoke`):** Run Inspector
+  tooling tests, JS unit tests, and live headless Playwright smoke (`api.mjs`,
+  `ux.mjs`, `scope.mjs`) on Inspector-scoped changes and release qualification
+  in `.github/workflows/ci.yml`.
+
+### Inspector 0.3.0 / FathomDB 0.8.31 contract additions (Schema 38, carried forward)
 
 Inspector `0.3.0` (`R31-08`, `AC31-60-01`..`AC31-60-09`) extends the adopted
 `0.2.x` baseline onto FathomDB `0.8.31` (Schema `38`) without modifying

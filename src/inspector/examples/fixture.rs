@@ -37,6 +37,7 @@ fn main() {
         Some("graph") => fixtures::add_graph(&path),
         Some("linked") => fixtures::add_related(&path),
         Some("erasure") => fixtures::add_erasure_cases(&path),
+        Some("scoped") => fixtures::add_scoped(&path),
         None => {}
         Some(_) => panic!("unknown fixture"),
     }

@@ -12,7 +12,54 @@ let pair,
   history = [],
   epoch = 0,
   serial = 0,
-  navigation = 0;
+  navigation = 0,
+  activeScope = null,
+  discoveredScopes = [];
+function updateDiscoveredScopes(catalog) {
+  if (Array.isArray(catalog?.scopes)) {
+    discoveredScopes = catalog.scopes.map((entry) => ({ ...entry }));
+  }
+}
+function isMultiScope() {
+  return discoveredScopes.length > 1 || discoveredScopes.some((entry) => entry.scope !== "");
+}
+function scopeLabel(value) {
+  if (value === null || value === undefined) return "All visible scopes";
+  return value === "" ? '"" (default scope)' : String(value);
+}
+function decodeScopeOption(raw) {
+  if (raw === "__all__" || raw === "__default__") return null;
+  return raw.startsWith("scope:") ? raw.slice(6) : raw;
+}
+function buildScopeSelect(ariaLabel, selected, includeDefaultUnscoped = false) {
+  const select = el("select", null, { "aria-label": ariaLabel });
+  if (includeDefaultUnscoped) {
+    select.append(el("option", 'Default scope (unscoped "")', { value: "__default__" }));
+  } else {
+    select.append(el("option", "All visible scopes", { value: "__all__" }));
+  }
+  const seen = new Set();
+  for (const entry of discoveredScopes) {
+    seen.add(entry.scope);
+    const counts =
+      entry.total !== undefined
+        ? ` (${entry.total} total: ${entry.node} nodes, ${entry.edge} edges, ${entry.current} current, ${entry.log} log)`
+        : "";
+    select.append(
+      el("option", `${scopeLabel(entry.scope)}${counts}`, { value: `scope:${entry.scope}` }),
+    );
+  }
+  if (selected !== null && selected !== undefined && !seen.has(selected)) {
+    select.append(el("option", scopeLabel(selected), { value: `scope:${selected}` }));
+  }
+  select.value =
+    selected === null || selected === undefined
+      ? includeDefaultUnscoped
+        ? "__default__"
+        : "__all__"
+      : `scope:${selected}`;
+  return select;
+}
 const observations = new Map();
 const pins = {A:{id:null,version:0}, B:{id:null,version:0}};
 let comparisonBytes=0, feedbackSerial=0;
@@ -147,6 +194,8 @@ function forget() {
   history = [];
   epoch++;
   view = null;
+  activeScope = null;
+  discoveredScopes = [];
   attachmentStatus();
 }
 async function api(request, retain = true, accept = () => true) {
@@ -265,6 +314,7 @@ async function refreshView() {
     current.data=await api({op:"investigate",handle:current.handle},true,accept);current.workspace=null;render();
   } else if (current.kind === "vector") {
     current.source=await api(current.handle?{op:"vectors",handle:current.handle}:{op:"catalog"},true,accept);
+    if(!current.handle)updateDiscoveredScopes(current.source);
     current.data=current.lastRequest?await api(current.lastRequest,true,accept):current.source;
     current.workspace=null;render();
   } else if (current.kind === "lexical") {
@@ -272,6 +322,7 @@ async function refreshView() {
       ? { op: "indexed", handle: current.handle, offset: "0", limit: 4096 }
       : { op: "catalog" }, true, accept);
     current.declarations=current.handle?await api({op:"catalog"},true,accept):current.source;
+    updateDiscoveredScopes(current.declarations);
     current.data = current.request.query.trim()
       ? await api({ op: "lexical", ...current.request }, true, accept)
       : current.source;
@@ -286,7 +337,7 @@ async function refreshView() {
       ...(current.sample ? {} : { limit: 50 }),
     }, true, accept);
     render();
-  } else await inventory();
+  } else await inventory(current.activeScope ?? activeScope);
 }
 async function run(action) {
   const feedback = ++feedbackSerial;
@@ -433,10 +484,13 @@ function selector() {
   root.append(panel);
   view = null;
 }
-async function inventory() {
+async function inventory(scopeOverride = undefined) {
+  if (scopeOverride !== undefined) activeScope = scopeOverride;
   const token = ++navigation;
-  const data = await api({ op: "catalog" }, true, () => token === navigation);
-  view = { kind: "inventory", data };
+  const request = activeScope !== null ? { op: "catalog", scope: activeScope } : { op: "catalog" };
+  const data = await api(request, true, () => token === navigation);
+  updateDiscoveredScopes(data);
+  view = { kind: "inventory", data, activeScope };
   render();
 }
 function observationSummary(parent,data,submitted={}) {
@@ -568,13 +622,14 @@ function render() {
 function shell() {
   const layout = el("div", null, { class: "layout" }),
     nav = el("nav", null, { "aria-label": "Database structures", class: "panel" }),
-    panel = el("section", null, { class: "panel" });
+    panel = el("section", null, { class: "panel" }),
+    scoped = () => (activeScope !== null ? { scope: activeScope } : {});
   nav.append(
-    button("Database inventory", inventory),
-    button("Canonical nodes", () => page("node", {})),
-    button("Canonical edges", () => page("edge", {})),
-    button("Operational current values", () => page("current", {})),
-    button("Retained mutation entries", () => page("log", {})),
+    button("Database inventory", () => inventory()),
+    button("Canonical nodes", () => page("node", scoped())),
+    button("Canonical edges", () => page("edge", scoped())),
+    button("Operational current values", () => page("current", scoped())),
+    button("Retained mutation entries", () => page("log", scoped())),
   );
   nav.append(el("h3", "Retrieval views"));
   nav.append(button("Text retrieval", () => openLexical()));
@@ -590,7 +645,34 @@ function shell() {
 function renderInventory() {
   const data = view.data,
     { nav, panel } = shell();
+  updateDiscoveredScopes(data);
   panel.append(el("h2", "Database inventory"));
+  if (isMultiScope() || activeScope !== null) {
+    const switcherSection = el("section", null, {
+      class: "scope-switcher",
+      "aria-label": "Scope switcher",
+    });
+    const scopeField = el("label", "Active scope");
+    const scopeSelect = buildScopeSelect("Active scope", activeScope, false);
+    scopeSelect.addEventListener("change", () =>
+      run(() => inventory(decodeScopeOption(scopeSelect.value))),
+    );
+    scopeField.append(scopeSelect);
+    switcherSection.append(scopeField);
+    if (discoveredScopes.length) {
+      const list = el("ul", null, { class: "scope-summary-list muted" });
+      for (const entry of discoveredScopes) {
+        list.append(
+          el(
+            "li",
+            `${scopeLabel(entry.scope)}: ${entry.total} visible (${entry.node} nodes, ${entry.edge} edges, ${entry.current} current, ${entry.log} log)`,
+          ),
+        );
+      }
+      switcherSection.append(list);
+    }
+    panel.append(switcherSection);
+  }
   metadata(panel, data.database);
   const counts = el("dl");
   for (const [k, v] of Object.entries(data.counts)) {
@@ -618,7 +700,10 @@ function renderInventory() {
   for (const c of data.collections) {
     const label = `Collection ${c.name} (${c.mode})`;
     const b = button(label, () =>
-      page(c.mode === "latest_state" ? "current" : "log", { collection: c.name }),
+      page(c.mode === "latest_state" ? "current" : "log", {
+        collection: c.name,
+        ...(activeScope !== null ? { scope: activeScope } : {}),
+      }),
     );
     b.disabled = c.name_complete === false;
     panel.append(
@@ -628,7 +713,10 @@ function renderInventory() {
       }),
     );
     const navigation = button(label, () =>
-      page(c.mode === "latest_state" ? "current" : "log", { collection: c.name }),
+      page(c.mode === "latest_state" ? "current" : "log", {
+        collection: c.name,
+        ...(activeScope !== null ? { scope: activeScope } : {}),
+      }),
     );
     navigation.disabled = c.name_complete === false;
     nav.append(navigation);
@@ -685,7 +773,10 @@ function renderProjection() {
   else if (view.data.name_complete !== false)
     panel.append(
       button("Browse verified attribute origins", () =>
-        page("node", { attribute: view.data.name }),
+        page("node", {
+          attribute: view.data.name,
+          ...(activeScope !== null ? { scope: activeScope } : {}),
+        }),
       ),
     );
   else
@@ -740,6 +831,13 @@ function renderPage() {
         : []),
   ];
   const inputs = {};
+  let scopeSelect = null;
+  if (isMultiScope() || current.filter.scope !== undefined) {
+    const scopeField = el("label", "Scope filter");
+    scopeSelect = buildScopeSelect("Scope filter", current.filter.scope ?? null, false);
+    scopeField.append(scopeSelect);
+    filters.append(scopeField);
+  }
   for (const key of supported) {
     const [label, input] = labelInput(
       `${key[0].toUpperCase() + key.slice(1)} filter`,
@@ -756,6 +854,11 @@ function renderPage() {
       const filter = {
         ...(current.filter.collection ? { collection: current.filter.collection } : {}),
       };
+      if (scopeSelect) {
+        const chosenScope = decodeScopeOption(scopeSelect.value);
+        activeScope = chosenScope;
+        if (chosenScope !== null) filter.scope = chosenScope;
+      }
       for (const [k, input] of Object.entries(inputs)) if (input.value) filter[k] = input.value;
       return page(current.className, filter, "0", current.sample);
     });
@@ -813,11 +916,15 @@ function renderPage() {
     }
     const preview=item.display_preview;
     recordDisplay(list,preview);
+    const scopeTag =
+      isMultiScope() || (item.scope !== undefined && item.scope !== "")
+        ? ` · scope ${item.scope === "" ? '""' : item.scope}`
+        : "";
     list.append(
       b,
       el(
         "span",
-        `${item.kind ?? item.mode} · ${item.payload_status} · cursor ${item.write_cursor}`,
+        `${item.kind ?? item.mode}${scopeTag} · ${item.payload_status} · cursor ${item.write_cursor}`,
         { class: "badge" },
       ),
     );
@@ -1321,8 +1428,9 @@ async function openLexical(handle = null) {
     ? {op:"indexed",handle,offset:"0",limit:4096}
     : {op:"catalog"}, true, () => token === navigation);
   const declarations=handle?await api({op:"catalog"},true,()=>token===navigation):source;
+  updateDiscoveredScopes(declarations);
   remember(current,focus);
-  view = {kind:"lexical",handle,data:source,source,declarations,request:{route:"body",query:"",property:null,filter:{},view:{},limit:10}};
+  view = {kind:"lexical",handle,data:source,source,declarations,request:{route:"body",query:"",property:null,filter:{},view:{},...(activeScope!==null?{scope:activeScope}:{}),limit:10}};
   render();
 }
 function highlightNative(parent, snippet) {
@@ -1382,6 +1490,12 @@ function renderLexical() {
     const option=el("option",name,{value});route.append(option);
   }
   route.value=current.request.route;routeLabel.append(route);form.append(routeLabel);
+  let scopeSelect=null;
+  if(isMultiScope()||current.request.scope!==undefined){
+    const scopeField=el("label","Scope filter");
+    scopeSelect=buildScopeSelect("Scope filter",current.request.scope??null,true);
+    scopeField.append(scopeSelect);form.append(scopeField);
+  }
   const make=(label,value="")=>{const [node,input]=labelInput(label,value ?? "");form.append(node);return input;};
   const choices=propertyChoices(current.declarations??(current.source?.projections?current.source:null));
   const property=make("Property name",current.request.property ?? choices[0] ?? "");
@@ -1414,9 +1528,11 @@ function renderLexical() {
       for (const [key,input] of Object.entries(viewInputs)) readView[key]=input.checked;
       if(validAt.value!=="")readView.valid_as_of=validAt.value;
     }
-    current.request={route:route.value,query:query.value,property:route.value==="property"?property.value:null,filter,view:readView,limit:Number(limit.value)};
+    const selectedScope=scopeSelect?decodeScopeOption(scopeSelect.value):(current.request.scope??null);
+    current.request={route:route.value,query:query.value,property:route.value==="property"?property.value:null,filter,view:readView,...(selectedScope!==null?{scope:selectedScope}:{}),limit:Number(limit.value)};
   }
   form.addEventListener("input",save);
+  if(scopeSelect)scopeSelect.addEventListener("change",save);
   route.addEventListener("change",()=>{save();current.workspace=null;render();});
   async function execute() {
     save();
@@ -1478,7 +1594,8 @@ function renderLexical() {
 async function openVectors(handle=null){
   const current=view,focus=document.activeElement,token=++navigation;
   const source=await api(handle?{op:"vectors",handle}:{op:"catalog"},true,()=>token===navigation);
-  remember(current,focus);view={kind:"vector",handle,source,data:source,nativeQuery:""};render();
+  if(!handle)updateDiscoveredScopes(source);
+  remember(current,focus);view={kind:"vector",handle,source,data:source,nativeQuery:"",servingScope:activeScope};render();
 }
 function vectorOrigins(parent,item){
   const targets=item.origin?.targets??[];
@@ -1513,8 +1630,16 @@ function renderVector(){
   panel.append(stored);
   const runtime=current.source.scope?.runtime??{dense_query:current.source.database?.model_runtime==="available_cached_cpu"?"available":"unavailable",reason:current.source.database?.runtime_reason??"no_qualified_cached_runtime"};
   const serving=el("form",null,{"aria-label":"Native cached CPU serving"});serving.append(el("h3","Native cached CPU serving"));metadata(serving,runtime);
+  let servingScopeSelect=null;
+  if(isMultiScope()||current.servingScope!==null){
+    const scopeField=el("label","Serving scope");
+    servingScopeSelect=buildScopeSelect("Serving scope",current.servingScope,true);
+    servingScopeSelect.addEventListener("change",()=>{current.servingScope=decodeScopeOption(servingScopeSelect.value);});
+    scopeField.append(servingScopeSelect);serving.append(scopeField);
+  }
   const [label,input]=labelInput("Semantic query text");input.maxLength=4096;input.value=current.nativeQuery;input.addEventListener("input",()=>{current.nativeQuery=input.value;});
-  const runQuery=button("Run native hybrid search",()=>execute({op:"serving",query:input.value,limit:10}),{type:"button"});runQuery.disabled=runtime.dense_query!=="available";input.disabled=runQuery.disabled;serving.append(label,runQuery);serving.addEventListener("submit",event=>{event.preventDefault();if(!runQuery.disabled)run(()=>execute({op:"serving",query:input.value,limit:10}));});panel.append(serving);
+  const servingRequest=()=>({op:"serving",query:input.value,limit:10,...(current.servingScope!==null?{scope:current.servingScope}:{})});
+  const runQuery=button("Run native hybrid search",()=>execute(servingRequest()),{type:"button"});runQuery.disabled=runtime.dense_query!=="available";input.disabled=runQuery.disabled;if(servingScopeSelect)servingScopeSelect.disabled=runQuery.disabled;serving.append(label,runQuery);serving.addEventListener("submit",event=>{event.preventDefault();if(!runQuery.disabled)run(()=>execute(servingRequest()));});panel.append(serving);
   if(current.lastRequest)pinControls(panel,current,current.data);
   if(current.lastRequest?.op==="neighborhood"){
     const data=current.data,results=el("section",null,{class:"vector-results","aria-label":"Stored L2 neighborhood"});results.append(el("h3","Stored L2 neighborhood"),el("p","Stored uncentered f32 L2 distance · lower is nearer · nearest within the compared population"));
@@ -1667,7 +1792,12 @@ function renderGraph() {
   const current=view,{panel:host}=shell();
   if(current.workspace){current.workspace.firstElementChild.replaceWith(host.firstElementChild);host.replaceWith(current.workspace);return;}
   const panel=host,owner=current.data;current.workspace=panel;
-  panel.append(el("h2","Stored directed graph"),el("p","Stored relations · arrows show direction · layout has no metric meaning. Diagram labels are previews; exact identities are available through the list and detail. Expansion and filters create a separate read observation."));
+  panel.append(el("h2","Stored directed graph"));
+  const seedRecord=[...owner.nodes,...owner.edges].find(r=>r.key===owner.seed?.key)??owner.nodes[0]??owner.edges[0];
+  if(seedRecord?.scope!==undefined&&(isMultiScope()||seedRecord.scope!=="")){
+    panel.append(el("p",`Scope: ${scopeLabel(seedRecord.scope)}`,{class:"graph-scope muted"}));
+  }
+  panel.append(el("p","Stored relations · arrows show direction · layout has no metric meaning. Diagram labels are previews; exact identities are available through the list and detail. Expansion and filters create a separate read observation."));
   const form=el("div",null,{class:"graph-filters"});
   const label=el("label","Graph direction"),direction=el("select",null,{"aria-label":"Graph direction"});
   for(const [v,text] of [["both","Both"],["outgoing","Outgoing"],["incoming","Incoming"]])direction.append(el("option",text,{value:v}));

@@ -1,6 +1,7 @@
 # Inspector availability and getting started
 
-Inspector 0.3.0 targets FathomDB 0.8.31 (schema 38). The `build-inspector` job
+Inspector targets FathomDB 0.8.32 (schema 39, refusing schema 38 and older).
+The `build-inspector` job
 in `.github/workflows/release.yml` builds, checks ELF `GLIBC <= 2.39`, seals,
 verifies, and attaches `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` and
 `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256` to the FathomDB GitHub
@@ -8,9 +9,10 @@ Release. Local candidate builds can also be sealed, verified, and promoted
 with `src/inspector/tools/local-release.py`. [Release notes](../releases/0.3.0.md)
 explain the current boundary and verification steps.
 
-The package builds against FathomDB Engine 0.8.31 source (compiled schema 38,
-bundled SQLite) and admits closed Schema 38 databases with all external writers
-stopped. Schema 37 (`0.8.30`) and older databases refuse cleanly; Inspector
+The package builds against FathomDB Engine 0.8.32 source (compiled schema 39,
+bundled SQLite, `TABLE_MANIFEST`-backed admission) and admits closed Schema 39
+databases with all external writers stopped. Schema 38 (`0.8.31`) and older
+databases refuse cleanly; Inspector
 does not migrate older formats. It embeds the UI; Node, Python, GTK4/WebKitGTK,
 and a development server are not application requirements. The qualified pairing
 is Ubuntu 24.04 / glibc 2.39 Linux x86_64 userland (`D4 = B`), kernel

@@ -1,12 +1,13 @@
 # FathomDB Inspector
 
-**Inspector 0.3.0 targets FathomDB 0.8.31 (schema 38).** Record/tree,
-outside-`body` node/edge `properties`, read-only reserved `scope`,
+**Inspector targets FathomDB 0.8.32 (schema 39, refusing schema 38 and older).**
+Record/tree, outside-`body` node/edge `properties`, active-`scope` switching
+and per-view scope filters strictly subordinate to `D-01` nondisclosure,
 record-keyed lexical, stored-vector/L2, cache-only CPU hybrid, current and
 historical `as_of` directed graph, provenance, retained history, and
-two-observation comparison are implemented for FathomDB 0.8.31 (schema 38)
-and qualified natively on Ubuntu 24.04 (`glibc 2.39`) with Chromium and
-bundled SQLite (`D4 = B`). Release archives
+two-observation comparison are implemented for FathomDB 0.8.32 (schema 39,
+`TABLE_MANIFEST`-backed admission) and qualified natively on Ubuntu 24.04
+(`glibc 2.39`) with Chromium and bundled SQLite (`D4 = B`). Release archives
 (`fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` and
 `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256`) are built by the
 `build-inspector` job in `.github/workflows/release.yml` for GitHub Release
@@ -20,7 +21,7 @@ A generic SQLite table browser does not cover this purpose.
 
 ## Implemented 0.3.0 capabilities
 
-- Browse canonical records, outside-`body` node and edge `properties`, read-only reserved `scope`, attributes, edges, operational collections, and projection declarations (including both node and edge filterable property metadata).
+- Browse canonical records, outside-`body` node and edge `properties`, active-`scope` switcher and per-view scope filters (uncluttered on single-scope `""` stores; strictly subordinate to `D-01` nondisclosure), attributes, edges, operational collections, and projection declarations (including both node and edge filterable property metadata).
 - Read plain-text or JSON `body` documents and expandable structured-value trees for both `body` and `properties`; copy exact values preserving 64-bit integer precision outside `2^53`, `-0`, empty strings, and `SQL NULL`; follow exact record identities and retained revision relationships.
 - Inspect indexed text, lexical requests, actual FTS/BM25 routes, and available match evidence.
 - Inspect embeddings, readiness, measured similarity/distance, and the candidate-selection scope behind a neighborhood.
@@ -29,7 +30,8 @@ A generic SQLite table browser does not cover this purpose.
 - Pin two bounded observations in session (including distinct `as_of` graph snapshots) and compare identity membership, actual ranks and method-specific values with each original request/read context.
 
 Initial support is one existing local database at the selected build's current
-schema (schema 38 for Inspector 0.3.0), with external writers stopped.
+schema (schema 39 for FathomDB 0.8.32; schema 38 and older refuse cleanly),
+with external writers stopped.
 Inspector may start/own the Engine and its workers; normal startup/background
 work can change database files and projection state. Inspector controls inspect
 data rather than edit it. Query models must already be cached. Retained

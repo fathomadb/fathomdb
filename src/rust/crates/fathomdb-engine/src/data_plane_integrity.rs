@@ -12,9 +12,9 @@ use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "operator")]
-use crate::write_commit::{
-    load_next_cursor, next_active_node_scope, other_active_node_scope_exists,
-};
+use crate::write_commit::load_next_cursor;
+#[cfg(feature = "operator")]
+use crate::write_commit::{next_active_node_scope, other_active_node_scope_exists};
 #[cfg(feature = "operator")]
 use crate::{current_epoch_seconds, Engine, EngineError};
 

@@ -260,13 +260,14 @@ fi
 # The publisher still chooses Node's bundled npm.
 NODE_PIN_FAILED=0
 setup_node_total=0
-# Slice 0's CUDA preflight is a sixth release consumer of Node: its pinned
-# setup action makes the checked release count fifteen and the cross-workflow
-# total twenty. The wrong-order control below re-enters this same assertion,
-# so these constants deliberately govern both its primary and fixture paths.
-EXPECTED_CI_SETUP_NODE_COUNT=5
+# 0.8.32 Slice 30 adds `inspector-browser-smoke` as a sixth CI consumer of Node
+# (pinned to Node 26.13.1), alongside fifteen pinned setup-node steps in
+# release.yml for a cross-workflow total of twenty-one. The wrong-order control
+# below re-enters this same assertion, so these constants deliberately govern
+# both its primary and fixture paths.
+EXPECTED_CI_SETUP_NODE_COUNT=6
 EXPECTED_RELEASE_SETUP_NODE_COUNT=15
-EXPECTED_SETUP_NODE_TOTAL=20
+EXPECTED_SETUP_NODE_TOTAL=21
 for workflow in "$CI_YML" "$RELEASE_YML"; do
   setup_node_count="$(grep -c 'uses: actions/setup-node@' "$workflow" || true)"
   case "$workflow" in
@@ -292,8 +293,8 @@ for workflow in "$CI_YML" "$RELEASE_YML"; do
   fi
 done
 if [ "$setup_node_total" -ne "$EXPECTED_SETUP_NODE_TOTAL" ]; then
-  printf 'FAIL  ci.yml and release.yml must contain exactly twenty setup-node steps total (got %s)\n' \
-    "$setup_node_total" >&2
+  printf 'FAIL  ci.yml and release.yml must contain exactly %s setup-node steps total (got %s)\n' \
+    "$EXPECTED_SETUP_NODE_TOTAL" "$setup_node_total" >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
 if [ "$NODE_PIN_FAILED" -eq 0 ]; then

@@ -311,7 +311,7 @@ replacing it. A fresh sibling stage is revalidated before Linux atomic
 `RENAME_NOREPLACE`. Failed or interrupted copy removes only that self-created
 stage; unrelated entries remain.
 
-For FathomDB `0.8.31` release automation, `.github/workflows/release.yml`
+For FathomDB `0.8.32` release automation, `.github/workflows/release.yml`
 includes the `build-inspector` job on `ubuntu-24.04`, which runs
 `cargo fetch --locked`, `package.sh`, `scripts/check-glibc-floor.sh --floor 2.39`,
 `local-release.py seal`, and `local-release.py verify --source`, stages

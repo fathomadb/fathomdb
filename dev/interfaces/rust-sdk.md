@@ -190,7 +190,7 @@ observation guard through normal SDK error translation, without exposing the
 core engine. The feature forwards only `fathomdb-engine/slice30-observer`; no other
 SDK feature may enable it. It is passive observation, not state/provider/SQL
 injection or a test hook. Its feature/declaration/forwarding are checked separately
-from all 56 governed operations and ordinary non-command members. See the
+from all 57 governed operations and ordinary non-command members. See the
 [narrow addendum](../adr/ADR-0.8.29-sdk-qualification-observation.md) and
 [guard contract](rust.md#private-slice30-qualification-observations).
 

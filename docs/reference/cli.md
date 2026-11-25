@@ -126,10 +126,10 @@ In 0.8.31, the operator CLI is also published as a lockstep
 (`pip install fathomdb-cli==0.8.31`) without requiring a Rust toolchain (while
 keeping the base `fathomdb` SDK package free of console scripts).
 
-During source qualification, use the [Rust install procedure](../install/rust.md).
-Public 0.8.31 opens require a fresh or already-current schema-38 database;
+During source qualification for 0.8.32, use the [Rust install procedure](../install/rust.md).
+Public 0.8.32 opens require a fresh or already-current schema-39 database;
 an older non-empty database is rejected before product mutation. Upgrade
-committed schema-37 stores explicitly offline using
+committed schema-38 (or chained schema-37) stores explicitly offline using
 `fathomdb migrate --backup-dir <dir> <db_path>`.
 
 ### GPU and platform diagnostics

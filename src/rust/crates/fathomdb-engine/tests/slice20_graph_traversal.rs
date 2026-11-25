@@ -343,8 +343,10 @@ fn search_expand_returns_neighbors() {
         ])
         .expect("write");
 
-    let result =
-        opened.engine.search_expand("xyzunique expand quark", None, 1).expect("search_expand");
+    let result = opened
+        .engine
+        .search_expand("xyzunique expand quark", None, 1, None)
+        .expect("search_expand");
 
     // B should appear in `expanded` (reachable from the search hit A via one hop).
     let expanded_ids: Vec<_> =
@@ -378,7 +380,7 @@ fn search_expand_deduplicates() {
         .expect("write");
 
     let result =
-        opened.engine.search_expand("dedup shimmer unique", None, 1).expect("search_expand");
+        opened.engine.search_expand("dedup shimmer unique", None, 1, None).expect("search_expand");
 
     // B must be in search_hits.
     let hit_ids: Vec<_> = result.search_hits.iter().map(|h| h.id.clone()).collect();
@@ -475,7 +477,7 @@ fn search_expand_depth0_populates_all_logical_ids() {
 
     let result = opened
         .engine
-        .search_expand("quilted vermillion zephyr unique depth0", None, 0)
+        .search_expand("quilted vermillion zephyr unique depth0", None, 0, None)
         .expect("search_expand depth=0");
 
     assert!(
@@ -539,7 +541,7 @@ fn search_expand_reports_nearest_hop_count() {
     // Search returns both A and B as hits.
     let result = opened
         .engine
-        .search_expand("shimmer alpha unique1 glimmer beta unique2", None, 3)
+        .search_expand("shimmer alpha unique1 glimmer beta unique2", None, 3, None)
         .expect("search_expand");
 
     // X must be in expanded with hop_count = 1 (nearest root is A at 1 hop).
@@ -624,7 +626,7 @@ fn search_expand_anon_node_hit_does_not_crash() {
     // search_expand must succeed (no Storage panic on the NULL logical_id row).
     let result = opened
         .engine
-        .search_expand("shimmer unique probe", None, 1)
+        .search_expand("shimmer unique probe", None, 1, None)
         .expect("search_expand must not crash on anonymous hit");
 
     // At minimum NAMED appears somewhere (in hits or expanded).

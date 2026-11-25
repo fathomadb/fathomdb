@@ -64,9 +64,10 @@ fn prospective_validation_and_apply_reuse_one_enclosing_transaction_generation()
         derived("batch-derived-r2", "derived-2"),
     ];
     let mut prospective =
-        DependencyProspectiveState::from_prepared_writes(&connection, &writes).unwrap();
+        DependencyProspectiveState::from_prepared_writes(&connection, "", &writes).unwrap();
     let first = validate_source_dependency_registration(
         &connection,
+        "",
         SourceDependencyRegistrationV1::new("batch-dep-1", "batch-source-r1", "batch-derived-r1")
             .unwrap(),
         &prospective,
@@ -75,6 +76,7 @@ fn prospective_validation_and_apply_reuse_one_enclosing_transaction_generation()
     prospective.record_registration(&first).unwrap();
     let second = validate_source_dependency_registration(
         &connection,
+        "",
         SourceDependencyRegistrationV1::new("batch-dep-2", "batch-source-r1", "batch-derived-r2")
             .unwrap(),
         &prospective,
@@ -83,8 +85,8 @@ fn prospective_validation_and_apply_reuse_one_enclosing_transaction_generation()
     prospective.record_registration(&second).unwrap();
 
     let generation = reserve_dependency_generation(&connection).unwrap();
-    apply_validated_source_dependency(&connection, &first, generation).unwrap();
-    apply_validated_source_dependency(&connection, &second, generation).unwrap();
+    apply_validated_source_dependency(&connection, "", &first, generation).unwrap();
+    apply_validated_source_dependency(&connection, "", &second, generation).unwrap();
     assert_eq!(load_dependency_generation(&connection).unwrap(), 0);
     store_dependency_generation(&connection, generation).unwrap();
 

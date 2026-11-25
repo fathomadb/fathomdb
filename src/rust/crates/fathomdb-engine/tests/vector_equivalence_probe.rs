@@ -475,7 +475,7 @@ fn failed_admission_precedes_all_vector_calls_and_matching_recovery_serves() {
     assert!(recovered.engine.search_reranked("q", None, 5, false, 1.0, 5).is_ok());
     assert!(recovered.engine.search_explained("q", None, 5, false, 1.0, 5).is_ok());
     assert!(recovered.engine.search_reranked("q", None, 0, true, 0.3, 0).is_ok());
-    assert!(recovered.engine.search_expand("q", None, 1).is_ok());
+    assert!(recovered.engine.search_expand("q", None, 1, None).is_ok());
     recovered.engine.close().unwrap();
 }
 

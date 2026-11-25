@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{Engine, EngineOpenError};
+use fathomdb_schema::SCHEMA_VERSION;
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -23,7 +24,10 @@ fn format35_fresh_and_rebuilt_vec0_use_64_row_chunks() {
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
     opened.engine.configure_vector_kind_for_test("doc").unwrap();
     let conn = Connection::open(&path).unwrap();
-    assert_eq!(conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0)).unwrap(), 38);
+    assert_eq!(
+        conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0)).unwrap(),
+        SCHEMA_VERSION
+    );
     for rebuild in [false, true] {
         if rebuild {
             opened.engine.rebuild_vec0().unwrap();
@@ -48,7 +52,8 @@ fn format34_is_refused_without_mutating_database() {
     let before = std::fs::read(&path).unwrap();
     assert!(matches!(
         Engine::open(&path),
-        Err(EngineOpenError::IncompatibleSchemaVersion { seen: 34, supported: 38 })
+        Err(EngineOpenError::IncompatibleSchemaVersion { seen: 34, supported })
+            if supported == SCHEMA_VERSION
     ));
     assert_eq!(std::fs::read(&path).unwrap(), before);
 }

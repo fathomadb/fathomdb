@@ -100,7 +100,9 @@ fn graph_expansion_hashes_each_shared_source_once() {
     .with_evidence(true);
     let mut guard = engine.connection.lock().unwrap();
     let connection = guard.as_mut().unwrap();
-    let binding = frozen_read::authenticate(connection, &frozen).unwrap();
+    let binding =
+        frozen_read::authenticate(connection, &frozen, &crate::scope::ScopePredicate::unscoped())
+            .unwrap();
     let authority = graph_evidence_authority(connection, &frozen).unwrap();
     // Run the real reader transaction on this thread to isolate the hash observer
     // from background workers and parallel tests without a process-global counter.
@@ -108,6 +110,7 @@ fn graph_expansion_hashes_each_shared_source_once() {
     let result = crate::graph_expand::read_graph_expand_in_tx(
         connection,
         &request,
+        &crate::scope::ScopePredicate::unscoped(),
         Some(&binding),
         crate::ProjectionRuntimeStateV1::Absent,
         Some(&authority),

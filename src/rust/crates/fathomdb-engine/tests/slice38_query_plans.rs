@@ -490,15 +490,16 @@ fn slice38_graph_expand_incident_query_plans_use_active_or_sup_kind_indexes_zero
                 .explain_graph_expand_with_kinds_for_test(direction, &kinds_vec)
                 .unwrap_or_else(|e| panic!("explain ({direction:?}, {kinds:?}) failed: {e:?}"));
             let has_from = plan.iter().any(|l| {
-                l.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
-                    || l.contains(
-                        "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
-                    )
+                l.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_active_idx",
+                ) || l.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_sup_kind_idx",
+                )
             });
             let has_to = plan.iter().any(|l| {
-                l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
+                l.contains("SEARCH canonical_edges USING INDEX canonical_edges_scope_to_active_idx")
                     || l.contains(
-                        "SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx",
+                        "SEARCH canonical_edges USING INDEX canonical_edges_scope_to_sup_kind_idx",
                     )
             });
             match direction {
@@ -578,18 +579,24 @@ fn slice38_graph_arm_phase2_union_all_uses_active_or_sup_kind_indexes_zero_scan(
             .explain_graph_arm_phase2_for_test(&kinds_vec)
             .unwrap_or_else(|e| panic!("explain graph arm phase2 ({kinds:?}) failed: {e:?}"));
         let has_from = plan.iter().any(|l| {
-            l.contains("SEARCH e USING INDEX canonical_edges_from_active_idx")
-                || l.contains("SEARCH e USING INDEX canonical_edges_from_sup_kind_idx")
-                || l.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
+            l.contains("SEARCH e USING INDEX canonical_edges_scope_from_active_idx")
+                || l.contains("SEARCH e USING INDEX canonical_edges_scope_from_sup_kind_idx")
                 || l.contains(
-                    "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
+                    "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_active_idx",
+                )
+                || l.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_sup_kind_idx",
                 )
         });
         let has_to = plan.iter().any(|l| {
-            l.contains("SEARCH e USING INDEX canonical_edges_to_active_idx")
-                || l.contains("SEARCH e USING INDEX canonical_edges_to_sup_kind_idx")
-                || l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
-                || l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx")
+            l.contains("SEARCH e USING INDEX canonical_edges_scope_to_active_idx")
+                || l.contains("SEARCH e USING INDEX canonical_edges_scope_to_sup_kind_idx")
+                || l.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_scope_to_active_idx",
+                )
+                || l.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_scope_to_sup_kind_idx",
+                )
         });
         assert!(
             has_from && has_to,
@@ -686,24 +693,28 @@ fn slice40_historical_graph_expand_production_plans_use_dual_indexes_and_reverse
                         panic!("as_of explain ({direction:?}, {kinds:?}, derived={check_derived}) failed: {e:?}")
                     });
                 let has_from_active = plan.iter().any(|l| {
-                    l.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
-                        || l.contains(
-                            "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
-                        )
+                    l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_active_idx",
+                    ) || l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_sup_kind_idx",
+                    )
                 });
                 let has_from_sup = plan.iter().any(|l| {
                     l.contains(
-                        "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
+                        "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_sup_kind_idx",
                     )
                 });
                 let has_to_active = plan.iter().any(|l| {
-                    l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
-                        || l.contains(
-                            "SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx",
-                        )
+                    l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_scope_to_active_idx",
+                    ) || l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_scope_to_sup_kind_idx",
+                    )
                 });
                 let has_to_sup = plan.iter().any(|l| {
-                    l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx")
+                    l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_scope_to_sup_kind_idx",
+                    )
                 });
                 match direction {
                     TraversalDirection::Outgoing => {
@@ -743,8 +754,8 @@ fn slice40_historical_graph_expand_production_plans_use_dual_indexes_and_reverse
         .expect("explain load_node");
     assert!(
         load_node_plan.iter().any(|l| {
-            l.contains("SEARCH n USING INDEX canonical_nodes_logical_active_idx")
-                || l.contains("SEARCH n USING INDEX canonical_nodes_logical_sup_idx")
+            l.contains("SEARCH n USING INDEX canonical_nodes_scope_logical_active_idx")
+                || l.contains("SEARCH n USING INDEX canonical_nodes_scope_logical_sup_idx")
         }),
         "historical load_node arm 1 must use active/sup logical index:\n{}",
         load_node_plan.join("\n")
@@ -752,8 +763,8 @@ fn slice40_historical_graph_expand_production_plans_use_dual_indexes_and_reverse
     assert!(
         load_node_plan
             .iter()
-            .any(|l| l.contains("SEARCH n USING INDEX canonical_nodes_logical_sup_idx")),
-        "historical load_node arm 2 must use canonical_nodes_logical_sup_idx:\n{}",
+            .any(|l| l.contains("SEARCH n USING INDEX canonical_nodes_scope_logical_sup_idx")),
+        "historical load_node arm 2 must use canonical_nodes_scope_logical_sup_idx:\n{}",
         load_node_plan.join("\n")
     );
     assert!(

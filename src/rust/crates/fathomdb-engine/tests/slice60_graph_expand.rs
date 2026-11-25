@@ -754,15 +754,17 @@ fn endpoint_plans_use_shipped_indexes_without_full_edge_scan_and_schema_stays_38
     {
         let plan = opened.engine.explain_graph_expand_for_test(direction).unwrap();
         let has_from = plan.iter().any(|line| {
-            line.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
-                || line.contains(
-                    "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
-                )
+            line.contains(
+                "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_active_idx",
+            ) || line.contains(
+                "SEARCH canonical_edges USING INDEX canonical_edges_scope_from_sup_kind_idx",
+            )
         });
         let has_to = plan.iter().any(|line| {
-            line.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
-                || line
-                    .contains("SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx")
+            line.contains("SEARCH canonical_edges USING INDEX canonical_edges_scope_to_active_idx")
+                || line.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_scope_to_sup_kind_idx",
+                )
         });
         match direction {
             TraversalDirection::Incoming => assert!(has_to && !has_from, "{plan:?}"),

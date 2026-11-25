@@ -659,6 +659,7 @@ fn reader_worker_loop(
     worker_idx: usize,
     wal_attribution: Arc<WalAttributionCollector>,
     stop_words: Arc<StopWordSet>,
+    scope: crate::scope::ScopePredicate,
     ready: SyncSender<()>,
     physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
@@ -713,6 +714,7 @@ fn reader_worker_loop(
                     filter.as_deref(),
                     limit,
                     view,
+                    &scope,
                     &stop_words,
                     &wal_attribution,
                     worker_idx,
@@ -736,6 +738,7 @@ fn reader_worker_loop(
                         &mut connection,
                         work,
                         NoEvidenceCapture,
+                        &scope,
                         &stop_words,
                         &wal_attribution,
                         worker_idx,
@@ -773,6 +776,7 @@ fn reader_worker_loop(
                         #[cfg(any(test, feature = "test-hooks"))]
                         before_sidecar,
                     ),
+                    &scope,
                     &stop_words,
                     &wal_attribution,
                     worker_idx,
@@ -790,6 +794,7 @@ fn reader_worker_loop(
                     &mut connection,
                     &logical_ids,
                     &view,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -807,6 +812,7 @@ fn reader_worker_loop(
                     &collection,
                     after_id,
                     limit,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -857,6 +863,7 @@ fn reader_worker_loop(
                         property_predicates: &request.property_predicates,
                         limit: request.limit,
                         view: &request.view,
+                        scope: &scope,
                     },
                     &wal_attribution,
                     worker_idx,
@@ -875,6 +882,7 @@ fn reader_worker_loop(
                     &request.kind,
                     &request.frozen,
                     &request.page,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -892,6 +900,7 @@ fn reader_worker_loop(
                     &request.collection,
                     &request.record_key,
                     request.frozen.as_ref(),
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -909,6 +918,7 @@ fn reader_worker_loop(
                     &request.collection,
                     &request.frozen,
                     &request.page,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -927,6 +937,7 @@ fn reader_worker_loop(
                     &request.kind,
                     &request.context,
                     request.limit,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -945,6 +956,7 @@ fn reader_worker_loop(
                     depth,
                     direction,
                     &view,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -969,6 +981,7 @@ fn reader_worker_loop(
                 let result = graph_expand::read_graph_expand_with_stop_words_in_tx(
                     &mut connection,
                     &request.request,
+                    &scope,
                     request.frozen_binding.as_deref(),
                     request.projection_runtime_state,
                     request.evidence_authority.as_ref(),
@@ -1000,6 +1013,7 @@ fn reader_worker_loop(
                     &mut connection,
                     since,
                     &view,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -1025,6 +1039,7 @@ fn reader_worker_loop(
                     depth,
                     view,
                     filter.as_deref(),
+                    &scope,
                     frozen_binding.as_deref(),
                     &wal_attribution,
                     worker_idx,
@@ -1044,6 +1059,7 @@ fn reader_worker_loop(
                     &root_logical_id,
                     depth,
                     direction,
+                    &scope,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -1264,6 +1280,7 @@ impl ReaderWorkerPool {
         connections: Vec<Connection>,
         wal_attribution: Arc<WalAttributionCollector>,
         stop_words: Arc<StopWordSet>,
+        scope: crate::scope::ScopePredicate,
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
@@ -1281,6 +1298,7 @@ impl ReaderWorkerPool {
             let worker_shutdown = Arc::clone(&shutdown);
             let attribution = Arc::clone(&wal_attribution);
             let worker_stop_words = Arc::clone(&stop_words);
+            let worker_scope = scope.clone();
             let ready = ready_tx.clone();
             let worker_physical_admission = Arc::clone(&physical_admission);
             #[cfg(any(test, feature = "test-hooks"))]
@@ -1296,6 +1314,7 @@ impl ReaderWorkerPool {
                         idx,
                         attribution,
                         worker_stop_words,
+                        worker_scope,
                         ready,
                         worker_physical_admission,
                         #[cfg(any(test, feature = "test-hooks"))]

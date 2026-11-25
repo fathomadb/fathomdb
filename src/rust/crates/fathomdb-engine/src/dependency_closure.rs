@@ -208,6 +208,7 @@ struct DirectDependent {
 pub(crate) type PhysicalDependencyPlan = Vec<(String, Vec<(String, i64)>)>;
 
 pub(crate) struct PhysicalClosureAdmission<'a> {
+    pub scope: &'a str,
     pub root_kind: &'a str,
     pub root_value: &'a str,
     pub retry_verb: &'a str,
@@ -218,6 +219,7 @@ pub(crate) struct PhysicalClosureAdmission<'a> {
 }
 
 pub(crate) struct PhysicalProofScope {
+    scope: String,
     cursors: Vec<i64>,
     revisions: Vec<String>,
     source_link_artifact_revisions: Vec<String>,
@@ -227,6 +229,7 @@ pub(crate) struct PhysicalProofScope {
 
 pub(crate) fn physical_proof_scope(
     connection: &Connection,
+    scope: &str,
     cursors: &[i64],
     receipt_refs: &BTreeSet<(String, String)>,
     source_bucket: Option<&str>,
@@ -235,8 +238,8 @@ pub(crate) fn physical_proof_scope(
     for cursor in cursors {
         let revision = connection
             .query_row(
-                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE write_cursor=?1",
-                [cursor],
+                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE scope=?1 AND write_cursor=?2",
+                params![scope, cursor],
                 |row| row.get::<_, String>(0),
             )
             .optional()
@@ -253,11 +256,11 @@ pub(crate) fn physical_proof_scope(
         let mut statement = connection
             .prepare(
                 "SELECT artifact_revision_id FROM _fathomdb_source_links \
-                 WHERE artifact_revision_id=?1 OR source_revision_id=?1",
+                 WHERE scope=?1 AND (artifact_revision_id=?2 OR source_revision_id=?2)",
             )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map([revision], |row| row.get::<_, String>(0))
+            .query_map(params![scope, revision], |row| row.get::<_, String>(0))
             .map_err(|_| EngineError::Storage)?;
         for row in rows {
             source_link_artifact_revisions.insert(row.map_err(|_| EngineError::Storage)?);
@@ -265,11 +268,13 @@ pub(crate) fn physical_proof_scope(
         let mut statement = connection
             .prepare(
                 "SELECT source_id,source_version_id FROM _fathomdb_source_versions \
-                 WHERE source_revision_id=?1",
+                 WHERE scope=?1 AND source_revision_id=?2",
             )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map([revision], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .query_map(params![scope, revision], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
             .map_err(|_| EngineError::Storage)?;
         for row in rows {
             source_version_keys.insert(row.map_err(|_| EngineError::Storage)?);
@@ -277,10 +282,13 @@ pub(crate) fn physical_proof_scope(
     }
     if let Some(source_id) = source_bucket {
         let mut statement = connection
-            .prepare("SELECT artifact_revision_id FROM _fathomdb_source_links WHERE source_id=?1")
+            .prepare(
+                "SELECT artifact_revision_id FROM _fathomdb_source_links \
+                 WHERE scope=?1 AND source_id=?2",
+            )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map([source_id], |row| row.get::<_, String>(0))
+            .query_map(params![scope, source_id], |row| row.get::<_, String>(0))
             .map_err(|_| EngineError::Storage)?;
         for row in rows {
             source_link_artifact_revisions.insert(row.map_err(|_| EngineError::Storage)?);
@@ -288,11 +296,13 @@ pub(crate) fn physical_proof_scope(
         let mut statement = connection
             .prepare(
                 "SELECT source_id,source_version_id FROM _fathomdb_source_versions \
-                 WHERE source_id=?1",
+                 WHERE scope=?1 AND source_id=?2",
             )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map([source_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .query_map(params![scope, source_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
             .map_err(|_| EngineError::Storage)?;
         for row in rows {
             source_version_keys.insert(row.map_err(|_| EngineError::Storage)?);
@@ -302,6 +312,7 @@ pub(crate) fn physical_proof_scope(
     cursors.sort_unstable();
     cursors.dedup();
     Ok(PhysicalProofScope {
+        scope: scope.to_string(),
         cursors,
         revisions,
         source_link_artifact_revisions: source_link_artifact_revisions.into_iter().collect(),
@@ -334,14 +345,16 @@ fn proof_semantics_are_valid(proof: &ClosureProofV1, cause: ClosureCauseV1) -> b
 
 pub(crate) fn physical_dependents_for_sources(
     connection: &Connection,
+    scope: &str,
     source_revisions: &[String],
 ) -> Result<PhysicalDependencyPlan, EngineError> {
     let mut result = Vec::new();
     for source_revision in source_revisions {
-        let dependents = direct_dependents(connection, source_revision)?;
+        let dependents = direct_dependents(connection, scope, source_revision)?;
         for dependent in &dependents {
             validate_dependency_chain(
                 connection,
+                scope,
                 source_revision,
                 &dependent.revision_id,
                 DependencyValidationMode::Persisted,
@@ -392,16 +405,16 @@ pub(crate) fn measure_physical_closures(
         let (nodes, active): (i64, i64) = connection
             .query_row(
                 "SELECT COUNT(*),COALESCE(SUM(state='active' AND superseded_at IS NULL),0) \
-                 FROM canonical_nodes WHERE write_cursor=?1",
-                [cursor],
+                 FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
+                params![&scope.scope, cursor],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|_| EngineError::Storage)?;
         let (edges, current): (i64, i64) = connection
             .query_row(
                 "SELECT COUNT(*),COALESCE(SUM(superseded_at IS NULL),0) \
-                 FROM canonical_edges WHERE write_cursor=?1",
-                [cursor],
+                 FROM canonical_edges WHERE scope=?1 AND write_cursor=?2",
+                params![&scope.scope, cursor],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -424,8 +437,8 @@ pub(crate) fn measure_physical_closures(
     for revision in &scope.revisions {
         let count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
-                [revision],
+                "SELECT COUNT(*) FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2",
+                params![&scope.scope, revision],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -434,8 +447,8 @@ pub(crate) fn measure_physical_closures(
     for artifact_revision in &scope.source_link_artifact_revisions {
         let count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
-                [artifact_revision],
+                "SELECT COUNT(*) FROM _fathomdb_source_links WHERE scope=?1 AND artifact_revision_id=?2",
+                params![&scope.scope, artifact_revision],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -445,8 +458,8 @@ pub(crate) fn measure_physical_closures(
         let count: i64 = connection
             .query_row(
                 "SELECT COUNT(*) FROM _fathomdb_source_versions \
-                 WHERE source_id=?1 AND source_version_id=?2",
-                params![source_id, source_version_id],
+                 WHERE scope=?1 AND source_id=?2 AND source_version_id=?3",
+                params![&scope.scope, source_id, source_version_id],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -457,8 +470,8 @@ pub(crate) fn measure_physical_closures(
         let count: i64 = connection
             .query_row(
                 "SELECT COUNT(*) FROM _fathomdb_source_dependencies \
-                 WHERE derived_revision_id=?1",
-                [revision],
+                 WHERE scope=?1 AND derived_revision_id=?2",
+                params![&scope.scope, revision],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -469,8 +482,8 @@ pub(crate) fn measure_physical_closures(
         let count: i64 = connection
             .query_row(
                 "SELECT COUNT(*) FROM _fathomdb_actuation_receipt_source_refs \
-                 WHERE ref_kind=?1 AND ref_value=?2",
-                params![kind, value],
+                 WHERE scope=?1 AND ref_kind=?2 AND ref_value=?3",
+                params![&scope.scope, kind, value],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -480,16 +493,16 @@ pub(crate) fn measure_physical_closures(
         let (boundary, admitted_generation): (i64, i64) = connection
             .query_row(
                 "SELECT admitted_write_boundary,admitted_dependency_generation \
-                 FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1",
-                [id.as_str()],
+                 FROM _fathomdb_dependency_closures WHERE scope=?1 AND closure_operation_id=?2",
+                params![&scope.scope, id.as_str()],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|_| EngineError::Storage)?;
         let post_admission: i64 = connection
             .query_row(
                 "SELECT COUNT(*) FROM _fathomdb_source_dependencies \
-                 WHERE registered_dependency_generation>?1",
-                [admitted_generation],
+                 WHERE scope=?1 AND registered_dependency_generation>?2",
+                params![&scope.scope, admitted_generation],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -534,8 +547,8 @@ pub(crate) fn measure_physical_closures(
         let changed = connection
             .execute(
                 "UPDATE _fathomdb_dependency_closures SET proof_json=?2,\
-                 structural_proof_write_boundary=?3 WHERE closure_operation_id=?1",
-                params![id.as_str(), proof_json(&proof)?, boundary],
+                 structural_proof_write_boundary=?3 WHERE scope=?4 AND closure_operation_id=?1",
+                params![id.as_str(), proof_json(&proof)?, boundary, &scope.scope],
             )
             .map_err(|_| EngineError::Storage)?;
         if changed != 1 {
@@ -575,8 +588,8 @@ pub(crate) fn record_physical_closure(
                schema_version,closure_operation_id,root_kind,root_value,cause,\
                effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
                closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
-               structural_proof_write_boundary,proof_json\
-             ) VALUES(1,?1,?2,?3,?4,?5,?6,?7,?8,?9,'at_rest_pending',?10,NULL,?6,?11)",
+               structural_proof_write_boundary,proof_json,scope\
+             ) VALUES(1,?1,?2,?3,?4,?5,?6,?7,?8,?9,'at_rest_pending',?10,NULL,?6,?11,?12)",
             params![
                 id.as_str(),
                 admission.root_kind,
@@ -589,6 +602,7 @@ pub(crate) fn record_physical_closure(
                 retry,
                 i64::try_from(admission.affected_count).map_err(|_| EngineError::Storage)?,
                 proof_json(&proof)?,
+                admission.scope,
             ],
         )
         .map_err(|_| EngineError::Storage)?;
@@ -719,16 +733,24 @@ fn validate_physical_zero(
     connection: &Connection,
     id: &ClosureOperationId,
 ) -> Result<(), EngineError> {
-    let row: (String, String, i64, i64, i64, String) = connection
+    let row: (String, String, i64, i64, i64, String, String) = connection
         .query_row(
             "SELECT root_kind,root_value,admitted_write_boundary,\
-                    admitted_dependency_generation,structural_proof_write_boundary,proof_json \
+                    admitted_dependency_generation,structural_proof_write_boundary,proof_json,scope \
              FROM _fathomdb_dependency_closures \
              WHERE closure_operation_id=?1 AND phase IN ('at_rest_pending','incomplete') \
                AND cause IN ('purged','source_erased')",
             [id.as_str()],
             |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
             },
         )
         .map_err(|_| EngineError::Storage)?;
@@ -773,21 +795,21 @@ fn validate_physical_zero(
         "source_revision" => connection
             .query_row(
                 "SELECT \
-                   (SELECT COUNT(*) FROM _fathomdb_artifact_revisions WHERE revision_id=?1) + \
-                   (SELECT COUNT(*) FROM _fathomdb_source_links WHERE artifact_revision_id=?1 \
-                      OR source_revision_id=?1)",
-                [&row.1],
+                   (SELECT COUNT(*) FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2) + \
+                   (SELECT COUNT(*) FROM _fathomdb_source_links WHERE scope=?1 \
+                      AND (artifact_revision_id=?2 OR source_revision_id=?2))",
+                params![&row.6, &row.1],
                 |value| value.get(0),
             )
             .map_err(|_| EngineError::Storage)?,
         "source_bucket" => connection
             .query_row(
                 "SELECT \
-                   (SELECT COUNT(*) FROM canonical_nodes WHERE source_id=?1) + \
-                   (SELECT COUNT(*) FROM canonical_edges WHERE source_id=?1) + \
-                   (SELECT COUNT(*) FROM _fathomdb_source_links WHERE source_id=?1) + \
-                   (SELECT COUNT(*) FROM _fathomdb_source_versions WHERE source_id=?1)",
-                [&row.1],
+                   (SELECT COUNT(*) FROM canonical_nodes WHERE scope=?1 AND source_id=?2) + \
+                   (SELECT COUNT(*) FROM canonical_edges WHERE scope=?1 AND source_id=?2) + \
+                   (SELECT COUNT(*) FROM _fathomdb_source_links WHERE scope=?1 AND source_id=?2) + \
+                   (SELECT COUNT(*) FROM _fathomdb_source_versions WHERE scope=?1 AND source_id=?2)",
+                params![&row.6, &row.1],
                 |value| value.get(0),
             )
             .map_err(|_| EngineError::Storage)?,
@@ -800,6 +822,37 @@ fn validate_physical_zero(
 }
 
 pub(crate) fn pending_physical_retry(
+    connection: &Connection,
+    scope: &str,
+    verb: &str,
+    argument: &str,
+) -> Result<Vec<ClosureOperationId>, EngineError> {
+    let fingerprint = closure_digest(&["fathomdb.dependency-closure-retry.v1\0", verb, argument]);
+    let mut statement = connection
+        .prepare(
+            "SELECT closure_operation_id FROM _fathomdb_dependency_closures \
+             WHERE scope=?1 AND retry_fingerprint=?2 AND phase!='complete' \
+             ORDER BY closure_sequence",
+        )
+        .map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map(params![scope, fingerprint], |row| row.get::<_, String>(0))
+        .map_err(|_| EngineError::Storage)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|_| EngineError::Storage)?;
+    rows.into_iter()
+        .map(|id| {
+            if valid_closure_id(&id) {
+                Ok(ClosureOperationId(id))
+            } else {
+                Err(EngineError::Storage)
+            }
+        })
+        .collect()
+}
+
+#[cfg(feature = "operator")]
+pub(crate) fn pending_physical_retry_any_scope(
     connection: &Connection,
     verb: &str,
     argument: &str,
@@ -896,22 +949,24 @@ pub(crate) fn projection_owner_is_eligible_at(
     effective_at: i64,
 ) -> Result<bool, EngineError> {
     let cursor = i64::try_from(cursor).map_err(|_| EngineError::Storage)?;
-    let source: Option<String> = connection
+    let source: Option<(String, String)> = connection
         .prepare_cached(
-            "SELECT l.source_revision_id FROM _fathomdb_artifact_revisions r \
-             JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
+            "SELECT r.scope, l.source_revision_id FROM _fathomdb_artifact_revisions r \
+             JOIN _fathomdb_source_dependencies d \
+               ON d.scope=r.scope AND d.derived_revision_id=r.revision_id \
+             JOIN _fathomdb_source_links l \
+               ON l.scope=r.scope AND l.artifact_revision_id=r.revision_id \
              WHERE r.write_cursor=?1",
         )
         .map_err(|_| EngineError::Storage)?
-        .query_row([cursor], |row| row.get(0))
+        .query_row([cursor], |row| Ok((row.get(0)?, row.get(1)?)))
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let Some(source) = source else {
+    let Some((scope, source)) = source else {
         return Ok(true);
     };
-    Ok(!active_barrier_for_source(connection, &source)?
-        && source_revision_is_strictly_eligible(connection, &source, effective_at)?)
+    Ok(!active_barrier_for_source(connection, &scope, &source)?
+        && source_revision_is_strictly_eligible(connection, &scope, &source, effective_at)?)
 }
 
 pub(crate) fn vector_arm_requires_fallback(
@@ -921,6 +976,7 @@ pub(crate) fn vector_arm_requires_fallback(
     include_inactive: bool,
     include_out_of_window: bool,
     effective_at: i64,
+    scope: &crate::scope::ScopePredicate,
 ) -> rusqlite::Result<bool> {
     #[cfg(any(test, feature = "slice30-observer"))]
     let observation = crate::slice30_observer::span("vector_arm_requires_fallback");
@@ -929,6 +985,15 @@ pub(crate) fn vector_arm_requires_fallback(
         observation.boolean_result(&Ok::<bool, rusqlite::Error>(false), false);
         return Ok(false);
     }
+    let mut binds = Vec::new();
+    let now_idx = if !include_out_of_window {
+        binds.push(rusqlite::types::Value::Integer(effective_at));
+        Some(1)
+    } else {
+        None
+    };
+    let mut owner_scope_sql = String::new();
+    scope.append_sql_values("owner.scope", &mut owner_scope_sql, &mut binds);
     let mut source_predicate = String::new();
     if !include_superseded {
         source_predicate.push_str(" AND source_node.superseded_at IS NULL");
@@ -936,24 +1001,25 @@ pub(crate) fn vector_arm_requires_fallback(
     if !include_inactive {
         source_predicate.push_str(" AND source_node.state='active'");
     }
-    if !include_out_of_window {
-        source_predicate.push_str(
-            " AND (source_node.valid_from IS NULL OR source_node.valid_from <= ?1) \
-             AND (source_node.valid_until IS NULL OR source_node.valid_until > ?1)",
-        );
+    if let Some(now_idx) = now_idx {
+        source_predicate.push_str(&format!(
+            " AND (source_node.valid_from IS NULL OR source_node.valid_from <= ?{now_idx}) \
+             AND (source_node.valid_until IS NULL OR source_node.valid_until > ?{now_idx})"
+        ));
     }
     let sql = format!(
         "SELECT EXISTS(\
            SELECT 1 FROM _fathomdb_artifact_revisions owner \
            JOIN _fathomdb_source_dependencies dependency \
-             ON dependency.derived_revision_id=owner.revision_id \
+             ON dependency.scope=owner.scope AND dependency.derived_revision_id=owner.revision_id \
            JOIN _fathomdb_source_links derived_link \
-             ON derived_link.artifact_revision_id=owner.revision_id \
-           WHERE EXISTS(\
+             ON derived_link.scope=owner.scope AND derived_link.artifact_revision_id=owner.revision_id \
+           WHERE ({owner_scope_sql}) AND (EXISTS(\
              SELECT 1 FROM _fathomdb_dependency_closures closure \
              LEFT JOIN _fathomdb_source_links source_link \
-               ON source_link.artifact_revision_id=derived_link.source_revision_id \
-             WHERE closure.phase!='complete' AND (\
+               ON source_link.scope=owner.scope \
+              AND source_link.artifact_revision_id=derived_link.source_revision_id \
+             WHERE closure.scope=owner.scope AND closure.phase!='complete' AND (\
                (closure.root_kind='source_revision' \
                  AND closure.root_value=derived_link.source_revision_id) OR \
                (closure.root_kind='source_bucket' \
@@ -962,32 +1028,38 @@ pub(crate) fn vector_arm_requires_fallback(
            ) OR NOT EXISTS(\
              SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
              JOIN canonical_nodes source_node \
-               ON source_node.write_cursor=source_revision.write_cursor \
-             WHERE source_revision.revision_id=derived_link.source_revision_id \
+               ON source_node.scope=source_revision.scope \
+              AND source_node.write_cursor=source_revision.write_cursor \
+             WHERE source_revision.scope=owner.scope \
+               AND source_revision.revision_id=derived_link.source_revision_id \
                AND source_revision.artifact_class='node' \
                AND source_revision.artifact_role='canonical_source' \
                AND source_revision.completeness='complete'{source_predicate}\
-           )\
+           ))\
          )"
     );
-    let result = if include_out_of_window {
-        connection.query_row(&sql, [], |row| row.get(0))
-    } else {
-        connection.query_row(&sql, [effective_at], |row| row.get(0))
-    };
+    let result =
+        connection.query_row(&sql, rusqlite::params_from_iter(binds.iter()), |row| row.get(0));
     #[cfg(any(test, feature = "slice30-observer"))]
     observation.boolean_result(&result, true);
     result
 }
 
-pub(crate) fn has_source_dependencies(connection: &Connection) -> rusqlite::Result<bool> {
+pub(crate) fn has_source_dependencies(
+    connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
+) -> rusqlite::Result<bool> {
     #[cfg(any(test, feature = "slice30-observer"))]
     let observation = crate::slice30_observer::span("has_source_dependencies");
-    let result = crate::prepare_search_statement(
-        connection,
-        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)",
-    )
-    .and_then(|mut statement| statement.query_row([], |row| row.get(0)));
+    let mut binds = Vec::new();
+    let mut scope_sql = String::new();
+    scope.append_sql_values("scope", &mut scope_sql, &mut binds);
+    let sql = format!(
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies WHERE ({scope_sql}) LIMIT 1)"
+    );
+    let result = crate::prepare_search_statement(connection, &sql).and_then(|mut statement| {
+        statement.query_row(rusqlite::params_from_iter(binds.iter()), |row| row.get(0))
+    });
     #[cfg(any(test, feature = "slice30-observer"))]
     observation.boolean_result(&result, true);
     result
@@ -999,27 +1071,27 @@ pub(crate) fn all_nodes_directly_eligible(
     include_inactive: bool,
     include_out_of_window: bool,
     effective_at: i64,
+    scope: &crate::scope::ScopePredicate,
 ) -> rusqlite::Result<bool> {
     #[cfg(any(test, feature = "slice30-observer"))]
     let observation = crate::slice30_observer::span("all_nodes_directly_eligible");
-    let unsafe_row = crate::prepare_search_statement(
-        connection,
-        "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE \
+    let mut binds = vec![
+        rusqlite::types::Value::Integer(effective_at),
+        rusqlite::types::Value::Integer(i64::from(include_superseded)),
+        rusqlite::types::Value::Integer(i64::from(include_inactive)),
+        rusqlite::types::Value::Integer(i64::from(include_out_of_window)),
+    ];
+    let mut scope_sql = String::new();
+    scope.append_sql_values("n.scope", &mut scope_sql, &mut binds);
+    let sql = format!(
+        "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE ({scope_sql}) AND (\
            (?2=0 AND n.superseded_at IS NOT NULL) OR \
            (?3=0 AND n.state!='active') OR \
            (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR \
-                      (n.valid_until IS NOT NULL AND n.valid_until<=?1))) LIMIT 1)",
-    )
-    .and_then(|mut statement| {
-        statement.query_row(
-            params![
-                effective_at,
-                i64::from(include_superseded),
-                i64::from(include_inactive),
-                i64::from(include_out_of_window),
-            ],
-            |row| row.get::<_, bool>(0),
-        )
+                      (n.valid_until IS NOT NULL AND n.valid_until<=?1)))) LIMIT 1)"
+    );
+    let unsafe_row = crate::prepare_search_statement(connection, &sql).and_then(|mut statement| {
+        statement.query_row(rusqlite::params_from_iter(binds.iter()), |row| row.get::<_, bool>(0))
     });
     let result = unsafe_row.map(|unsafe_row| !unsafe_row);
     #[cfg(any(test, feature = "slice30-observer"))]
@@ -1043,6 +1115,19 @@ pub(crate) fn read_eligibility_sql(
     )
 }
 
+fn scope_expression_for_cursor(cursor_expression: &str) -> String {
+    match cursor_expression.strip_suffix("write_cursor") {
+        Some(prefix) => format!("{prefix}scope"),
+        None => {
+            debug_assert!(
+                false,
+                "expected `...write_cursor` expression, got `{cursor_expression}`"
+            );
+            "scope".to_string()
+        }
+    }
+}
+
 pub(crate) fn read_eligibility_sql_for_cursor(
     cursor_expression: &str,
     include_superseded: bool,
@@ -1050,6 +1135,7 @@ pub(crate) fn read_eligibility_sql_for_cursor(
     include_out_of_window: bool,
     now_idx: usize,
 ) -> String {
+    let scope_expression = scope_expression_for_cursor(cursor_expression);
     let mut source_predicate = String::new();
     if !include_superseded {
         source_predicate.push_str(" AND source_node.superseded_at IS NULL");
@@ -1067,18 +1153,24 @@ pub(crate) fn read_eligibility_sql_for_cursor(
         "{} AND NOT EXISTS(\
            SELECT 1 FROM _fathomdb_artifact_revisions source_owner \
            JOIN _fathomdb_source_dependencies source_dep \
-             ON source_dep.derived_revision_id=source_owner.revision_id \
+             ON source_dep.scope=source_owner.scope \
+            AND source_dep.derived_revision_id=source_owner.revision_id \
            JOIN _fathomdb_source_links derived_link \
-             ON derived_link.artifact_revision_id=source_owner.revision_id \
-           WHERE source_owner.write_cursor={cursor_expression} AND NOT EXISTS(\
-             SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
-             JOIN canonical_nodes source_node \
-               ON source_node.write_cursor=source_revision.write_cursor \
-             WHERE source_revision.revision_id=derived_link.source_revision_id \
-               AND source_revision.artifact_class='node' \
-               AND source_revision.artifact_role='canonical_source' \
-               AND source_revision.completeness='complete'{source_predicate}\
-           )\
+             ON derived_link.scope=source_owner.scope \
+            AND derived_link.artifact_revision_id=source_owner.revision_id \
+           WHERE source_owner.scope={scope_expression} \
+             AND source_owner.write_cursor={cursor_expression} \
+             AND NOT EXISTS(\
+               SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
+               JOIN canonical_nodes source_node \
+                 ON source_node.scope=source_revision.scope \
+                AND source_node.write_cursor=source_revision.write_cursor \
+               WHERE source_revision.scope=source_owner.scope \
+                 AND source_revision.revision_id=derived_link.source_revision_id \
+                 AND source_revision.artifact_class='node' \
+                 AND source_revision.artifact_role='canonical_source' \
+                 AND source_revision.completeness='complete'{source_predicate}\
+             )\
          )",
         read_barrier_sql_for_cursor(cursor_expression)
     )
@@ -1095,13 +1187,15 @@ pub(crate) fn read_eligibility_sql_historical_for_cursor(
     now_idx: usize,
     include_out_of_window: bool,
 ) -> String {
+    let scope_expression = scope_expression_for_cursor(cursor_expression);
     let mut source_predicate = format!(
         " AND source_node.write_cursor <= ?{as_of_idx} \
          AND (source_node.superseded_at IS NULL OR source_node.superseded_at > ?{as_of_idx}) \
          AND source_node.state='active' \
          AND NOT EXISTS(\
            SELECT 1 FROM canonical_nodes scur \
-           WHERE scur.logical_id=source_node.logical_id \
+           WHERE scur.scope=source_node.scope \
+             AND scur.logical_id=source_node.logical_id \
              AND scur.superseded_at IS NULL \
              AND scur.state!='active'\
          )"
@@ -1116,40 +1210,52 @@ pub(crate) fn read_eligibility_sql_historical_for_cursor(
         "{} AND NOT EXISTS(\
            SELECT 1 FROM _fathomdb_artifact_revisions source_owner \
            JOIN _fathomdb_source_dependencies source_dep \
-             ON source_dep.derived_revision_id=source_owner.revision_id \
+             ON source_dep.scope=source_owner.scope \
+            AND source_dep.derived_revision_id=source_owner.revision_id \
            JOIN _fathomdb_source_links derived_link \
-             ON derived_link.artifact_revision_id=source_owner.revision_id \
-           WHERE source_owner.write_cursor={cursor_expression} AND NOT EXISTS(\
-             SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
-             JOIN canonical_nodes source_node \
-               ON source_node.write_cursor=source_revision.write_cursor \
-             WHERE source_revision.revision_id=derived_link.source_revision_id \
-               AND source_revision.artifact_class='node' \
-               AND source_revision.artifact_role='canonical_source' \
-               AND source_revision.completeness='complete'{source_predicate}\
-           )\
+             ON derived_link.scope=source_owner.scope \
+            AND derived_link.artifact_revision_id=source_owner.revision_id \
+           WHERE source_owner.scope={scope_expression} \
+             AND source_owner.write_cursor={cursor_expression} \
+             AND NOT EXISTS(\
+               SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
+               JOIN canonical_nodes source_node \
+                 ON source_node.scope=source_revision.scope \
+                AND source_node.write_cursor=source_revision.write_cursor \
+               WHERE source_revision.scope=source_owner.scope \
+                 AND source_revision.revision_id=derived_link.source_revision_id \
+                 AND source_revision.artifact_class='node' \
+                 AND source_revision.artifact_role='canonical_source' \
+                 AND source_revision.completeness='complete'{source_predicate}\
+             )\
          )",
         read_barrier_sql_for_cursor(cursor_expression)
     )
 }
 
 pub(crate) fn read_barrier_sql_for_cursor(cursor_expression: &str) -> String {
+    let scope_expression = scope_expression_for_cursor(cursor_expression);
     format!(
         " AND NOT EXISTS(\
            SELECT 1 FROM _fathomdb_artifact_revisions closure_owner \
            JOIN _fathomdb_source_dependencies closure_dep \
-             ON closure_dep.derived_revision_id=closure_owner.revision_id \
+             ON closure_dep.scope=closure_owner.scope \
+            AND closure_dep.derived_revision_id=closure_owner.revision_id \
            JOIN _fathomdb_source_links closure_link \
-             ON closure_link.artifact_revision_id=closure_owner.revision_id \
+             ON closure_link.scope=closure_owner.scope \
+            AND closure_link.artifact_revision_id=closure_owner.revision_id \
            JOIN _fathomdb_source_links closure_source \
-             ON closure_source.artifact_revision_id=closure_link.source_revision_id \
+             ON closure_source.scope=closure_owner.scope \
+            AND closure_source.artifact_revision_id=closure_link.source_revision_id \
            JOIN _fathomdb_dependency_closures closure_op \
-             ON closure_op.phase!='complete' AND (\
+             ON closure_op.scope=closure_owner.scope \
+            AND closure_op.phase!='complete' AND (\
                (closure_op.root_kind='source_revision' \
                  AND closure_op.root_value=closure_link.source_revision_id) OR \
                (closure_op.root_kind='source_bucket' \
                  AND closure_op.root_value=closure_source.source_id)) \
-           WHERE closure_owner.write_cursor={cursor_expression}\
+           WHERE closure_owner.scope={scope_expression} \
+             AND closure_owner.write_cursor={cursor_expression}\
          )"
     )
 }
@@ -1409,21 +1515,22 @@ fn next_identity(
 
 pub(crate) fn active_barrier_for_source(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
 ) -> Result<bool, EngineError> {
     connection
         .query_row(
             "SELECT EXISTS(\
                SELECT 1 FROM _fathomdb_dependency_closures c \
-               WHERE c.phase != 'complete' AND (\
-                 (c.root_kind='source_revision' AND c.root_value=?1) OR\
+               WHERE c.scope=?1 AND c.phase != 'complete' AND (\
+                 (c.root_kind='source_revision' AND c.root_value=?2) OR\
                  (c.root_kind='source_bucket' AND c.root_value=(\
                    SELECT source_id FROM _fathomdb_source_links \
-                   WHERE artifact_revision_id=?1\
+                   WHERE scope=?1 AND artifact_revision_id=?2\
                  ))\
                )\
              )",
-            [source_revision_id],
+            params![scope, source_revision_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)
@@ -1431,6 +1538,7 @@ pub(crate) fn active_barrier_for_source(
 
 pub(crate) fn source_revision_is_strictly_eligible(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
     effective_at: i64,
 ) -> Result<bool, EngineError> {
@@ -1438,14 +1546,14 @@ pub(crate) fn source_revision_is_strictly_eligible(
         .query_row(
             "SELECT EXISTS(\
                SELECT 1 FROM _fathomdb_artifact_revisions r \
-               JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-               WHERE r.revision_id=?1 AND r.artifact_class='node' \
+               JOIN canonical_nodes n ON n.scope=r.scope AND n.write_cursor=r.write_cursor \
+               WHERE r.scope=?1 AND r.revision_id=?2 AND r.artifact_class='node' \
                  AND r.artifact_role='canonical_source' AND r.completeness='complete' \
                  AND n.superseded_at IS NULL AND n.state='active' \
-                 AND (n.valid_from IS NULL OR n.valid_from <= ?2) \
-                 AND (n.valid_until IS NULL OR n.valid_until > ?2)\
+                 AND (n.valid_from IS NULL OR n.valid_from <= ?3) \
+                 AND (n.valid_until IS NULL OR n.valid_until > ?3)\
              )",
-            params![source_revision_id, effective_at],
+            params![scope, source_revision_id, effective_at],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)
@@ -1453,6 +1561,7 @@ pub(crate) fn source_revision_is_strictly_eligible(
 
 pub(crate) fn source_revision_is_eligible_as_of(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
     effective_at: i64,
     as_of_cursor: u64,
@@ -1464,20 +1573,20 @@ pub(crate) fn source_revision_is_eligible_as_of(
             .query_row(
                 "SELECT EXISTS(\
                    SELECT 1 FROM _fathomdb_artifact_revisions r \
-                   JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-                   WHERE r.revision_id=?1 AND r.artifact_class='node' \
+                   JOIN canonical_nodes n ON n.scope=r.scope AND n.write_cursor=r.write_cursor \
+                   WHERE r.scope=?1 AND r.revision_id=?2 AND r.artifact_class='node' \
                      AND r.artifact_role='canonical_source' AND r.completeness='complete' \
-                     AND n.write_cursor <= ?2 \
-                     AND (n.superseded_at IS NULL OR n.superseded_at > ?2) \
+                     AND n.write_cursor <= ?3 \
+                     AND (n.superseded_at IS NULL OR n.superseded_at > ?3) \
                      AND n.state='active' \
                      AND NOT EXISTS(\
                        SELECT 1 FROM canonical_nodes cur \
-                       WHERE cur.logical_id=n.logical_id \
+                       WHERE cur.scope=n.scope AND cur.logical_id=n.logical_id \
                          AND cur.superseded_at IS NULL \
                          AND cur.state!='active'\
                      )\
                  )",
-                params![source_revision_id, as_of_i64],
+                params![scope, source_revision_id, as_of_i64],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)
@@ -1486,22 +1595,22 @@ pub(crate) fn source_revision_is_eligible_as_of(
             .query_row(
                 "SELECT EXISTS(\
                    SELECT 1 FROM _fathomdb_artifact_revisions r \
-                   JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-                   WHERE r.revision_id=?1 AND r.artifact_class='node' \
+                   JOIN canonical_nodes n ON n.scope=r.scope AND n.write_cursor=r.write_cursor \
+                   WHERE r.scope=?1 AND r.revision_id=?2 AND r.artifact_class='node' \
                      AND r.artifact_role='canonical_source' AND r.completeness='complete' \
-                     AND n.write_cursor <= ?2 \
-                     AND (n.superseded_at IS NULL OR n.superseded_at > ?2) \
+                     AND n.write_cursor <= ?3 \
+                     AND (n.superseded_at IS NULL OR n.superseded_at > ?3) \
                      AND n.state='active' \
                      AND NOT EXISTS(\
                        SELECT 1 FROM canonical_nodes cur \
-                       WHERE cur.logical_id=n.logical_id \
+                       WHERE cur.scope=n.scope AND cur.logical_id=n.logical_id \
                          AND cur.superseded_at IS NULL \
                          AND cur.state!='active'\
                      ) \
-                     AND (n.valid_from IS NULL OR n.valid_from <= ?3) \
-                     AND (n.valid_until IS NULL OR n.valid_until > ?3)\
+                     AND (n.valid_from IS NULL OR n.valid_from <= ?4) \
+                     AND (n.valid_until IS NULL OR n.valid_until > ?4)\
                  )",
-                params![source_revision_id, as_of_i64, effective_at],
+                params![scope, source_revision_id, as_of_i64, effective_at],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)
@@ -1510,20 +1619,21 @@ pub(crate) fn source_revision_is_eligible_as_of(
 
 fn direct_dependents(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
 ) -> Result<Vec<DirectDependent>, EngineError> {
     let mut statement = connection
         .prepare(
             "SELECT d.derived_revision_id,r.artifact_class,r.write_cursor \
              FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             JOIN _fathomdb_artifact_revisions r ON r.revision_id=d.derived_revision_id \
-             WHERE l.source_revision_id=?1 \
+             JOIN _fathomdb_source_links l ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             JOIN _fathomdb_artifact_revisions r ON r.scope=d.scope AND r.revision_id=d.derived_revision_id \
+             WHERE d.scope=?1 AND l.source_revision_id=?2 \
              ORDER BY d.derived_revision_id,d.dependency_id",
         )
         .map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map([source_revision_id], |row| {
+        .query_map(params![scope, source_revision_id], |row| {
             Ok(DirectDependent {
                 revision_id: row.get(0)?,
                 artifact_class: row.get(1)?,
@@ -1538,6 +1648,7 @@ fn direct_dependents(
 
 fn apply_soft_effects(
     connection: &Connection,
+    scope: &str,
     dependents: &[DirectDependent],
     boundary: u64,
 ) -> Result<(), EngineError> {
@@ -1548,8 +1659,8 @@ fn apply_soft_effects(
                 connection
                     .execute(
                         "UPDATE canonical_nodes SET state='deleted',reason='source_lifecycle' \
-                         WHERE write_cursor=?1 AND superseded_at IS NULL AND state='active'",
-                        [dependent.write_cursor],
+                         WHERE scope=?1 AND write_cursor=?2 AND superseded_at IS NULL AND state='active'",
+                        params![scope, dependent.write_cursor],
                     )
                     .map_err(|_| EngineError::Storage)?;
                 erase_row_projections(connection, dependent.write_cursor)
@@ -1559,8 +1670,8 @@ fn apply_soft_effects(
                 connection
                     .execute(
                         "UPDATE canonical_edges SET superseded_at=?1 \
-                         WHERE write_cursor=?2 AND superseded_at IS NULL",
-                        params![boundary, dependent.write_cursor],
+                         WHERE scope=?2 AND write_cursor=?3 AND superseded_at IS NULL",
+                        params![boundary, scope, dependent.write_cursor],
                     )
                     .map_err(|_| EngineError::Storage)?;
                 erase_row_projections(connection, dependent.write_cursor)
@@ -1574,39 +1685,41 @@ fn apply_soft_effects(
 
 fn soft_proof(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
     admitted_generation: u64,
     boundary: u64,
 ) -> Result<ClosureProofV1, EngineError> {
-    let dependents = direct_dependents(connection, source_revision_id)?;
+    let dependents = direct_dependents(connection, scope, source_revision_id)?;
     let active_nodes: i64 = connection
         .query_row(
             "SELECT COUNT(*) FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             JOIN _fathomdb_artifact_revisions r ON r.revision_id=d.derived_revision_id \
-             JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-             WHERE l.source_revision_id=?1 AND n.superseded_at IS NULL AND n.state='active'",
-            [source_revision_id],
+             JOIN _fathomdb_source_links l ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             JOIN _fathomdb_artifact_revisions r ON r.scope=d.scope AND r.revision_id=d.derived_revision_id \
+             JOIN canonical_nodes n ON n.scope=r.scope AND n.write_cursor=r.write_cursor \
+             WHERE d.scope=?1 AND l.source_revision_id=?2 AND n.superseded_at IS NULL AND n.state='active'",
+            params![scope, source_revision_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
     let current_edges: i64 = connection
         .query_row(
             "SELECT COUNT(*) FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             JOIN _fathomdb_artifact_revisions r ON r.revision_id=d.derived_revision_id \
-             JOIN canonical_edges e ON e.write_cursor=r.write_cursor \
-             WHERE l.source_revision_id=?1 AND e.superseded_at IS NULL",
-            [source_revision_id],
+             JOIN _fathomdb_source_links l ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             JOIN _fathomdb_artifact_revisions r ON r.scope=d.scope AND r.revision_id=d.derived_revision_id \
+             JOIN canonical_edges e ON e.scope=r.scope AND e.write_cursor=r.write_cursor \
+             WHERE d.scope=?1 AND l.source_revision_id=?2 AND e.superseded_at IS NULL",
+            params![scope, source_revision_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
     let newer: i64 = connection
         .query_row(
             "SELECT COUNT(*) FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             WHERE l.source_revision_id=?1 AND d.registered_dependency_generation>?2",
+             JOIN _fathomdb_source_links l ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.scope=?1 AND l.source_revision_id=?2 AND d.registered_dependency_generation>?3",
             params![
+                scope,
                 source_revision_id,
                 i64::try_from(admitted_generation).map_err(|_| EngineError::Storage)?
             ],
@@ -1663,6 +1776,7 @@ fn proof_json(proof: &ClosureProofV1) -> Result<String, EngineError> {
 
 pub(crate) fn admit_soft_closure(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
     cause: ClosureCauseV1,
     boundary: u64,
@@ -1671,13 +1785,14 @@ pub(crate) fn admit_soft_closure(
     if cause.is_physical() {
         return Err(EngineError::Storage);
     }
-    let dependents = direct_dependents(connection, source_revision_id)?;
+    let dependents = direct_dependents(connection, scope, source_revision_id)?;
     if dependents.is_empty() {
         return Ok(None);
     }
     for dependent in &dependents {
         validate_dependency_chain(
             connection,
+            scope,
             source_revision_id,
             &dependent.revision_id,
             DependencyValidationMode::Persisted,
@@ -1694,9 +1809,9 @@ pub(crate) fn admit_soft_closure(
         boundary,
         admitted_generation,
     )?;
-    apply_soft_effects(connection, &dependents, boundary)?;
+    apply_soft_effects(connection, scope, &dependents, boundary)?;
     let proof = (mode == SoftClosureMode::Complete)
-        .then(|| soft_proof(connection, source_revision_id, admitted_generation, boundary))
+        .then(|| soft_proof(connection, scope, source_revision_id, admitted_generation, boundary))
         .transpose()?;
     let phase = if proof.is_some() { "complete" } else { "proving" };
     let encoded = proof.as_ref().map(proof_json).transpose()?;
@@ -1706,8 +1821,8 @@ pub(crate) fn admit_soft_closure(
                schema_version,closure_operation_id,root_kind,root_value,cause,\
                effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
                closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
-               structural_proof_write_boundary,proof_json\
-             ) VALUES(1,?1,'source_revision',?2,?3,?4,?5,?6,?7,?8,?9,?10,NULL,?11,?12)",
+               structural_proof_write_boundary,proof_json,scope\
+             ) VALUES(1,?1,'source_revision',?2,?3,?4,?5,?6,?7,?8,?9,?10,NULL,?11,?12,?13)",
             params![
                 id.as_str(),
                 source_revision_id,
@@ -1721,6 +1836,7 @@ pub(crate) fn admit_soft_closure(
                 i64::try_from(dependents.len()).map_err(|_| EngineError::Storage)?,
                 proof.as_ref().map(|_| i64::try_from(boundary).unwrap_or(i64::MAX)),
                 encoded,
+                scope,
             ],
         )
         .map_err(|_| EngineError::Storage)?;
@@ -1730,28 +1846,32 @@ pub(crate) fn admit_soft_closure(
 
 pub(crate) fn source_revision_for_cursor(
     connection: &Connection,
+    scope: &str,
     cursor: i64,
 ) -> Result<Option<String>, EngineError> {
     connection
         .prepare_cached(
             "SELECT revision_id FROM _fathomdb_artifact_revisions \
-             WHERE write_cursor=?1 AND artifact_role='canonical_source'",
+             WHERE scope=?1 AND write_cursor=?2 AND artifact_role='canonical_source'",
         )
-        .and_then(|mut stmt| stmt.query_row([cursor], |row| row.get(0)).optional())
+        .and_then(|mut stmt| stmt.query_row(params![scope, cursor], |row| row.get(0)).optional())
         .map_err(|_| EngineError::Storage)
 }
 
 pub(crate) fn guard_derived_reactivation(
     connection: &Connection,
+    scope: &str,
     cursor: i64,
 ) -> Result<(), EngineError> {
     let source_revision: Option<String> = connection
         .query_row(
             "SELECT l.source_revision_id FROM _fathomdb_artifact_revisions r \
-             JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
-             WHERE r.write_cursor=?1",
-            [cursor],
+             JOIN _fathomdb_source_dependencies d \
+               ON d.scope=r.scope AND d.derived_revision_id=r.revision_id \
+             JOIN _fathomdb_source_links l \
+               ON l.scope=r.scope AND l.artifact_revision_id=r.revision_id \
+             WHERE r.scope=?1 AND r.write_cursor=?2",
+            params![scope, cursor],
             |row| row.get(0),
         )
         .optional()
@@ -1759,15 +1879,19 @@ pub(crate) fn guard_derived_reactivation(
     let Some(source_revision) = source_revision else {
         return Ok(());
     };
-    if active_barrier_for_source(connection, &source_revision)? {
+    if active_barrier_for_source(connection, scope, &source_revision)? {
         return Err(DependencyError::new(
             DependencyErrorReason::DependencyClosureActive,
             "/sourceRevisionId",
         )
         .into());
     }
-    if !source_revision_is_strictly_eligible(connection, &source_revision, current_epoch_seconds())?
-    {
+    if !source_revision_is_strictly_eligible(
+        connection,
+        scope,
+        &source_revision,
+        current_epoch_seconds(),
+    )? {
         return Err(DependencyError::new(
             DependencyErrorReason::DependencySourceIneligible,
             "/sourceRevisionId",
@@ -1781,30 +1905,31 @@ pub(crate) fn finalize_soft_closure(
     connection: &Connection,
     id: &ClosureOperationId,
 ) -> Result<(), EngineError> {
-    let row: Option<(String, i64, i64, i64)> = connection
+    let row: Option<(String, String, i64, i64, i64)> = connection
         .query_row(
-            "SELECT root_value,admitted_dependency_generation,admitted_write_boundary,affected_count \
+            "SELECT scope,root_value,admitted_dependency_generation,admitted_write_boundary,affected_count \
              FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1 \
                AND cause IN ('superseded','soft_deleted') AND phase IN ('proving','incomplete')",
             [id.as_str()],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let Some((source, generation, boundary, affected_count)) = row else {
+    let Some((scope, source, generation, boundary, affected_count)) = row else {
         return Ok(());
     };
     let registered: i64 = connection
         .query_row(
             "SELECT COUNT(*) FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             WHERE l.source_revision_id=?1",
-            [&source],
+             JOIN _fathomdb_source_links l ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.scope=?1 AND l.source_revision_id=?2",
+            params![&scope, &source],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
     let proof = soft_proof(
         connection,
+        &scope,
         &source,
         u64::try_from(generation).map_err(|_| EngineError::Storage)?,
         u64::try_from(boundary).map_err(|_| EngineError::Storage)?,
@@ -1891,6 +2016,18 @@ impl Engine {
         valid_closure_sequence(connection)
             .map_err(|_| EngineError::Storage)?
             .ok_or(EngineError::Storage)?;
+        let scope = self.scope_predicate();
+        let mut scope_sql = String::new();
+        let mut params_values =
+            vec![rusqlite::types::Value::Text(lookup.closure_operation_id.as_str().to_string())];
+        scope.append_sql_values("scope", &mut scope_sql, &mut params_values);
+        let sql = format!(
+            "SELECT schema_version,closure_operation_id,root_kind,root_value,cause,phase,\
+                    effective_at_epoch_s,admitted_write_boundary,\
+                    admitted_dependency_generation,closure_sequence,affected_count,\
+                    blocker_code,structural_proof_write_boundary,proof_json \
+             FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1 AND ({scope_sql})"
+        );
         #[allow(clippy::type_complexity)]
         let row: Option<(
             i64,
@@ -1908,32 +2045,24 @@ impl Engine {
             Option<i64>,
             Option<String>,
         )> = connection
-            .query_row(
-                "SELECT schema_version,closure_operation_id,root_kind,root_value,cause,phase,\
-                        effective_at_epoch_s,admitted_write_boundary,\
-                        admitted_dependency_generation,closure_sequence,affected_count,\
-                        blocker_code,structural_proof_write_boundary,proof_json \
-                 FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1",
-                [lookup.closure_operation_id.as_str()],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                        row.get(5)?,
-                        row.get(6)?,
-                        row.get(7)?,
-                        row.get(8)?,
-                        row.get(9)?,
-                        row.get(10)?,
-                        row.get(11)?,
-                        row.get(12)?,
-                        row.get(13)?,
-                    ))
-                },
-            )
+            .query_row(&sql, rusqlite::params_from_iter(params_values.iter()), |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                    row.get(10)?,
+                    row.get(11)?,
+                    row.get(12)?,
+                    row.get(13)?,
+                ))
+            })
             .optional()
             .map_err(|_| EngineError::Storage)?;
         let Some((

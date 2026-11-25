@@ -139,6 +139,7 @@ mod record_lifecycle;
 mod rerank;
 mod runtime_configuration;
 mod runtime_lifecycle;
+mod scope;
 mod search;
 #[cfg(any(test, feature = "slice30-observer"))]
 mod slice30_observer;
@@ -397,6 +398,7 @@ pub use runtime_configuration::{
 use runtime_configuration::{
     configure_runtime_for_open, effective_runtime_configuration, ResolvedRuntimeConfiguration,
 };
+pub use scope::{ScopePolicy, ScopePolicyError, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES};
 pub(crate) use search::prepare_search_statement;
 #[cfg(test)]
 pub(crate) use search::retain_complete_rank_boundary_candidates;

@@ -94,10 +94,14 @@ pub(crate) fn revision_hash_field(hasher: &mut Sha256, value: &[u8]) {
     hasher.update(value);
 }
 
-fn runtime_revision_id(write: &PreparedWrite, cursor: u64) -> String {
+fn runtime_revision_id(write: &PreparedWrite, scope: &str, cursor: u64) -> String {
     let write = storage_write_shape(write);
     let mut hasher = Sha256::new();
     revision_hash_field(&mut hasher, b"fathomdb:artifact-revision:runtime:v1");
+    if !scope.is_empty() {
+        revision_hash_field(&mut hasher, b"scope");
+        revision_hash_field(&mut hasher, scope.as_bytes());
+    }
     match write.as_ref() {
         PreparedWrite::Node { body, source_id, .. } => {
             revision_hash_field(&mut hasher, b"node");
@@ -161,15 +165,20 @@ pub(crate) fn checked_locator_columns(
     }
 }
 
-fn revision_is_registered(tx: &Connection, revision_id: &str) -> rusqlite::Result<bool> {
+fn revision_is_registered(
+    tx: &Connection,
+    scope: &str,
+    revision_id: &str,
+) -> rusqlite::Result<bool> {
     tx.prepare_cached(
-        "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id = ?1)",
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE scope = ?1 AND revision_id = ?2)",
     )?
-    .query_row([revision_id], |row| row.get(0))
+    .query_row(params![scope, revision_id], |row| row.get(0))
 }
 
 fn register_artifact_identity(
     tx: &Connection,
+    scope: &str,
     original: &PreparedWrite,
     cursor: u64,
 ) -> Result<(), CommitBatchError> {
@@ -182,26 +191,27 @@ fn register_artifact_identity(
     };
 
     let Some(provenance) = provenance else {
-        let revision_id = runtime_revision_id(original, cursor);
-        if revision_is_registered(tx, &revision_id)? {
+        let revision_id = runtime_revision_id(original, scope, cursor);
+        if revision_is_registered(tx, scope, &revision_id)? {
             return Err(ProvenanceError::new(ProvenanceErrorReason::RevisionIdConflict, "").into());
         }
         tx.prepare_cached(
             "INSERT INTO _fathomdb_artifact_revisions(\
-               schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
-             ) VALUES(1, ?1, ?2, ?3, 'legacy', ?4)",
+               schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope\
+             ) VALUES(1, ?1, ?2, ?3, 'legacy', ?4, ?5)",
         )?
         .execute(params![
             revision_id,
             artifact_class,
             cursor,
-            ProvenanceCompleteness::MigratedIncomplete.as_str()
+            ProvenanceCompleteness::MigratedIncomplete.as_str(),
+            scope,
         ])?;
         return Ok(());
     };
 
     let revision_id = provenance.artifact_revision_id.as_str();
-    if revision_is_registered(tx, revision_id)? {
+    if revision_is_registered(tx, scope, revision_id)? {
         return Err(ProvenanceError::new(ProvenanceErrorReason::RevisionIdConflict, "").into());
     }
 
@@ -217,8 +227,8 @@ fn register_artifact_identity(
             let existing: Option<String> = tx
                 .query_row(
                     "SELECT source_revision_id FROM _fathomdb_source_versions \
-                     WHERE source_id = ?1 AND source_version_id = ?2",
-                    params![node.source_id.as_str(), provenance.source_version_id.as_str()],
+                     WHERE scope = ?1 AND source_id = ?2 AND source_version_id = ?3",
+                    params![scope, node.source_id.as_str(), provenance.source_version_id.as_str()],
                     |row| row.get(0),
                 )
                 .optional()?;
@@ -232,30 +242,32 @@ fn register_artifact_identity(
             let hash = canonical_body_hash(&node.body);
             tx.execute(
                 "INSERT INTO _fathomdb_artifact_revisions(\
-                   schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
-                 ) VALUES(1, ?1, 'node', ?2, 'canonical_source', ?3)",
-                params![revision_id, cursor, ProvenanceCompleteness::Complete.as_str()],
+                   schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope\
+                 ) VALUES(1, ?1, 'node', ?2, 'canonical_source', ?3, ?4)",
+                params![revision_id, cursor, ProvenanceCompleteness::Complete.as_str(), scope],
             )?;
             tx.execute(
                 "INSERT INTO _fathomdb_source_versions(\
-                   schema_version, source_id, source_version_id, source_revision_id\
-                 ) VALUES(1, ?1, ?2, ?3)",
+                   schema_version, source_id, source_version_id, source_revision_id, scope\
+                 ) VALUES(1, ?1, ?2, ?3, ?4)",
                 params![
                     node.source_id.as_str(),
                     provenance.source_version_id.as_str(),
-                    revision_id
+                    revision_id,
+                    scope,
                 ],
             )?;
             tx.execute(
                 "INSERT INTO _fathomdb_source_links(\
                    schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
-                   locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
-                 ) VALUES(1, ?1, ?2, ?3, ?1, 'whole_body', NULL, NULL, 'sha256', ?4)",
+                   locator_kind, start_byte, end_byte, hash_algorithm, hash_digest, scope\
+                 ) VALUES(1, ?1, ?2, ?3, ?1, 'whole_body', NULL, NULL, 'sha256', ?4, ?5)",
                 params![
                     revision_id,
                     node.source_id.as_str(),
                     provenance.source_version_id.as_str(),
-                    hash
+                    hash,
+                    scope,
                 ],
             )?;
         }
@@ -268,11 +280,13 @@ fn register_artifact_identity(
                 .query_row(
                     "SELECT sv.source_id, sv.source_version_id, n.body \
                      FROM _fathomdb_artifact_revisions ar \
-                     JOIN _fathomdb_source_versions sv ON sv.source_revision_id = ar.revision_id \
-                     JOIN canonical_nodes n ON n.write_cursor = ar.write_cursor \
-                     WHERE ar.revision_id = ?1 AND ar.artifact_class = 'node' \
+                     JOIN _fathomdb_source_versions sv \
+                       ON sv.scope = ar.scope AND sv.source_revision_id = ar.revision_id \
+                     JOIN canonical_nodes n \
+                       ON n.scope = ar.scope AND n.write_cursor = ar.write_cursor \
+                     WHERE ar.scope = ?1 AND ar.revision_id = ?2 AND ar.artifact_class = 'node' \
                        AND ar.artifact_role = 'canonical_source'",
-                    [source_revision_id.as_str()],
+                    params![scope, source_revision_id.as_str()],
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()?;
@@ -312,7 +326,7 @@ fn register_artifact_identity(
                 )
                 .into());
             }
-            if dependency_closure::active_barrier_for_source(tx, source_revision_id.as_str())
+            if dependency_closure::active_barrier_for_source(tx, scope, source_revision_id.as_str())
                 .map_err(|_| rusqlite::Error::InvalidQuery)?
             {
                 return Err(ProvenanceError::new(
@@ -323,6 +337,7 @@ fn register_artifact_identity(
             }
             if !dependency_closure::source_revision_is_strictly_eligible(
                 tx,
+                scope,
                 source_revision_id.as_str(),
                 current_epoch_seconds(),
             )
@@ -336,15 +351,21 @@ fn register_artifact_identity(
             }
             tx.execute(
                 "INSERT INTO _fathomdb_artifact_revisions(\
-                   schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
-                 ) VALUES(1, ?1, ?2, ?3, 'derived_semantic', ?4)",
-                params![revision_id, artifact_class, cursor, ProvenanceCompleteness::Complete.as_str()],
+                   schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope\
+                 ) VALUES(1, ?1, ?2, ?3, 'derived_semantic', ?4, ?5)",
+                params![
+                    revision_id,
+                    artifact_class,
+                    cursor,
+                    ProvenanceCompleteness::Complete.as_str(),
+                    scope,
+                ],
             )?;
             tx.execute(
                 "INSERT INTO _fathomdb_source_links(\
                    schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
-                   locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
-                 ) VALUES(1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'sha256', ?8)",
+                   locator_kind, start_byte, end_byte, hash_algorithm, hash_digest, scope\
+                 ) VALUES(1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'sha256', ?8, ?9)",
                 params![
                     revision_id,
                     stored_source_id,
@@ -353,7 +374,8 @@ fn register_artifact_identity(
                     locator_kind,
                     start_byte,
                     end_byte,
-                    supplied_hash.digest_hex()
+                    supplied_hash.digest_hex(),
+                    scope,
                 ],
             )?;
         }
@@ -476,8 +498,10 @@ pub(crate) fn canonical_batch_has_no_custom_triggers(
     Ok(!unexpected)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn commit_batch(
     connection: &mut Connection,
+    scope: &str,
     batch: &[PreparedWrite],
     plans: &[WritePlan],
     base_cursor: u64,
@@ -491,6 +515,7 @@ pub(crate) fn commit_batch(
     }
     let result = commit_batch_transaction(
         connection,
+        scope,
         batch,
         plans,
         base_cursor,
@@ -506,6 +531,7 @@ pub(crate) fn commit_batch(
 
 fn commit_batch_transaction(
     connection: &mut Connection,
+    scope: &str,
     batch: &[PreparedWrite],
     plans: &[WritePlan],
     base_cursor: u64,
@@ -566,6 +592,7 @@ fn commit_batch_transaction(
         let mut trigger_guard = VisibilityCoalescingGuard::arm(&tx)?;
         let attempted = apply_batch_in_transaction(
             &tx,
+            scope,
             batch,
             plans,
             base_cursor,
@@ -599,6 +626,7 @@ fn commit_batch_transaction(
 
     let result = apply_batch_in_transaction(
         &tx,
+        scope,
         batch,
         plans,
         base_cursor,
@@ -662,6 +690,7 @@ pub(crate) fn advance_read_visibility(connection: &Connection) -> rusqlite::Resu
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn apply_batch_in_transaction(
     tx: &Connection,
+    scope: &str,
     batch: &[PreparedWrite],
     plans: &[WritePlan],
     base_cursor: u64,
@@ -670,8 +699,8 @@ pub(crate) fn apply_batch_in_transaction(
     closure_mode: dependency_closure::SoftClosureMode,
     endpoint_validation: EndpointValidationMode,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
-    let scoped_physical = physical_erasure::guard_plain_write(tx, batch)?;
-    let queued_erasure = erasure_queue::guard_plain(tx, batch)?;
+    let scoped_physical = physical_erasure::guard_plain_write(tx, scope, batch)?;
+    let queued_erasure = erasure_queue::guard_plain(tx, scope, batch)?;
     if !scoped_physical {
         dependency_closure::guard_no_pending_physical(tx)?;
     }
@@ -698,10 +727,10 @@ pub(crate) fn apply_batch_in_transaction(
         // comment in `Engine::write_inner`.
         let cursor = base_cursor.saturating_add((i as u64).saturating_add(1));
         if scoped_physical {
-            physical_erasure::guard_plain_write(tx, std::slice::from_ref(original_write))?;
+            physical_erasure::guard_plain_write(tx, scope, std::slice::from_ref(original_write))?;
         }
         if queued_erasure {
-            erasure_queue::guard_plain(tx, std::slice::from_ref(original_write))?;
+            erasure_queue::guard_plain(tx, scope, std::slice::from_ref(original_write))?;
         }
         let write = storage_write_shape(original_write);
         match (write.as_ref(), plan) {
@@ -719,28 +748,19 @@ pub(crate) fn apply_batch_in_transaction(
                 },
                 WritePlan::Node,
             ) => {
-                // G0 — supersession is tombstone-then-insert in this same txn:
-                // mark the prior active version superseded BEFORE inserting the
-                // new active row, so the partial-unique-active index never sees
-                // two active rows for one logical_id. Scoped to logical_id ALONE
-                // (Decision 5, HITL-SIGNED 2026-06-05): a kind-change re-ingest of
-                // the same logical_id SUPERSEDES, never forks. No-op when logical_id
-                // is None (legacy/own-identity insert, behavior-identical to 0.7.x).
                 if let Some(logical_id) = logical_id {
-                    // fix-1 finding 2 [P2]: collect the prior active cursor(s)
-                    // BEFORE tombstoning so we can purge the superseded row's
-                    // row-owned attribute projections and keep the at-rest EAV /
-                    // property-FTS store ACTIVE-ONLY. Without this, a same-session
-                    // property filter / property-FTS saw BOTH the stale and the
-                    // current value until a boot re-derive/reconfigure cleared the
-                    // table — a stale read that violates the active-only invariant.
-                    let prior_g0 = prior_node_cursors_by_logical_id(tx, logical_id)?;
+                    let prior_g0 = prior_node_cursors_by_logical_id(tx, scope, logical_id)?;
                     for prior_cursor in &prior_g0 {
                         if let Some(source_revision) =
-                            dependency_closure::source_revision_for_cursor(tx, *prior_cursor)?
+                            dependency_closure::source_revision_for_cursor(
+                                tx,
+                                scope,
+                                *prior_cursor,
+                            )?
                         {
                             if let Some(id) = dependency_closure::admit_soft_closure(
                                 tx,
+                                scope,
                                 &source_revision,
                                 ClosureCauseV1::Superseded,
                                 cursor,
@@ -753,18 +773,10 @@ pub(crate) fn apply_batch_in_transaction(
                     if !prior_g0.is_empty() {
                         tx.prepare_cached(
                             "UPDATE canonical_nodes SET superseded_at = ?1
-                             WHERE logical_id = ?2 AND superseded_at IS NULL",
+                             WHERE scope = ?2 AND logical_id = ?3 AND superseded_at IS NULL",
                         )?
-                        .execute(params![cursor, logical_id])?;
+                        .execute(params![cursor, scope, logical_id])?;
                     }
-                    // Purge only the Attribute + PropertyFts classes: those tables
-                    // have NO `superseded_at IS NULL` read-side filter (the FTS5
-                    // `property_search_index` cannot carry one), so their stale rows
-                    // MUST be deleted at rest. The NodeFts (`search_index` /
-                    // `search_index_v2`) + Vector shadows are left intact — the node
-                    // read path already excludes their superseded rows via the
-                    // `canonical_nodes WHERE superseded_at IS NULL` join, so purging
-                    // them here would be a behaviour change outside this fix's scope.
                     for sc in &prior_g0 {
                         vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                         purge_row_projections_for_cursor_in(
@@ -778,43 +790,14 @@ pub(crate) fn apply_batch_in_transaction(
                         )?;
                     }
                 }
-                // EXP-S (0.8.14 Slice 5, D1) — a `PreparedWrite::Node` is the
-                // `leaf` structural row_kind (a normal record). coverage/graph
-                // rows are written via internal paths (row_kind is a SEPARATE
-                // axis from the doc-type `kind`, and there is no public SDK
-                // surface for it this release). Writing `leaf` explicitly is
-                // value-identical to the column DEFAULT.
-                // OPP-12 Phase-1 (0.8.19 Slice 5) — persist the create-time
-                // existence state + advisory reason. `InitialState::Active`
-                // (the default) writes `state = 'active'`, value-identical to the
-                // migration step-20 column DEFAULT; `Pending` quarantines the node
-                // out of default retrieval (the `state = 'active'` read exclusion).
-                // 0.8.20 Slice 15b (TC-34) — persist the world-time validity
-                // window. A `None` binds SQL NULL, which is what the migration
-                // step-22 columns already hold for every pre-existing row and what
-                // `ReadView::validity_sql` reads as UNBOUNDED on that side. So a
-                // write that omits the window is byte-identical on disk to a
-                // pre-slice write, and default-view visibility cannot drift.
                 let encoded_properties =
                     crate::properties::encode_properties_json(properties.as_ref())
                         .map_err(CommitBatchError::Engine)?;
                 tx.prepare_cached(
-                    "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state, reason, valid_from, valid_until, properties)
-                     VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                    "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state, reason, valid_from, valid_until, properties, scope)
+                     VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 )?
-                .execute(params![cursor, kind, body, source_id.as_str(), logical_id, RowKind::Leaf.as_str(), state.as_str(), reason, valid_from, valid_until, encoded_properties])?;
-                // EXP-S (D2/D5) — per-row_kind index-target dispatch. For `leaf`
-                // this is behavior-identical to the pre-EXP-S inline path: FTS
-                // (sync, in-tx) + vector (async, gated by kind_is_vector_indexed);
-                // else the cursor is terminated up-front.
-                // fix-2 [P2]: gate the attribute projection on the create-time
-                // state. A fresh insert is always non-superseded, so the backfill
-                // predicate (`state = 'active' AND superseded_at IS NULL`) reduces
-                // to `state == Active` here. A `Pending` node is quarantined out of
-                // the canonical read model — its declared attributes must NOT reach
-                // the property store until a `transition(pending → active)` promotes
-                // it (which projects them then). Node-FTS / vector shadows are left
-                // to their read-side lifecycle filter, exactly as for supersession.
+                .execute(params![cursor, kind, body, source_id.as_str(), logical_id, RowKind::Leaf.as_str(), state.as_str(), reason, valid_from, valid_until, encoded_properties, scope])?;
                 project_canonical_node_row(
                     tx,
                     cursor,
@@ -844,20 +827,14 @@ pub(crate) fn apply_batch_in_transaction(
                 },
                 WritePlan::Edge,
             ) => {
-                // G0 — identical tombstone-then-insert supersession on edges,
-                // keyed by logical_id ALONE (Decision 5, HITL-SIGNED 2026-06-05;
-                // edge `kind` is relationship-type, not identity — a kind-change
-                // re-ingest of the same edge logical_id SUPERSEDES, never forks).
-                // No-op when logical_id is None.
                 if let Some(logical_id) = logical_id {
-                    // Retained vectors must receive the canonical supersession metadata.
-                    let prior_g0 = prior_edge_cursors_by_logical_id(tx, logical_id)?;
+                    let prior_g0 = prior_edge_cursors_by_logical_id(tx, scope, logical_id)?;
                     if !prior_g0.is_empty() {
                         tx.prepare_cached(
                             "UPDATE canonical_edges SET superseded_at = ?1
-                             WHERE logical_id = ?2 AND superseded_at IS NULL",
+                             WHERE scope = ?2 AND logical_id = ?3 AND superseded_at IS NULL",
                         )?
-                        .execute(params![cursor, logical_id])?;
+                        .execute(params![cursor, scope, logical_id])?;
                         for sc in &prior_g0 {
                             vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                             purge_row_projections_for_cursor_in(
@@ -868,20 +845,14 @@ pub(crate) fn apply_batch_in_transaction(
                         }
                     }
                 }
-                // G11 — invalidate-not-accumulate: for fact-edges (body IS NOT NULL),
-                // tombstone any prior active edge on the same (from_id, to_id, kind)
-                // BEFORE inserting the new row. This is DIFFERENT from the G0
-                // logical_id tombstone: it is keyed on the triple, not the identity.
-                // Regular edges (body=None) skip this path — they retain G0 semantics.
                 if body.is_some() {
-                    // Update all vector rows for superseded endpoint facts.
-                    let prior_g11 = prior_edge_cursors_by_triple(tx, from, to, kind)?;
+                    let prior_g11 = prior_edge_cursors_by_triple(tx, scope, from, to, kind)?;
                     if !prior_g11.is_empty() {
                         tx.prepare_cached(
                             "UPDATE canonical_edges SET superseded_at = ?1
-                             WHERE from_id = ?2 AND to_id = ?3 AND kind = ?4 AND superseded_at IS NULL",
+                             WHERE scope = ?2 AND from_id = ?3 AND to_id = ?4 AND kind = ?5 AND superseded_at IS NULL",
                         )?
-                        .execute(params![cursor, from, to, kind])?;
+                        .execute(params![cursor, scope, from, to, kind])?;
                         for sc in &prior_g11 {
                             vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                             purge_row_projections_for_cursor_in(
@@ -901,8 +872,8 @@ pub(crate) fn apply_batch_in_transaction(
                     "INSERT INTO canonical_edges(
                          write_cursor, kind, from_id, to_id, source_id, logical_id,
                          body, t_valid, t_invalid, confidence, extractor_model_id,
-                         temporal_fallback, properties
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                         temporal_fallback, properties, scope
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 )?
                 .execute(params![
                     cursor,
@@ -917,11 +888,9 @@ pub(crate) fn apply_batch_in_transaction(
                     confidence,
                     extractor_model_id,
                     temporal_fallback_i,
-                    encoded_properties
+                    encoded_properties,
+                    scope,
                 ])?;
-                // 0.8.20 Slice 5a (R-20-E1, work item 1) — edge projection is no
-                // longer inlined here: the write path and the rebuild replay
-                // share ONE projector, so they cannot drift.
                 project_canonical_edge_row(
                     tx,
                     cursor,
@@ -961,10 +930,10 @@ pub(crate) fn apply_batch_in_transaction(
             ) => {
                 tx.prepare_cached(
                     "INSERT INTO operational_mutations(
-                        collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
-                     ) VALUES(?1, ?2, 'append', ?3, ?4, ?5)",
+                        collection_name, record_key, op_kind, payload_json, schema_id, write_cursor, scope
+                     ) VALUES(?1, ?2, 'append', ?3, ?4, ?5, ?6)",
                 )?
-                .execute(params![collection, record_key, body, schema_id, cursor])?;
+                .execute(params![collection, record_key, body, schema_id, cursor, scope])?;
                 record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             (
@@ -973,29 +942,23 @@ pub(crate) fn apply_batch_in_transaction(
             ) => {
                 tx.prepare_cached(
                     "INSERT INTO operational_state(
-                        collection_name, record_key, payload_json, schema_id, write_cursor
-                     ) VALUES(?1, ?2, ?3, ?4, ?5)
+                        collection_name, record_key, payload_json, schema_id, write_cursor, scope
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6)
                      ON CONFLICT(scope, collection_name, record_key) DO UPDATE SET
                         payload_json = excluded.payload_json,
                         schema_id = excluded.schema_id,
                         write_cursor = excluded.write_cursor",
                 )?
-                .execute(params![collection, record_key, body, schema_id, cursor])?;
+                .execute(params![collection, record_key, body, schema_id, cursor, scope])?;
                 record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             _ => return Err(rusqlite::Error::InvalidQuery.into()),
         }
-        register_artifact_identity(tx, original_write, cursor)?;
+        register_artifact_identity(tx, scope, original_write, cursor)?;
     }
 
-    // Strict write-time endpoint integrity: runs AFTER the batch loop (so
-    // same-batch later-inserted active endpoints are visible and in-batch
-    // deactivations are observed) and BEFORE retention / visibility advance /
-    // commit. Single-operation actuation simulation defers this check to
-    // `validate_prospective_edge_endpoints` post-loop so edge-before-node
-    // batches commit and dangling actuation edges return typed Refused.
     if matches!(endpoint_validation, EndpointValidationMode::Strict) {
-        validate_strict_batch_edge_endpoints(tx, batch)?;
+        validate_strict_batch_edge_endpoints(tx, scope, batch)?;
     }
     let dangling_edge_endpoints: u64 = 0;
 
@@ -1010,15 +973,11 @@ pub(crate) fn apply_batch_in_transaction(
 
 fn validate_strict_batch_edge_endpoints(
     tx: &Connection,
+    scope: &str,
     batch: &[PreparedWrite],
 ) -> Result<(), CommitBatchError> {
-    // Zero-SQL fast path: node-only / non-edge batches must not prepare or run
-    // any query against `canonical_nodes`.
     let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     let mut distinct: Vec<&str> = Vec::new();
-    // Validate EVERY edge in the batch (including edges superseded later in the
-    // same batch under G0 `logical_id` or G11 `(from_id, to_id, kind)` rules),
-    // probing each distinct endpoint logical_id at most once.
     for write in batch {
         let endpoints = match write {
             PreparedWrite::Edge { from, to, .. } => Some((from.as_str(), to.as_str())),
@@ -1037,35 +996,38 @@ fn validate_strict_batch_edge_endpoints(
         return Ok(());
     }
 
-    // `canonical_nodes_logical_active_idx` is UNIQUE on `(logical_id) WHERE
-    // superseded_at IS NULL`, so for `k` distinct endpoints a batched
-    // `SELECT COUNT(*)` equals `k` iff every endpoint is currently active.
-    // Batching in chunks of 64 cuts VDBE round-trips ~10x on 200-edge writes.
     const CHUNK_SIZE: usize = 64;
     for chunk in distinct.chunks(CHUNK_SIZE) {
         let count: i64 = if chunk.len() == CHUNK_SIZE {
             let mut stmt = tx.prepare_cached(
                 "SELECT COUNT(*) FROM canonical_nodes \
-                 WHERE logical_id IN (\
-                     ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,\
-                     ?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,\
-                     ?33,?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,\
-                     ?49,?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64\
+                 WHERE scope = ?1 AND logical_id IN (\
+                     ?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,\
+                     ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,\
+                     ?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,?49,\
+                     ?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64,?65\
                  ) AND superseded_at IS NULL AND state = 'active'",
             )?;
-            stmt.query_row(rusqlite::params_from_iter(chunk.iter().copied()), |row| row.get(0))?
+            stmt.query_row(
+                rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+                |row| row.get(0),
+            )?
         } else {
-            let mut sql =
-                String::from("SELECT COUNT(*) FROM canonical_nodes WHERE logical_id IN (");
+            let mut sql = String::from(
+                "SELECT COUNT(*) FROM canonical_nodes WHERE scope = ?1 AND logical_id IN (",
+            );
             for idx in 0..chunk.len() {
                 if idx > 0 {
                     sql.push(',');
                 }
-                sql.push('?');
+                sql.push_str(&format!("?{}", idx + 2));
             }
             sql.push_str(") AND superseded_at IS NULL AND state = 'active'");
             let mut stmt = tx.prepare_cached(&sql)?;
-            stmt.query_row(rusqlite::params_from_iter(chunk.iter().copied()), |row| row.get(0))?
+            stmt.query_row(
+                rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+                |row| row.get(0),
+            )?
         };
         if count as usize != chunk.len() {
             return Err(CommitBatchError::Engine(EngineError::WriteValidation));
@@ -1205,9 +1167,9 @@ mod tests {
                 }))
                 .unwrap();
             let node_result =
-                validate_strict_batch_edge_endpoints(connection, std::slice::from_ref(&node));
+                validate_strict_batch_edge_endpoints(connection, "", std::slice::from_ref(&node));
             let edge_error =
-                validate_strict_batch_edge_endpoints(connection, std::slice::from_ref(&edge))
+                validate_strict_batch_edge_endpoints(connection, "", std::slice::from_ref(&edge))
                     .expect_err("Edge endpoint checks must consult SQLite");
             connection.authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
             assert!(matches!(
@@ -1215,7 +1177,7 @@ mod tests {
                 CommitBatchError::Sql(rusqlite::Error::SqliteFailure(error, _))
                     if error.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
             ));
-            let strict_err = validate_strict_batch_edge_endpoints(connection, &[edge])
+            let strict_err = validate_strict_batch_edge_endpoints(connection, "", &[edge])
                 .expect_err("Dangling edge must be rejected with WriteValidation");
             assert!(
                 matches!(strict_err, CommitBatchError::Engine(EngineError::WriteValidation)),

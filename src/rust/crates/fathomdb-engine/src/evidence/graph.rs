@@ -939,6 +939,7 @@ pub(crate) fn resolve_graph_evidence(
     connection: &Connection,
     reference: &GraphEvidenceRefV1,
     frozen: &FrozenReadContextV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<GraphEvidenceResolvedMaterial, EngineError> {
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
     let payload = decode_graph_evidence_reference(reference, &key)?;
@@ -951,6 +952,7 @@ pub(crate) fn resolve_graph_evidence(
     }
     let stored = load_stored(
         connection,
+        scope,
         payload.artifact_class,
         payload.artifact_cursor,
         payload.effective_valid_at,
@@ -1025,8 +1027,8 @@ pub(crate) fn resolve_graph_evidence(
     ) = match payload.artifact_class {
         EvidenceArtifactClassV1::Node => connection
             .query_row(
-                "SELECT body,state,valid_from,valid_until,properties FROM canonical_nodes WHERE write_cursor=?1",
-                [cursor],
+                "SELECT body,state,valid_from,valid_until,properties FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
+                rusqlite::params![&stored.scope, cursor],
                 |row| {
                     Ok((
                         Some(row.get(0)?),
@@ -1046,8 +1048,8 @@ pub(crate) fn resolve_graph_evidence(
         EvidenceArtifactClassV1::Edge => connection
             .query_row(
                 "SELECT body,from_id,to_id,t_valid,t_invalid,temporal_fallback,properties \
-                 FROM canonical_edges WHERE write_cursor=?1",
-                [cursor],
+                 FROM canonical_edges WHERE scope=?1 AND write_cursor=?2",
+                rusqlite::params![&stored.scope, cursor],
                 |row| {
                     Ok((
                         row.get(0)?,
@@ -1065,7 +1067,7 @@ pub(crate) fn resolve_graph_evidence(
             )
             .map_err(|_| EngineError::Storage)?,
     };
-    let dependency = load_dependency(connection, &stored.artifact_revision_id)?;
+    let dependency = load_dependency(connection, &stored.scope, &stored.artifact_revision_id)?;
     let _material = GraphEvidenceMaterial {
         artifact_class: payload.artifact_class,
         write_cursor: payload.artifact_cursor,
@@ -1103,18 +1105,18 @@ pub(crate) fn resolve_graph_evidence(
     let target: (String, String) = connection
         .query_row(
             "SELECT r.revision_id,n.logical_id FROM _fathomdb_artifact_revisions r \
-             JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-             WHERE r.artifact_class='node' AND r.write_cursor=?1",
-            [target_cursor],
+             JOIN canonical_nodes n ON n.scope=r.scope AND n.write_cursor=r.write_cursor \
+             WHERE r.scope=?1 AND r.artifact_class='node' AND r.write_cursor=?2",
+            rusqlite::params![&stored.scope, target_cursor],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
     let edge: (String, String, String, String) = connection
         .query_row(
             "SELECT r.revision_id,e.kind,e.from_id,e.to_id FROM _fathomdb_artifact_revisions r \
-             JOIN canonical_edges e ON e.write_cursor=r.write_cursor \
-             WHERE r.artifact_class='edge' AND r.write_cursor=?1",
-            [edge_cursor],
+             JOIN canonical_edges e ON e.scope=r.scope AND e.write_cursor=r.write_cursor \
+             WHERE r.scope=?1 AND r.artifact_class='edge' AND r.write_cursor=?2",
+            rusqlite::params![&stored.scope, edge_cursor],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;

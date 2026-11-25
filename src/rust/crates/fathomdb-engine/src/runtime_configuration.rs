@@ -179,9 +179,19 @@ pub struct EngineConfig {
     /// is the built-in list. Validated at open and fixed for the engine's
     /// life; not stored in the database.
     pub query_stop_words: Option<fathomdb_query::QueryStopWords>,
+    /// Caller-scope isolation policy for this handle (ADR-0.8.32). Defaults to
+    /// [`crate::scope::ScopePolicy::Unscoped`].
+    pub scope_policy: crate::scope::ScopePolicy,
 }
 
 impl EngineConfig {
+    /// Builder helper setting [`Self::scope_policy`].
+    #[must_use]
+    pub fn with_scope_policy(mut self, scope_policy: crate::scope::ScopePolicy) -> Self {
+        self.scope_policy = scope_policy;
+        self
+    }
+
     pub(crate) const fn cuda_pool_request(&self) -> fathomdb_embedder::CudaPoolRequest {
         fathomdb_embedder::CudaPoolRequest {
             mode: self.cuda_pool,
@@ -215,6 +225,8 @@ pub enum EngineConfigurationError {
         index: Option<usize>,
         reason: fathomdb_query::StopWordRejection,
     },
+    /// A `scope_policy` configuration failed validation.
+    ScopePolicy { reason: crate::scope::ScopePolicyError },
 }
 
 impl Display for EngineConfigurationError {
@@ -232,13 +244,14 @@ impl Display for EngineConfigurationError {
                 let error = fathomdb_query::StopWordError { field, index: *index, reason: *reason };
                 write!(f, "engine configuration {error}")
             }
+            Self::ScopePolicy { reason } => write!(f, "engine configuration {reason}"),
         }
     }
 }
 
 impl Error for EngineConfigurationError {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ResolvedRuntimeConfiguration {
     pub(crate) scheduler_runtime_threads: usize,
     pub(crate) embedder_pool_size: usize,
@@ -247,6 +260,7 @@ pub(crate) struct ResolvedRuntimeConfiguration {
     pub(crate) slow_threshold_ms: u64,
     pub(crate) embed_waiting_capacity: usize,
     pub(crate) projection_admission_capacity: usize,
+    pub(crate) scope_policy: crate::scope::ScopePolicy,
 }
 
 impl ResolvedRuntimeConfiguration {
@@ -303,6 +317,10 @@ impl ResolvedRuntimeConfiguration {
             .ok_or(EngineConfigurationError::CapacityOverflow {
                 field: "projection_admission_capacity",
             })?;
+        let scope_policy = requested
+            .scope_policy
+            .validated()
+            .map_err(|reason| EngineConfigurationError::ScopePolicy { reason })?;
         Ok(Self {
             scheduler_runtime_threads,
             embedder_pool_size,
@@ -311,6 +329,7 @@ impl ResolvedRuntimeConfiguration {
             slow_threshold_ms,
             embed_waiting_capacity,
             projection_admission_capacity,
+            scope_policy,
         })
     }
 }

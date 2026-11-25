@@ -974,6 +974,7 @@ pub(crate) fn physical_member_completion_at(
 
 pub(crate) fn receipt_point_completion_at(
     connection: &Connection,
+    scope: &str,
     operation_id: &str,
     cursor: u64,
     expected_generation: &ProjectionGenerationId,
@@ -983,8 +984,8 @@ pub(crate) fn receipt_point_completion_at(
     let stored_generation: Option<Option<String>> = connection
         .query_row(
             "SELECT projection_generation_id FROM _fathomdb_actuation_receipts \
-             WHERE operation_id=?1",
-            [operation_id],
+             WHERE scope=?1 AND operation_id=?2",
+            rusqlite::params![scope, operation_id],
             |row| row.get(0),
         )
         .optional()
@@ -1031,8 +1032,8 @@ pub(crate) fn dense_member_kind_at(
             "SELECT n.kind,n.row_kind,n.state,\
                     EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions r \
                       JOIN _fathomdb_source_dependencies d \
-                        ON d.derived_revision_id=r.revision_id \
-                      WHERE r.artifact_class='node' AND r.write_cursor=n.write_cursor),\
+                        ON d.scope=r.scope AND d.derived_revision_id=r.revision_id \
+                      WHERE r.scope=n.scope AND r.artifact_class='node' AND r.write_cursor=n.write_cursor),\
                     EXISTS(SELECT 1 FROM _fathomdb_vector_kinds vk WHERE vk.kind=n.kind),\
                     EXISTS(SELECT 1 FROM canonical_edges e WHERE e.write_cursor=n.write_cursor) \
              FROM canonical_nodes n WHERE n.write_cursor=?1",
@@ -1138,8 +1139,9 @@ fn unregistered_node_completion_sql() -> String {
           AND (?1!=0 OR vk.kind IS NOT NULL)
           AND NOT EXISTS(
             SELECT 1 FROM _fathomdb_artifact_revisions r
-            JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
-            WHERE r.artifact_class='node' AND r.write_cursor=n.write_cursor
+            JOIN _fathomdb_source_dependencies d
+              ON d.scope=r.scope AND d.derived_revision_id=r.revision_id
+            WHERE r.scope=n.scope AND r.artifact_class='node' AND r.write_cursor=n.write_cursor
           )
       ), classified AS (
         SELECT cursor,
@@ -1193,8 +1195,9 @@ fn unregistered_edge_completion_sql() -> &'static str {
           AND (e.t_invalid IS NULL OR e.t_invalid>?1)
           AND NOT EXISTS(
             SELECT 1 FROM _fathomdb_artifact_revisions r
-            JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
-            WHERE r.artifact_class='edge' AND r.write_cursor=e.write_cursor
+            JOIN _fathomdb_source_dependencies d
+              ON d.scope=r.scope AND d.derived_revision_id=r.revision_id
+            WHERE r.scope=e.scope AND r.artifact_class='edge' AND r.write_cursor=e.write_cursor
           )
       ), classified AS (
         SELECT cursor,
@@ -1246,10 +1249,11 @@ fn add_registered_completion(
 
 fn registered_completion_sql(owner_table: &str) -> String {
     format!(
-        "SELECT DISTINCT owner.write_cursor FROM {owner_table} owner
-         JOIN _fathomdb_artifact_revisions r ON r.write_cursor=owner.write_cursor
-           AND r.artifact_class=?1
-         JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
+        "SELECT DISTINCT owner.write_cursor FROM _fathomdb_source_dependencies d
+         CROSS JOIN _fathomdb_artifact_revisions r
+           ON r.scope=d.scope AND r.revision_id=d.derived_revision_id AND r.artifact_class=?1
+         CROSS JOIN {owner_table} owner
+           ON owner.scope=r.scope AND owner.write_cursor=r.write_cursor
          ORDER BY owner.write_cursor"
     )
 }
@@ -1324,13 +1328,14 @@ fn registered_provenance_integrity_sql() -> &'static str {
     "SELECT EXISTS(
                SELECT 1 FROM _fathomdb_source_dependencies d
                LEFT JOIN _fathomdb_artifact_revisions derived
-                 ON derived.revision_id=d.derived_revision_id
+                 ON derived.scope=d.scope AND derived.revision_id=d.derived_revision_id
                LEFT JOIN _fathomdb_source_links link
-                 ON link.artifact_revision_id=d.derived_revision_id
+                 ON link.scope=d.scope AND link.artifact_revision_id=d.derived_revision_id
                LEFT JOIN _fathomdb_artifact_revisions source
-                 ON source.revision_id=link.source_revision_id
+                 ON source.scope=d.scope AND source.revision_id=link.source_revision_id
                LEFT JOIN _fathomdb_source_versions version
-                 ON version.source_id=link.source_id
+                 ON version.scope=d.scope
+                AND version.source_id=link.source_id
                 AND version.source_version_id=link.source_version_id
                 AND version.source_revision_id=link.source_revision_id
                WHERE derived.revision_id IS NULL
@@ -1343,18 +1348,20 @@ fn registered_provenance_integrity_sql() -> &'static str {
              ) OR EXISTS(
                SELECT 1 FROM _fathomdb_source_links link
                LEFT JOIN _fathomdb_artifact_revisions artifact
-                 ON artifact.revision_id=link.artifact_revision_id
+                 ON artifact.scope=link.scope AND artifact.revision_id=link.artifact_revision_id
                LEFT JOIN _fathomdb_artifact_revisions source
-                 ON source.revision_id=link.source_revision_id
+                 ON source.scope=link.scope AND source.revision_id=link.source_revision_id
                WHERE artifact.revision_id IS NULL OR source.revision_id IS NULL
                LIMIT 1
              ) OR EXISTS(
                SELECT 1 FROM _fathomdb_artifact_revisions artifact
                LEFT JOIN canonical_nodes node
                  ON artifact.artifact_class='node'
+                AND node.scope=artifact.scope
                 AND node.write_cursor=artifact.write_cursor
                LEFT JOIN canonical_edges edge
                  ON artifact.artifact_class='edge'
+                AND edge.scope=artifact.scope
                 AND edge.write_cursor=artifact.write_cursor
                WHERE (artifact.artifact_class='node' AND node.write_cursor IS NULL)
                   OR (artifact.artifact_class='edge' AND edge.write_cursor IS NULL)
@@ -1585,21 +1592,27 @@ pub(crate) fn next_status_membership_boundary(
                SELECT source_node.valid_from \
                FROM _fathomdb_source_dependencies dependency \
                JOIN _fathomdb_source_links derived_link \
-                 ON derived_link.artifact_revision_id=dependency.derived_revision_id \
+                 ON derived_link.scope=dependency.scope \
+                AND derived_link.artifact_revision_id=dependency.derived_revision_id \
                JOIN _fathomdb_artifact_revisions source_revision \
-                 ON source_revision.revision_id=derived_link.source_revision_id \
+                 ON source_revision.scope=dependency.scope \
+                AND source_revision.revision_id=derived_link.source_revision_id \
                JOIN canonical_nodes source_node \
-                 ON source_node.write_cursor=source_revision.write_cursor \
+                 ON source_node.scope=source_revision.scope \
+                AND source_node.write_cursor=source_revision.write_cursor \
                WHERE source_node.valid_from>?1 \
                UNION ALL \
                SELECT source_node.valid_until \
                FROM _fathomdb_source_dependencies dependency \
                JOIN _fathomdb_source_links derived_link \
-                 ON derived_link.artifact_revision_id=dependency.derived_revision_id \
+                 ON derived_link.scope=dependency.scope \
+                AND derived_link.artifact_revision_id=dependency.derived_revision_id \
                JOIN _fathomdb_artifact_revisions source_revision \
-                 ON source_revision.revision_id=derived_link.source_revision_id \
+                 ON source_revision.scope=dependency.scope \
+                AND source_revision.revision_id=derived_link.source_revision_id \
                JOIN canonical_nodes source_node \
-                 ON source_node.write_cursor=source_revision.write_cursor \
+                 ON source_node.scope=source_revision.scope \
+                AND source_node.write_cursor=source_revision.write_cursor \
                WHERE source_node.valid_until>?1\
              ) \
              SELECT MIN(boundary) FROM boundaries",
@@ -1772,16 +1785,21 @@ impl Engine {
             }
         }
         let cache_request = request.clone();
-        let raw_receipt: Option<(String, Option<String>)> = tx
-            .query_row(
-                "SELECT outcome,request_sha256 FROM _fathomdb_actuation_receipts \
-                 WHERE operation_id=?1",
-                [&request.operation_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
+        let scope = self.scope_predicate();
+        let mut binds = vec![rusqlite::types::Value::Text(request.operation_id.clone())];
+        let mut scope_sql = String::new();
+        scope.append_sql_values("scope", &mut scope_sql, &mut binds);
+        let receipt_sql = format!(
+            "SELECT outcome,request_sha256,scope FROM _fathomdb_actuation_receipts \
+             WHERE operation_id=?1 AND ({scope_sql}) ORDER BY scope LIMIT 1"
+        );
+        let raw_receipt: Option<(String, Option<String>, String)> = tx
+            .query_row(&receipt_sql, rusqlite::params_from_iter(binds.iter()), |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
             .optional()
             .map_err(|_| EngineError::Storage)?;
-        let Some((outcome, digest)) = raw_receipt else {
+        let Some((outcome, digest, row_scope)) = raw_receipt else {
             return Err(ProjectionGenerationError::new(
                 ProjectionGenerationErrorReason::MutationNotTracked,
                 "/operationId",
@@ -1797,6 +1815,7 @@ impl Engine {
         }
         let Some(receipt) = super::actuation::load_receipt(
             &tx,
+            &row_scope,
             &request.operation_id,
             digest.as_deref().unwrap_or_default(),
             None,
@@ -1831,6 +1850,7 @@ impl Engine {
         }
         let owner_completion = receipt_point_completion_at(
             &tx,
+            &row_scope,
             &request.operation_id,
             request.write_cursor,
             &stored_generation,

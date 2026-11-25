@@ -69,6 +69,7 @@ impl SearchOriginCapture for NoEvidenceCapture {
     fn finish(
         self,
         _connection: &Connection,
+        _scope: &crate::scope::ScopePredicate,
         cursor: u64,
         soft_fallback: Option<SoftFallback>,
         results: Vec<FusionHit>,
@@ -136,6 +137,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
     work: SearchReaderWork,
     capture: C,
+    scope_predicate: &crate::scope::ScopePredicate,
     stop_words: &StopWordSet,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
@@ -165,6 +167,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
         work.frozen_binding.as_deref(),
         work.frozen_query_runtime.as_deref(),
         work.expand_depth,
+        scope_predicate,
         stop_words,
         work.snippet.as_ref(),
         work.graph_options.as_deref(),
@@ -198,6 +201,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     frozen_binding: Option<&FrozenReadBinding>,
     frozen_query_runtime: Option<&FrozenQueryRuntime>,
     expand_depth: Option<u32>,
+    scope: &crate::scope::ScopePredicate,
     stop_words: &StopWordSet,
     snippet: Option<&SnippetOptions>,
     graph_options: Option<&GraphArmOptions>,
@@ -309,7 +313,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;
     }
-    let has_source_dependencies = dependency_closure::has_source_dependencies(&tx)?;
+    let has_source_dependencies = dependency_closure::has_source_dependencies(&tx, scope)?;
     let read_dependency_eligibility = |alias: &str, now_idx: usize| {
         if has_source_dependencies {
             dependency_closure::read_eligibility_sql(
@@ -348,6 +352,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         view.view.include_inactive,
         view.view.include_out_of_window,
         view.edge_now(),
+        scope,
     )?;
     let vector_results = execute_vector_arm(
         &tx,
@@ -359,6 +364,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         filter,
         view,
         now_param,
+        scope,
         &read_dependency_eligibility,
     )?;
     let original_vector_keys =
@@ -370,6 +376,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         query_vector,
         vector_eligibility_degraded,
         vector_rows_visible,
+        scope,
     )?;
     let mut fts_rows = FtsRows::new();
     let NodeFtsOutcome {
@@ -393,6 +400,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         now_param,
         has_source_dependencies,
         &read_dependency_eligibility,
+        scope,
         snippet,
         &mut fts_rows,
     )?;
@@ -403,10 +411,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         view,
         filter,
         &read_dependency_eligibility,
+        scope,
         snippet.is_some(),
         &mut fts_rows,
     )?;
-    let dropped_edge_hits = count_dropped_edge_hits(&tx, compiled, view, filter, explain)?;
+    let dropped_edge_hits = count_dropped_edge_hits(&tx, compiled, view, filter, scope, explain)?;
     text_results.extend(edge_candidates);
     #[cfg(test)]
     if rank_probe.is_some() {
@@ -532,6 +541,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 filter,
                 active_graph_options,
                 explain,
+                scope,
                 &mut capture,
             )?;
             graph_stats = stats;
@@ -603,7 +613,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     if deferred_text_identity {
         #[cfg(any(test, feature = "slice30-observer"))]
         let identity_observation = crate::slice30_observer::span("deferred_identity_hydration");
-        hydrate_deferred_text_identity(&tx, &mut results)?;
+        hydrate_deferred_text_identity(&tx, &mut results, scope)?;
         #[cfg(any(test, feature = "slice30-observer"))]
         identity_observation.success();
     } else {
@@ -742,7 +752,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     };
 
     let expanded = expand_depth
-        .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter))
+        .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter, scope))
         .transpose()?;
     let snippets = snippet
         .map(|options| {
@@ -772,6 +782,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     }
     let output = capture.finish(
         &tx,
+        scope,
         cursor,
         soft_fallback,
         results,

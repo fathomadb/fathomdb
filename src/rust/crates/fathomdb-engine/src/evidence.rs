@@ -530,7 +530,7 @@ pub(super) const INTRINSIC_NODE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,wr
            sl.start_byte,sl.end_byte,sl.hash_algorithm,sl.hash_digest,\
            d.schema_version,d.dependency_id,d.derived_revision_id,d.registered_dependency_generation,\
            CAST(g.value AS INTEGER),sr.write_cursor,\
-           EXISTS(SELECT 1 FROM _fathomdb_dependency_closures c WHERE c.phase!='complete' AND (\
+           EXISTS(SELECT 1 FROM _fathomdb_dependency_closures c WHERE c.scope=r.scope AND c.phase!='complete' AND (\
              (c.root_kind='source_revision' AND c.root_value=l.source_revision_id) OR\
              (c.root_kind='source_bucket' AND c.root_value=l.source_id))),\
            CASE WHEN n.write_cursor IS NOT NULL /*TARGET_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
@@ -538,22 +538,22 @@ pub(super) const INTRINSIC_NODE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,wr
            n.properties,\
            CASE WHEN n.superseded_at IS NOT NULL AND n.logical_id IS NOT NULL AND EXISTS(\
              SELECT 1 FROM canonical_nodes cur \
-             WHERE cur.logical_id=n.logical_id AND cur.superseded_at IS NULL AND cur.state!='active') \
+             WHERE cur.scope=n.scope AND cur.logical_id=n.logical_id AND cur.superseded_at IS NULL AND cur.state!='active') \
              THEN 1 ELSE 0 END,\
            CASE WHEN sn.superseded_at IS NOT NULL AND sn.logical_id IS NOT NULL AND EXISTS(\
              SELECT 1 FROM canonical_nodes cur \
-             WHERE cur.logical_id=sn.logical_id AND cur.superseded_at IS NULL AND cur.state!='active') \
+             WHERE cur.scope=sn.scope AND cur.logical_id=sn.logical_id AND cur.superseded_at IS NULL AND cur.state!='active') \
              THEN 1 ELSE 0 END \
      FROM requested q \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='node' AND r.write_cursor=q.write_cursor \
-     LEFT JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-     LEFT JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
-     LEFT JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
-     LEFT JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
-     LEFT JOIN _fathomdb_source_versions sv ON sv.source_revision_id=l.source_revision_id \
-     LEFT JOIN _fathomdb_source_links sl ON sl.artifact_revision_id=l.source_revision_id \
-     LEFT JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
+     LEFT JOIN canonical_nodes n ON n.scope=r.scope AND n.write_cursor=r.write_cursor \
+     LEFT JOIN _fathomdb_source_links l ON l.scope=r.scope AND l.artifact_revision_id=r.revision_id \
+     LEFT JOIN _fathomdb_artifact_revisions sr ON sr.scope=r.scope AND sr.revision_id=l.source_revision_id \
+     LEFT JOIN canonical_nodes sn ON sn.scope=sr.scope AND sn.write_cursor=sr.write_cursor \
+     LEFT JOIN _fathomdb_source_versions sv ON sv.scope=r.scope AND sv.source_revision_id=l.source_revision_id \
+     LEFT JOIN _fathomdb_source_links sl ON sl.scope=r.scope AND sl.artifact_revision_id=l.source_revision_id \
+     LEFT JOIN _fathomdb_source_dependencies d ON d.scope=r.scope AND d.derived_revision_id=r.revision_id \
      LEFT JOIN _fathomdb_open_state g ON g.key='_fathomdb_dependency_generation' \
      ORDER BY q.ordinal";
 
@@ -571,7 +571,7 @@ pub(super) const INTRINSIC_EDGE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,wr
            sl.start_byte,sl.end_byte,sl.hash_algorithm,sl.hash_digest,\
            d.schema_version,d.dependency_id,d.derived_revision_id,d.registered_dependency_generation,\
            CAST(g.value AS INTEGER),sr.write_cursor,\
-           EXISTS(SELECT 1 FROM _fathomdb_dependency_closures c WHERE c.phase!='complete' AND (\
+           EXISTS(SELECT 1 FROM _fathomdb_dependency_closures c WHERE c.scope=r.scope AND c.phase!='complete' AND (\
              (c.root_kind='source_revision' AND c.root_value=l.source_revision_id) OR\
              (c.root_kind='source_bucket' AND c.root_value=l.source_id))),\
            CASE WHEN e.write_cursor IS NOT NULL /*TARGET_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
@@ -580,18 +580,18 @@ pub(super) const INTRINSIC_EDGE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,wr
            0,\
            CASE WHEN sn.superseded_at IS NOT NULL AND sn.logical_id IS NOT NULL AND EXISTS(\
              SELECT 1 FROM canonical_nodes cur \
-             WHERE cur.logical_id=sn.logical_id AND cur.superseded_at IS NULL AND cur.state!='active') \
+             WHERE cur.scope=sn.scope AND cur.logical_id=sn.logical_id AND cur.superseded_at IS NULL AND cur.state!='active') \
              THEN 1 ELSE 0 END \
      FROM requested q \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='edge' AND r.write_cursor=q.write_cursor \
-     LEFT JOIN canonical_edges e ON e.write_cursor=r.write_cursor \
-     LEFT JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
-     LEFT JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
-     LEFT JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
-     LEFT JOIN _fathomdb_source_versions sv ON sv.source_revision_id=l.source_revision_id \
-     LEFT JOIN _fathomdb_source_links sl ON sl.artifact_revision_id=l.source_revision_id \
-     LEFT JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
+     LEFT JOIN canonical_edges e ON e.scope=r.scope AND e.write_cursor=r.write_cursor \
+     LEFT JOIN _fathomdb_source_links l ON l.scope=r.scope AND l.artifact_revision_id=r.revision_id \
+     LEFT JOIN _fathomdb_artifact_revisions sr ON sr.scope=r.scope AND sr.revision_id=l.source_revision_id \
+     LEFT JOIN canonical_nodes sn ON sn.scope=sr.scope AND sn.write_cursor=sr.write_cursor \
+     LEFT JOIN _fathomdb_source_versions sv ON sv.scope=r.scope AND sv.source_revision_id=l.source_revision_id \
+     LEFT JOIN _fathomdb_source_links sl ON sl.scope=r.scope AND sl.artifact_revision_id=l.source_revision_id \
+     LEFT JOIN _fathomdb_source_dependencies d ON d.scope=r.scope AND d.derived_revision_id=r.revision_id \
      LEFT JOIN _fathomdb_open_state g ON g.key='_fathomdb_dependency_generation' \
      ORDER BY q.ordinal";
 

@@ -413,6 +413,7 @@ pub(super) fn collect_node_fts_candidates(
     now_param: Option<i64>,
     has_source_dependencies: bool,
     read_dependency_eligibility: &dyn Fn(&str, usize) -> String,
+    scope: &crate::scope::ScopePredicate,
     snippet: Option<&SnippetOptions>,
     fts_rows: &mut FtsRows,
 ) -> rusqlite::Result<NodeFtsOutcome> {
@@ -440,7 +441,15 @@ pub(super) fn collect_node_fts_candidates(
         direct_text_candidate_limit.or_else(|| query_vector.is_none().then_some(final_limit));
     let limit_clause =
         fts_only_limit.or(perf_limit).map(|k| format!(" LIMIT {k}")).unwrap_or_default();
-    let text_existence = view.view.ownerless_existence_sql("cn");
+    let text_existence = if scope.is_unscoped() {
+        view.view.ownerless_existence_sql("cn")
+    } else {
+        format!(
+            "{} AND cn.source_id IS NOT NULL{}",
+            view.view.edge_existence_sql("cn"),
+            if view.view.include_inactive { "" } else { " AND cn.state = 'active'" }
+        )
+    };
     let text_validity = view.validity_sql("cn", 2);
     let text_eligibility = read_dependency_eligibility("cn", 2);
     let mut text_params: Vec<rusqlite::types::Value> =
@@ -448,8 +457,23 @@ pub(super) fn collect_node_fts_candidates(
     if let Some(now) = now_param {
         text_params.push(rusqlite::types::Value::Integer(now));
     }
+    let mut scope_clause = String::new();
+    scope.append_sql_values("cn.scope", &mut scope_clause, &mut text_params);
+    let text_scope = if scope.is_unscoped() {
+        format!(" AND ({scope_clause} OR cn.write_cursor IS NULL)")
+    } else {
+        format!(" AND {scope_clause}")
+    };
     let text_filter =
         filter::append_node_eligibility_sql_view(tx, filter, "cn", &mut text_params, &view.view)?;
+    let store_single_unscoped = scope.is_unscoped()
+        && !tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE scope != '' LIMIT 1)",
+                [],
+                |row| row.get::<_, bool>(0),
+            )
+            .unwrap_or(true);
     #[cfg(feature = "test-hooks")]
     let force_full_sort =
         std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
@@ -459,68 +483,68 @@ pub(super) fn collect_node_fts_candidates(
     let force_full_sort = rank_probe.map_or(force_full_sort, |route| {
         route == crate::slice30_observer::RankProbeRoute::Reference
     });
-    let can_defer_text_identity =
-        observe_slice30_guard(
+    let can_defer_text_identity = store_single_unscoped
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
             "vector_unavailable",
             false,
             query_vector.is_some(),
-        ) && observe_slice30_guard(
-            "all_nodes_directly_eligible",
-            "filter",
-            false,
-            filter.is_none(),
-        ) && observe_slice30_guard(
+        )
+        && observe_slice30_guard("all_nodes_directly_eligible", "filter", false, filter.is_none())
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
             "perf_limit",
             false,
             perf_limit.is_none(),
-        ) && observe_slice30_guard(
+        )
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
             "source_dependencies",
             false,
             !has_source_dependencies,
-        ) && observe_slice30_guard(
+        )
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
             "include_superseded",
             false,
             !view.view.include_superseded,
-        ) && observe_slice30_guard(
+        )
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
             "include_inactive",
             false,
             !view.view.include_inactive,
-        ) && observe_slice30_guard(
+        )
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
             "include_out_of_window",
             false,
             !view.view.include_out_of_window,
-        ) && observe_slice30_guard(
-            "all_nodes_directly_eligible",
-            "recency",
-            false,
-            !recency_enabled,
-        ) && observe_slice30_guard(
+        )
+        && observe_slice30_guard("all_nodes_directly_eligible", "recency", false, !recency_enabled)
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
             "importance",
             false,
             !importance_enabled,
-        ) && observe_slice30_guard(
+        )
+        && observe_slice30_guard("all_nodes_directly_eligible", "rerank", false, rerank_depth == 0)
+        && observe_slice30_guard("all_nodes_directly_eligible", "graph", false, !use_graph_arm)
+        && observe_slice30_guard("all_nodes_directly_eligible", "explain", false, !explain)
+        && observe_slice30_guard(
             "all_nodes_directly_eligible",
-            "rerank",
+            "force_full_sort",
             false,
-            rerank_depth == 0,
-        ) && observe_slice30_guard("all_nodes_directly_eligible", "graph", false, !use_graph_arm)
-            && observe_slice30_guard("all_nodes_directly_eligible", "explain", false, !explain)
-            && observe_slice30_guard(
-                "all_nodes_directly_eligible",
-                "force_full_sort",
-                false,
-                !force_full_sort,
-            );
+            !force_full_sort,
+        );
+    let join_eligibility = if scope.is_unscoped() {
+        format!("{text_scope}{text_eligibility}")
+    } else {
+        format!(" AND cn.source_id IS NOT NULL{text_scope}{text_eligibility}")
+    };
     let join_sql = filter::body_fts_rank_sql_view(
         &text_validity,
-        &text_eligibility,
+        &join_eligibility,
         &text_filter,
         &limit_clause,
         &view.view,
@@ -550,7 +574,7 @@ pub(super) fn collect_node_fts_candidates(
              FROM search_index \
              LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
              WHERE search_index MATCH ?1 \
-               {text_existence}{text_validity}{text_eligibility}{text_filter} \
+               {text_existence}{text_scope}{text_validity}{text_eligibility}{text_filter} \
                AND rank MATCH '{rank_mapping}' \
              ORDER BY rank"
         );
@@ -595,6 +619,7 @@ pub(super) fn collect_node_fts_candidates(
             view.view.include_inactive,
             view.view.include_out_of_window,
             view.edge_now(),
+            scope,
         )?;
     let mut deferred_node_candidates: Option<Vec<ConsistentNodeFts>> = None;
     let deferred_candidates = if defer_full_hydration {
@@ -603,7 +628,7 @@ pub(super) fn collect_node_fts_candidates(
              si.body IS cn.body, si.kind IS cn.kind, si.body, si.kind, cn.logical_id, cn.source_id \
              FROM search_index si \
              LEFT JOIN canonical_nodes cn ON cn.write_cursor=si.write_cursor \
-             WHERE search_index MATCH ?1 {text_existence}{text_validity}{limit_clause}"
+             WHERE search_index MATCH ?1 {text_existence}{text_scope}{text_validity}{limit_clause}"
         );
         let mut statement = prepare_search_statement(tx, &sql)?;
         let mut requires_legacy_proof = false;
@@ -640,6 +665,7 @@ pub(super) fn collect_node_fts_candidates(
                 view.view.include_inactive,
                 view.view.include_out_of_window,
                 view.edge_now(),
+                scope,
             )?
         {
             None
@@ -676,7 +702,7 @@ pub(super) fn collect_node_fts_candidates(
             "SELECT si.body, si.kind, si.write_cursor, bm25(search_index), NULL, NULL, si.rowid, cn.write_cursor, \
              si.body IS cn.body, si.kind IS cn.kind FROM search_index si \
              LEFT JOIN canonical_nodes cn ON cn.write_cursor=si.write_cursor \
-             WHERE search_index MATCH ?1{now_binding}{limit_clause}"
+             WHERE search_index MATCH ?1{now_binding}{text_scope}{limit_clause}"
         );
         let candidates = prepare_search_statement(tx, &sql).and_then(|mut statement| {
             let rows =
@@ -814,12 +840,14 @@ pub(super) fn collect_node_fts_candidates(
     Ok(NodeFtsOutcome { candidates, deferred_node_candidates, deferred_text_identity })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn collect_edge_fts_candidates(
     tx: &Connection,
     compiled: &CompiledQuery,
     view: FrozenView,
     filter: Option<&SearchFilter>,
     read_dependency_eligibility: &dyn Fn(&str, usize) -> String,
+    scope: &crate::scope::ScopePredicate,
     keep_snippets: bool,
     fts_rows: &mut FtsRows,
 ) -> rusqlite::Result<Vec<FusionHit>> {
@@ -831,8 +859,10 @@ pub(super) fn collect_edge_fts_candidates(
         rusqlite::types::Value::Text(compiled.match_expression.clone()),
         rusqlite::types::Value::Integer(view.edge_now()),
     ];
+    let mut edge_scope_sql = String::new();
+    scope.append_sql_values("ce.scope", &mut edge_scope_sql, &mut edge_params);
     let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
-    let edge_eligibility = format!("{edge_dependency}{edge_filter}");
+    let edge_eligibility = format!(" AND {edge_scope_sql}{edge_dependency}{edge_filter}");
     let edge_sql = filter::edge_fts_rank_sql_view(&edge_validity, &edge_eligibility, &view.view);
     let mut stmt = prepare_search_statement(tx, &edge_sql)?;
     let rows =
@@ -849,6 +879,7 @@ pub(super) fn count_dropped_edge_hits(
     compiled: &CompiledQuery,
     view: FrozenView,
     filter: Option<&SearchFilter>,
+    scope: &crate::scope::ScopePredicate,
     explain: bool,
 ) -> rusqlite::Result<u32> {
     if !(explain
@@ -866,6 +897,8 @@ pub(super) fn count_dropped_edge_hits(
         rusqlite::types::Value::Text(compiled.match_expression.clone()),
         rusqlite::types::Value::Integer(view.edge_now()),
     ];
+    let mut edge_scope_sql = String::new();
+    scope.append_sql_values("ce.scope", &mut edge_scope_sql, &mut params);
     let eligibility = append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
     #[cfg(feature = "test-hooks")]
     let cursor_column =
@@ -879,7 +912,7 @@ pub(super) fn count_dropped_edge_hits(
     let sql = format!(
         "SELECT {cursor_column} FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor=sei.write_cursor \
-         WHERE search_index_edges MATCH ?1 AND ce.superseded_at IS NULL\
+         WHERE search_index_edges MATCH ?1 AND {edge_scope_sql} AND ce.superseded_at IS NULL\
          {edge_validity}{eligibility}"
     );
     let mut dropped = 0_u32;
@@ -915,16 +948,21 @@ pub(super) fn hydrate_deferred_node_candidates(
 pub(super) fn hydrate_deferred_text_identity(
     tx: &Connection,
     results: &mut [FusionHit],
+    scope: &crate::scope::ScopePredicate,
 ) -> rusqlite::Result<()> {
-    let mut identity_stmt = tx.prepare_cached(
-        "SELECT logical_id, source_id, properties FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1",
-    )?;
+    let (scope_sql, _) = scope.sql_clause("scope", 2);
+    let mut identity_stmt = tx.prepare_cached(&format!(
+        "SELECT logical_id, source_id, properties FROM canonical_nodes \
+         WHERE write_cursor=?1 AND {scope_sql} LIMIT 1"
+    ))?;
     for hit in results {
         if hit.branch != SoftFallbackBranch::Text {
             continue;
         }
+        let mut params = vec![rusqlite::types::Value::Integer(hit.write_cursor as i64)];
+        scope.push_values(&mut params);
         if let Some((logical_id, source_id, properties)) = identity_stmt
-            .query_row([hit.write_cursor], |row| {
+            .query_row(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((
                     row.get::<_, Option<String>>(0)?,
                     row.get::<_, Option<String>>(1)?,

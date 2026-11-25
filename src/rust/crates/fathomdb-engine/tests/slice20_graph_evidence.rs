@@ -1759,8 +1759,18 @@ fn graph_preflights_remain_two_indexed_class_specific_statements() {
     let (_directory, engine, _request) = fixture();
     let plans = engine.explain_graph_evidence_preflights_for_test().unwrap();
     assert_eq!(plans.len(), 2);
-    assert!(plans[0].contains("canonical_nodes_write_cursor_idx"));
-    assert!(plans[1].contains("canonical_edges_write_cursor_idx"));
+    assert!(
+        plans[0].contains("canonical_nodes_scope_cursor_idx")
+            || plans[0].contains("canonical_nodes_write_cursor_idx"),
+        "unexpected node preflight plan: {}",
+        plans[0]
+    );
+    assert!(
+        plans[1].contains("canonical_edges_scope_cursor_idx")
+            || plans[1].contains("canonical_edges_write_cursor_idx"),
+        "unexpected edge preflight plan: {}",
+        plans[1]
+    );
     assert!(plans.iter().all(|plan| plan.contains("USING INDEX")));
 }
 

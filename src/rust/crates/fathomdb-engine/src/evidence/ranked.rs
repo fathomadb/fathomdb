@@ -41,6 +41,7 @@ const GRAPH_EDGE_DOMAIN: &[u8] = b"fathomdb.evidence.graph-edge.v1\0";
 
 #[derive(Clone, Debug)]
 pub(super) struct StoredEvidence {
+    pub(super) scope: String,
     pub(super) artifact_revision_id: String,
     pub(super) completeness: String,
     pub(super) logical_id: Option<String>,
@@ -81,6 +82,7 @@ pub(super) fn evidence_as_of_sql_i64(cursor: u64) -> i64 {
 
 pub(crate) fn build_search_result(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     frozen: &FrozenReadContextV1,
     mut search_result: SearchResult,
     include_explanation: bool,
@@ -132,11 +134,20 @@ pub(crate) fn build_search_result(
         } else {
             None
         };
+        let stored = load_stored(
+            connection,
+            scope,
+            artifact_class,
+            hit.write_cursor,
+            frozen.effective_valid_at,
+            frozen.context.view.include_out_of_window,
+        )?;
         let graph_edge_commitment = match graph_origin.as_ref() {
             Some(CapturedGraphOrigin::EdgeSeed { edge_cursor })
             | Some(CapturedGraphOrigin::Traversal { edge_cursor, .. }) => {
                 let (revision, _, _, _, source_revision) = load_graph_edge_revision(
                     connection,
+                    &stored.scope,
                     *edge_cursor,
                     frozen.effective_valid_at,
                     frozen.context.view.include_out_of_window,
@@ -144,6 +155,7 @@ pub(crate) fn build_search_result(
                 )?;
                 if !source_revision_is_eligible(
                     connection,
+                    &stored.scope,
                     &source_revision,
                     frozen.effective_valid_at,
                     frozen.context.view.include_out_of_window,
@@ -152,6 +164,7 @@ pub(crate) fn build_search_result(
                 }
                 validate_dependency_chain(
                     connection,
+                    &stored.scope,
                     &source_revision,
                     &revision,
                     DependencyValidationMode::Persisted,
@@ -166,13 +179,6 @@ pub(crate) fn build_search_result(
             }
             _ => None,
         };
-        let stored = load_stored(
-            connection,
-            artifact_class,
-            hit.write_cursor,
-            frozen.effective_valid_at,
-            frozen.context.view.include_out_of_window,
-        )?;
         authorize_intrinsic_lifecycle(connection, &stored, artifact_class, &frozen.context.view)?;
         authorize_source_access(connection, &stored, &frozen.context.eligibility)?;
         if stored.completeness != "complete" {
@@ -194,7 +200,7 @@ pub(crate) fn build_search_result(
                 format!("/results/{index}/provenance"),
             ))
         })?;
-        load_dependency(connection, &stored.artifact_revision_id).map_err(|_| {
+        load_dependency(connection, &stored.scope, &stored.artifact_revision_id).map_err(|_| {
             EngineError::Evidence(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceCorrupt,
                 format!("/results/{index}/provenance"),
@@ -245,6 +251,7 @@ pub(crate) fn build_search_result(
 pub(crate) fn resolve(
     connection: &Connection,
     request: &EvidenceResolveRequestV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<ResolvedEvidenceV1, EngineError> {
     if request.schema_version != SCHEMA_VERSION {
         return Err(EvidenceErrorV1::new(
@@ -264,6 +271,7 @@ pub(crate) fn resolve(
         &context_commitment,
         request.evidence_ref.as_str(),
         &request.context,
+        scope,
     )
 }
 
@@ -271,6 +279,7 @@ pub(crate) fn resolve_many_raw(
     connection: &Connection,
     raw_refs: &[&str],
     context: &FrozenReadContextV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<Vec<EvidenceResolveManyItemV1>, EngineError> {
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
     let context_bytes = frozen_read::validate_context(&context.context)
@@ -296,6 +305,7 @@ pub(crate) fn resolve_many_raw(
                     &context_commitment,
                     raw_ref,
                     context,
+                    scope,
                 ) {
                     Ok(resolved) => Ok(resolved),
                     Err(EngineError::Evidence(error)) => {
@@ -335,6 +345,7 @@ fn resolve_single_ref(
     context_commitment: &[u8; 32],
     raw_ref: &str,
     context: &FrozenReadContextV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<ResolvedEvidenceV1, EngineError> {
     let payload = decode_token(key, raw_ref)?;
     if payload.database_commitment != *database_commitment
@@ -345,6 +356,7 @@ fn resolve_single_ref(
     }
     let stored = load_stored(
         connection,
+        scope,
         payload.artifact_class,
         payload.write_cursor,
         payload.effective_valid_at,
@@ -368,6 +380,7 @@ fn resolve_single_ref(
             {
                 let (revision, from_id, to_id, _, source_revision_id) = load_graph_edge_revision(
                     connection,
+                    &stored.scope,
                     *edge_cursor,
                     payload.effective_valid_at,
                     context.context.view.include_out_of_window,
@@ -381,6 +394,7 @@ fn resolve_single_ref(
                         .is_none_or(|logical| logical != &from_id && logical != &to_id)
                     || !source_revision_is_eligible(
                         connection,
+                        &stored.scope,
                         &source_revision_id,
                         payload.effective_valid_at,
                         context.context.view.include_out_of_window,
@@ -402,6 +416,7 @@ fn resolve_single_ref(
             ) if payload.arm == EvidenceArmV1::GraphArm => {
                 let (revision, from_id, to_id, _, source_revision_id) = load_graph_edge_revision(
                     connection,
+                    &stored.scope,
                     *edge_cursor,
                     payload.effective_valid_at,
                     context.context.view.include_out_of_window,
@@ -415,6 +430,7 @@ fn resolve_single_ref(
                         .is_none_or(|logical| logical != &from_id && logical != &to_id)
                     || !source_revision_is_eligible(
                         connection,
+                        &stored.scope,
                         &source_revision_id,
                         payload.effective_valid_at,
                         context.context.view.include_out_of_window,
@@ -482,6 +498,7 @@ fn resolve_single_ref(
     if let Some((edge_revision, source_revision)) = graph_provenance {
         validate_dependency_chain(
             connection,
+            &stored.scope,
             &source_revision,
             &edge_revision,
             DependencyValidationMode::Persisted,
@@ -499,7 +516,7 @@ fn resolve_single_ref(
         &payload.generation_nonce,
         &payload.generation_ciphertext,
     )?;
-    let dependency = load_dependency(connection, &stored.artifact_revision_id)?;
+    let dependency = load_dependency(connection, &stored.scope, &stored.artifact_revision_id)?;
     Ok(ResolvedEvidenceV1 {
         schema_version: SCHEMA_VERSION,
         logical_id: stored.logical_id,
@@ -559,7 +576,7 @@ fn authorize_intrinsic_lifecycle(
 ) -> Result<(LifecycleState, EvidenceArtifactLifecycleV1), EngineError> {
     if (stored.artifact_superseded && !view.include_superseded)
         || stored.source_superseded
-        || active_barrier_for_source(connection, &stored.source_revision_id)?
+        || active_barrier_for_source(connection, &stored.scope, &stored.source_revision_id)?
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
@@ -605,7 +622,7 @@ pub(super) fn authorize_graph_intrinsic_lifecycle(
     }
     if stored.artifact_head_inactive
         || stored.source_head_inactive
-        || active_barrier_for_source(connection, &stored.source_revision_id)?
+        || active_barrier_for_source(connection, &stored.scope, &stored.source_revision_id)?
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
@@ -660,28 +677,37 @@ fn contribution(per_hit: &PerHitExplain) -> Result<EvidenceContributionV1, Engin
 
 pub(super) fn load_stored(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     class: EvidenceArtifactClassV1,
     cursor: u64,
     effective: i64,
     include_out_of_window: bool,
 ) -> Result<StoredEvidence, EngineError> {
     let cursor = i64::try_from(cursor).map_err(|_| EvidenceErrorV1::unavailable())?;
-    let artifact: Option<(String, String)> = connection
-        .query_row(
-            "SELECT revision_id,completeness FROM _fathomdb_artifact_revisions \
-             WHERE artifact_class=?1 AND write_cursor=?2",
-            rusqlite::params![class.as_str(), cursor],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
+    let mut binds = vec![
+        rusqlite::types::Value::Text(class.as_str().to_string()),
+        rusqlite::types::Value::Integer(cursor),
+    ];
+    let mut scope_sql = String::new();
+    scope.append_sql_values("scope", &mut scope_sql, &mut binds);
+    let artifact_sql = format!(
+        "SELECT revision_id,completeness,scope FROM _fathomdb_artifact_revisions \
+         WHERE artifact_class=?1 AND write_cursor=?2 AND ({scope_sql})"
+    );
+    let artifact: Option<(String, String, String)> = connection
+        .query_row(&artifact_sql, rusqlite::params_from_iter(binds.iter()), |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let (artifact_revision_id, completeness) = artifact.ok_or_else(EvidenceErrorV1::unavailable)?;
+    let (artifact_revision_id, completeness, row_scope) =
+        artifact.ok_or_else(EvidenceErrorV1::unavailable)?;
     let link: Option<SourceLinkRow> = connection
         .query_row(
             "SELECT source_id,source_version_id,source_revision_id,locator_kind,\
                     start_byte,end_byte,hash_digest FROM _fathomdb_source_links \
-             WHERE artifact_revision_id=?1",
-            [&artifact_revision_id],
+             WHERE scope=?1 AND artifact_revision_id=?2",
+            rusqlite::params![&row_scope, &artifact_revision_id],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -718,15 +744,16 @@ pub(super) fn load_stored(
             "SELECT n.body,n.state,n.superseded_at,n.write_cursor,n.kind,n.valid_from,n.valid_until,\
                     CASE WHEN n.superseded_at IS NOT NULL AND n.logical_id IS NOT NULL \
                          AND EXISTS(SELECT 1 FROM canonical_nodes cur \
-                                    WHERE cur.logical_id=n.logical_id \
+                                    WHERE cur.scope=n.scope \
+                                      AND cur.logical_id=n.logical_id \
                                       AND cur.superseded_at IS NULL \
                                       AND cur.state!='active') \
                          THEN 1 ELSE 0 END \
              FROM _fathomdb_artifact_revisions ar \
-             JOIN canonical_nodes n ON n.write_cursor=ar.write_cursor \
-             WHERE ar.revision_id=?1 AND ar.artifact_class='node' \
+             JOIN canonical_nodes n ON n.scope=ar.scope AND n.write_cursor=ar.write_cursor \
+             WHERE ar.scope=?1 AND ar.revision_id=?2 AND ar.artifact_class='node' \
                AND ar.artifact_role='canonical_source'",
-            [&source_revision_id],
+            rusqlite::params![&row_scope, &source_revision_id],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -776,12 +803,13 @@ pub(super) fn load_stored(
                     "SELECT logical_id,kind,state,superseded_at,valid_from,valid_until,properties,\
                             CASE WHEN superseded_at IS NOT NULL AND logical_id IS NOT NULL \
                                  AND EXISTS(SELECT 1 FROM canonical_nodes cur \
-                                            WHERE cur.logical_id=canonical_nodes.logical_id \
+                                            WHERE cur.scope=canonical_nodes.scope \
+                                              AND cur.logical_id=canonical_nodes.logical_id \
                                               AND cur.superseded_at IS NULL \
                                               AND cur.state!='active') \
                                  THEN 1 ELSE 0 END \
-                         FROM canonical_nodes WHERE write_cursor=?1",
-                    [cursor],
+                         FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
+                    rusqlite::params![&row_scope, cursor],
                     |row| {
                         Ok((
                             row.get(0)?,
@@ -829,8 +857,8 @@ pub(super) fn load_stored(
             let row: Option<EdgeArtifactRow> = connection
                 .query_row(
                     "SELECT logical_id,kind,superseded_at,t_valid,t_invalid,temporal_fallback,properties \
-                     FROM canonical_edges WHERE write_cursor=?1",
-                    [cursor],
+                     FROM canonical_edges WHERE scope=?1 AND write_cursor=?2",
+                    rusqlite::params![&row_scope, cursor],
                     |row| {
                         Ok((
                             row.get(0)?,
@@ -866,6 +894,7 @@ pub(super) fn load_stored(
     };
     let artifact_properties = decode_properties_json(artifact_properties_raw.as_deref())?;
     Ok(StoredEvidence {
+        scope: row_scope,
         artifact_revision_id,
         completeness,
         logical_id,
@@ -896,6 +925,7 @@ pub(super) fn load_stored(
 
 fn load_graph_edge_revision(
     connection: &Connection,
+    scope: &str,
     cursor: u64,
     effective: i64,
     include_out_of_window: bool,
@@ -907,13 +937,15 @@ fn load_graph_edge_revision(
             "SELECT ar.revision_id,e.from_id,e.to_id,e.kind,l.source_revision_id \
              FROM canonical_edges e \
              JOIN _fathomdb_artifact_revisions ar \
-               ON ar.write_cursor=e.write_cursor AND ar.artifact_class='edge' \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=ar.revision_id \
-             WHERE e.write_cursor=?1 AND (?4=1 OR e.superseded_at IS NULL) \
-               AND (?3=1 OR ((e.t_valid IS NULL OR e.t_valid<=?2) \
-                             AND (e.t_invalid IS NULL OR e.t_invalid>?2))) \
+               ON ar.scope=e.scope AND ar.write_cursor=e.write_cursor AND ar.artifact_class='edge' \
+             JOIN _fathomdb_source_links l \
+               ON l.scope=ar.scope AND l.artifact_revision_id=ar.revision_id \
+             WHERE e.scope=?1 AND e.write_cursor=?2 AND (?5=1 OR e.superseded_at IS NULL) \
+               AND (?4=1 OR ((e.t_valid IS NULL OR e.t_valid<=?3) \
+                             AND (e.t_invalid IS NULL OR e.t_invalid>?3))) \
                AND (e.temporal_fallback IS NULL OR e.temporal_fallback=0)",
             rusqlite::params![
+                scope,
                 cursor,
                 effective,
                 i64::from(include_out_of_window),
@@ -928,25 +960,31 @@ fn load_graph_edge_revision(
 
 fn source_revision_is_eligible(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
     effective: i64,
     include_out_of_window: bool,
 ) -> Result<bool, EngineError> {
-    if active_barrier_for_source(connection, source_revision_id)? {
+    if active_barrier_for_source(connection, scope, source_revision_id)? {
         return Ok(false);
     }
     connection
         .query_row(
             "SELECT EXISTS(\
                SELECT 1 FROM _fathomdb_artifact_revisions ar \
-               JOIN canonical_nodes n ON n.write_cursor=ar.write_cursor \
-               WHERE ar.revision_id=?1 AND ar.artifact_class='node' \
+               JOIN canonical_nodes n ON n.scope=ar.scope AND n.write_cursor=ar.write_cursor \
+               WHERE ar.scope=?1 AND ar.revision_id=?2 AND ar.artifact_class='node' \
                  AND ar.artifact_role='canonical_source' AND ar.completeness='complete' \
                  AND n.superseded_at IS NULL AND n.state='active' \
-                 AND (?3=1 OR ((n.valid_from IS NULL OR n.valid_from<=?2) \
-                               AND (n.valid_until IS NULL OR n.valid_until>?2)))\
+                 AND (?4=1 OR ((n.valid_from IS NULL OR n.valid_from<=?3) \
+                               AND (n.valid_until IS NULL OR n.valid_until>?3)))\
              )",
-            rusqlite::params![source_revision_id, effective, i64::from(include_out_of_window)],
+            rusqlite::params![
+                scope,
+                source_revision_id,
+                effective,
+                i64::from(include_out_of_window)
+            ],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)
@@ -995,11 +1033,12 @@ pub(super) fn validate_full_provenance(
     stored: &StoredEvidence,
 ) -> Result<(), EngineError> {
     let validation = if stored.artifact_revision_id == stored.source_revision_id {
-        load_persisted_canonical_source(connection, &stored.source_revision_id)
+        load_persisted_canonical_source(connection, &stored.scope, &stored.source_revision_id)
             .and_then(|source| source.ok_or(EngineError::Storage).map(|_| ()))
     } else {
         validate_dependency_chain(
             connection,
+            &stored.scope,
             &stored.source_revision_id,
             &stored.artifact_revision_id,
             DependencyValidationMode::Persisted,
@@ -1015,6 +1054,7 @@ pub(super) fn validate_full_provenance(
 
 pub(super) fn load_dependency(
     connection: &Connection,
+    scope: &str,
     artifact_revision_id: &str,
 ) -> Result<Option<SourceDependencyV1>, EngineError> {
     let row: Option<(i64, String, i64, String)> = connection
@@ -1023,9 +1063,9 @@ pub(super) fn load_dependency(
                     l.source_revision_id \
              FROM _fathomdb_source_dependencies d \
              LEFT JOIN _fathomdb_source_links l \
-               ON l.artifact_revision_id=d.derived_revision_id \
-             WHERE d.derived_revision_id=?1",
-            [artifact_revision_id],
+               ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.scope=?1 AND d.derived_revision_id=?2",
+            rusqlite::params![scope, artifact_revision_id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()
@@ -1048,6 +1088,7 @@ pub(super) fn load_dependency(
     })?;
     validate_dependency_chain(
         connection,
+        scope,
         &source_revision_id,
         artifact_revision_id,
         DependencyValidationMode::Persisted,

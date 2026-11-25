@@ -2724,6 +2724,7 @@ fn mutation_readiness_findings(
                 .map_err(|_| EngineError::Storage)?;
                 match crate::projection_generation::receipt_point_completion_at(
                     connection,
+                    &receipt_scope,
                     &operation_id,
                     cursor,
                     &expected_generation,

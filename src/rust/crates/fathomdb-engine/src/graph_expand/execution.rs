@@ -514,14 +514,21 @@ fn resolve_history_cursor(
     }
 }
 
-fn has_dependency_or_closure_rows(tx: &Connection) -> Result<bool, EngineError> {
-    tx.query_row(
-        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies) \
-         OR EXISTS(SELECT 1 FROM _fathomdb_dependency_closures)",
-        [],
-        |row| row.get(0),
-    )
-    .map_err(|_| EngineError::Storage)
+fn has_dependency_or_closure_rows(
+    tx: &Connection,
+    scope: &crate::scope::ScopePredicate,
+) -> Result<bool, EngineError> {
+    let mut binds = Vec::new();
+    let mut dep_scope_sql = String::new();
+    scope.append_sql_values("scope", &mut dep_scope_sql, &mut binds);
+    let mut closure_scope_sql = String::new();
+    scope.append_sql_values("scope", &mut closure_scope_sql, &mut binds);
+    let sql = format!(
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies WHERE ({dep_scope_sql})) \
+         OR EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE ({closure_scope_sql}))"
+    );
+    tx.query_row(&sql, rusqlite::params_from_iter(binds.iter()), |row| row.get(0))
+        .map_err(|_| EngineError::Storage)
 }
 
 #[derive(Clone)]
@@ -546,6 +553,12 @@ struct LoadedNodeRow {
     body: String,
     write_cursor: u64,
     properties: Option<crate::properties::PropertyMap>,
+    scope: String,
+}
+
+struct ResolvedSeedInternal {
+    public: ResolvedGraphSeedV1,
+    scopes: Vec<String>,
 }
 
 fn property_sql_op(op: PropertyComparisonOp) -> &'static str {
@@ -702,6 +715,7 @@ pub(crate) fn build_historical_load_node_query(
     logical_id: &str,
     view: FrozenView,
     filter: &SearchFilter,
+    scope: &crate::scope::ScopePredicate,
     as_of_cursor: i64,
 ) -> Result<(String, Vec<rusqlite::types::Value>), EngineError> {
     let mut params = vec![
@@ -714,6 +728,8 @@ pub(crate) fn build_historical_load_node_query(
     } else {
         0
     };
+    let mut scope_sql = String::new();
+    scope.append_sql_values("n.scope", &mut scope_sql, &mut params);
     let eligibility =
         crate::filter::append_node_eligibility_sql_historical(tx, Some(filter), "n", &mut params)
             .map_err(|_| EngineError::Storage)?;
@@ -725,21 +741,24 @@ pub(crate) fn build_historical_load_node_query(
         view.view.include_out_of_window,
     );
     let common_where = format!(
-        " AND n.write_cursor<=?2 AND n.state='active' \
+        " AND ({scope_sql}) AND n.write_cursor<=?2 AND n.state='active' \
          AND NOT EXISTS(\
            SELECT 1 FROM canonical_nodes cur \
-           WHERE cur.logical_id=n.logical_id \
+           WHERE cur.scope=n.scope \
+             AND cur.logical_id=n.logical_id \
              AND cur.superseded_at IS NULL \
              AND cur.state!='active'\
          ){validity_sql}{dep_eligibility_sql}{eligibility}"
     );
     let sql = format!(
-        "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n \
-         WHERE n.logical_id=?1 AND n.superseded_at IS NULL{common_where} \
-         UNION ALL \
-         SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n \
-         WHERE n.logical_id=?1 AND n.superseded_at IS NOT NULL AND n.superseded_at>?2{common_where} \
-         ORDER BY write_cursor DESC LIMIT 1"
+        "SELECT kind,body,write_cursor,properties,scope FROM (\
+           SELECT n.kind,n.body,n.write_cursor,n.properties,n.scope FROM canonical_nodes n \
+           WHERE n.logical_id=?1 AND n.superseded_at IS NULL{common_where} \
+           UNION ALL \
+           SELECT n.kind,n.body,n.write_cursor,n.properties,n.scope FROM canonical_nodes n \
+           WHERE n.logical_id=?1 AND n.superseded_at IS NOT NULL AND n.superseded_at>?2{common_where}\
+         ) \
+         ORDER BY write_cursor + 0 DESC LIMIT 1"
     );
     Ok((sql, params))
 }
@@ -749,6 +768,7 @@ fn load_node(
     logical_id: &str,
     view: FrozenView,
     filter: &SearchFilter,
+    scope: &crate::scope::ScopePredicate,
     pushed_target_predicates: &[&PropertyPredicate],
     history_cursor: ResolvedHistoryCursor,
 ) -> Result<Option<LoadedNodeRow>, EngineError> {
@@ -758,6 +778,8 @@ fn load_node(
             if let Some(now) = view.now_param() {
                 params.push(rusqlite::types::Value::Integer(now));
             }
+            let mut scope_sql = String::new();
+            scope.append_sql_values("n.scope", &mut scope_sql, &mut params);
             let eligibility = crate::filter::append_node_eligibility_sql_view(
                 tx,
                 Some(filter),
@@ -778,14 +800,19 @@ fn load_node(
                 );
             }
             let sql = format!(
-                "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n WHERE n.logical_id=?1{}{}{} ORDER BY n.write_cursor DESC LIMIT 1",
+                "SELECT n.kind,n.body,n.write_cursor,n.properties,n.scope FROM canonical_nodes n WHERE n.logical_id=?1 AND ({scope_sql}){}{}{} ORDER BY n.write_cursor DESC LIMIT 1",
                 view.node_sql("n", 2), eligibility, target_cpv_sql
             );
             (sql, params)
         }
-        ResolvedHistoryCursor::AsOf(as_of) => {
-            build_historical_load_node_query(tx, logical_id, view, filter, as_of_sql_i64(as_of))?
-        }
+        ResolvedHistoryCursor::AsOf(as_of) => build_historical_load_node_query(
+            tx,
+            logical_id,
+            view,
+            filter,
+            scope,
+            as_of_sql_i64(as_of),
+        )?,
     };
     tx.query_row(&sql, rusqlite::params_from_iter(params.iter()), |row| {
         Ok(LoadedNodeRow {
@@ -793,6 +820,7 @@ fn load_node(
             body: row.get(1)?,
             write_cursor: u64::try_from(row.get::<_, i64>(2)?).unwrap_or(0),
             properties: crate::properties::decode_properties_row_col(row, 3)?,
+            scope: row.get(4)?,
         })
     })
     .optional()
@@ -824,6 +852,7 @@ pub(crate) struct GraphExpandIncidentQuery {
 
 fn graph_expand_incident_sql(
     direction: TraversalDirection,
+    scope_idx: usize,
     as_of_idx: Option<usize>,
     extra_joins: &str,
     extra_where: &str,
@@ -833,37 +862,37 @@ fn graph_expand_incident_sql(
         "canonical_edges.write_cursor,canonical_edges.kind,canonical_edges.from_id,canonical_edges.to_id,canonical_edges.logical_id,canonical_edges.superseded_at,canonical_edges.t_invalid,canonical_edges.properties";
     match (as_of_idx, direction) {
         (None, TraversalDirection::Outgoing) => format!(
-            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.from_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
+            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.scope=?{scope_idx} AND canonical_edges.from_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
         ),
         (None, TraversalDirection::Incoming) => format!(
-            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.to_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
+            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.scope=?{scope_idx} AND canonical_edges.to_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
         ),
         (None, TraversalDirection::Both) => format!(
-            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.from_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} \
+            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.scope=?{scope_idx} AND canonical_edges.from_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.to_id=?1 AND canonical_edges.from_id!=?1 AND canonical_edges.superseded_at IS NULL{extra_where} \
+             SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.scope=?{scope_idx} AND canonical_edges.to_id=?1 AND canonical_edges.from_id!=?1 AND canonical_edges.superseded_at IS NULL{extra_where} \
              LIMIT ?{limit_idx}"
         ),
         (Some(as_of_idx), TraversalDirection::Outgoing) => format!(
-            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
+            "SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND from_id=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND from_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              LIMIT ?{limit_idx}"
         ),
         (Some(as_of_idx), TraversalDirection::Incoming) => format!(
-            "SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NULL{extra_where} \
+            "SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND to_id=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND to_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              LIMIT ?{limit_idx}"
         ),
         (Some(as_of_idx), TraversalDirection::Both) => format!(
-            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
+            "SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND from_id=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND from_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND to_id=?1 AND from_id!=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE canonical_edges.scope=?{scope_idx} AND to_id=?1 AND from_id!=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              LIMIT ?{limit_idx}"
         ),
     }
@@ -895,6 +924,7 @@ fn append_edge_kind_filter(
 
 pub(crate) fn graph_expand_incident_query(
     logical_id: &str,
+    hop_scope: &str,
     direction: TraversalDirection,
     boundary: EdgeViewBoundary,
     edge_kinds: &[String],
@@ -903,7 +933,8 @@ pub(crate) fn graph_expand_incident_query(
 ) -> GraphExpandIncidentQuery {
     use rusqlite::types::Value;
 
-    let mut params = vec![Value::Text(logical_id.to_string())];
+    let mut params = vec![Value::Text(logical_id.to_string()), Value::Text(hop_scope.to_string())];
+    let scope_idx = 2;
     let mut extra_joins = String::new();
     let mut extra_where = String::new();
     let as_of_idx = match boundary {
@@ -959,8 +990,14 @@ pub(crate) fn graph_expand_incident_query(
 
     params.push(Value::Integer(i64::try_from(limit).unwrap_or(i64::MAX)));
     let limit_idx = params.len();
-    let sql =
-        graph_expand_incident_sql(direction, as_of_idx, &extra_joins, &extra_where, limit_idx);
+    let sql = graph_expand_incident_sql(
+        direction,
+        scope_idx,
+        as_of_idx,
+        &extra_joins,
+        &extra_where,
+        limit_idx,
+    );
     GraphExpandIncidentQuery { sql, params }
 }
 
@@ -987,9 +1024,11 @@ pub(crate) fn explain_graph_expand_incident_query(
     explain_sql_with_params(connection, &query.sql, &query.params)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn load_incident_edges(
     tx: &Connection,
     logical_id: &str,
+    hop_scope: &str,
     direction: TraversalDirection,
     boundary: EdgeViewBoundary,
     edge_kinds: &[String],
@@ -998,6 +1037,7 @@ fn load_incident_edges(
 ) -> Result<Vec<EdgeRow>, EngineError> {
     let query = graph_expand_incident_query(
         logical_id,
+        hop_scope,
         direction,
         boundary,
         edge_kinds,
@@ -1116,25 +1156,47 @@ fn resolve_seeds(
     request: &GraphExpandRequestV1,
     view: FrozenView,
     filter: &SearchFilter,
+    scope: &crate::scope::ScopePredicate,
     stop_words: &StopWordSet,
     history_cursor: ResolvedHistoryCursor,
-) -> Result<Vec<ResolvedGraphSeedV1>, EngineError> {
+) -> Result<Vec<ResolvedSeedInternal>, EngineError> {
     match &request.seed {
         GraphSeedV1::Explicit { logical_ids, .. } => logical_ids
             .iter()
             .enumerate()
             .map(|(index, id)| {
-                if load_node(tx, &id.value, view, filter, &[], history_cursor)?.is_none() {
+                let mut matched_scopes = Vec::new();
+                if scope.read_scopes().len() <= 1 {
+                    if let Some(loaded) =
+                        load_node(tx, &id.value, view, filter, scope, &[], history_cursor)?
+                    {
+                        matched_scopes.push(loaded.scope);
+                    }
+                } else {
+                    for candidate_scope in scope.read_scopes() {
+                        let single =
+                            crate::scope::ScopePredicate::single_for_query(candidate_scope);
+                        if load_node(tx, &id.value, view, filter, &single, &[], history_cursor)?
+                            .is_some()
+                        {
+                            matched_scopes.push(candidate_scope.clone());
+                        }
+                    }
+                }
+                if matched_scopes.is_empty() {
                     return Err(graph_error(
                         GraphExpansionErrorReasonV1::GraphSeedUnavailable,
                         format!("/seed/logicalIds/{index}"),
                     ));
                 }
-                Ok(ResolvedGraphSeedV1 {
-                    schema_version: 1,
-                    logical_id: id.value.clone(),
-                    seed_ordinal: u32::try_from(index).unwrap_or(u32::MAX),
-                    query_score: None,
+                Ok(ResolvedSeedInternal {
+                    public: ResolvedGraphSeedV1 {
+                        schema_version: 1,
+                        logical_id: id.value.clone(),
+                        seed_ordinal: u32::try_from(index).unwrap_or(u32::MAX),
+                        query_score: None,
+                    },
+                    scopes: matched_scopes,
                 })
             })
             .collect(),
@@ -1146,6 +1208,8 @@ fn resolve_seeds(
                     if let Some(now) = view.now_param() {
                         params.push(rusqlite::types::Value::Integer(now));
                     }
+                    let mut scope_sql = String::new();
+                    scope.append_sql_values("cn.scope", &mut scope_sql, &mut params);
                     let eligibility = crate::filter::append_node_eligibility_sql_view(
                         tx,
                         Some(filter),
@@ -1157,7 +1221,7 @@ fn resolve_seeds(
                     params.push(rusqlite::types::Value::Integer(i64::from(*ranked_limit)));
                     let limit_index = params.len();
                     let sql = format!(
-                        "SELECT cn.logical_id,bm25(search_index) FROM search_index JOIN canonical_nodes cn ON cn.write_cursor=search_index.write_cursor WHERE search_index MATCH ?1 AND cn.logical_id IS NOT NULL{}{}{} ORDER BY bm25(search_index),search_index.write_cursor LIMIT ?{limit_index}",
+                        "SELECT cn.logical_id,bm25(search_index),cn.scope FROM search_index JOIN canonical_nodes cn ON cn.write_cursor=search_index.write_cursor WHERE search_index MATCH ?1 AND cn.logical_id IS NOT NULL AND ({scope_sql}){}{}{} ORDER BY bm25(search_index),search_index.write_cursor LIMIT ?{limit_index}",
                         view.node_sql("cn", 2), eligibility, ""
                     );
                     (sql, params)
@@ -1173,6 +1237,8 @@ fn resolve_seeds(
                     } else {
                         0
                     };
+                    let mut scope_sql = String::new();
+                    scope.append_sql_values("cn.scope", &mut scope_sql, &mut params);
                     let eligibility = crate::filter::append_node_eligibility_sql_historical(
                         tx,
                         Some(filter),
@@ -1191,16 +1257,18 @@ fn resolve_seeds(
                             view.view.include_out_of_window,
                         );
                     let sql = format!(
-                        "SELECT cn.logical_id,bm25(search_index) \
+                        "SELECT cn.logical_id,bm25(search_index),cn.scope \
                          FROM search_index \
                          JOIN canonical_nodes cn ON cn.write_cursor=search_index.write_cursor \
                          WHERE search_index MATCH ?1 AND cn.logical_id IS NOT NULL \
+                           AND ({scope_sql}) \
                            AND cn.write_cursor<=?2 \
                            AND (cn.superseded_at IS NULL OR cn.superseded_at>?2) \
                            AND cn.state='active' \
                            AND NOT EXISTS(\
                              SELECT 1 FROM canonical_nodes cur \
-                             WHERE cur.logical_id=cn.logical_id \
+                             WHERE cur.scope=cn.scope \
+                               AND cur.logical_id=cn.logical_id \
                                AND cur.superseded_at IS NULL \
                                AND cur.state!='active'\
                            ){validity_sql}{dep_eligibility_sql}{eligibility} \
@@ -1214,7 +1282,7 @@ fn resolve_seeds(
             })?;
             let rows = statement
                 .query_map(rusqlite::params_from_iter(params.iter()), |row| {
-                    Ok((row.get::<_, String>(0)?, -row.get::<_, f64>(1)?))
+                    Ok((row.get::<_, String>(0)?, -row.get::<_, f64>(1)?, row.get::<_, String>(2)?))
                 })
                 .map_err(|_| {
                     graph_error(
@@ -1225,13 +1293,16 @@ fn resolve_seeds(
             let mut seen = HashSet::new();
             let mut seeds = Vec::new();
             for row in rows {
-                let (logical_id, score) = row.map_err(|_| EngineError::Storage)?;
-                if seen.insert(logical_id.clone()) {
-                    seeds.push(ResolvedGraphSeedV1 {
-                        schema_version: 1,
-                        logical_id,
-                        seed_ordinal: u32::try_from(seeds.len()).unwrap_or(u32::MAX),
-                        query_score: Some(score),
+                let (logical_id, score, row_scope) = row.map_err(|_| EngineError::Storage)?;
+                if seen.insert((row_scope.clone(), logical_id.clone())) {
+                    seeds.push(ResolvedSeedInternal {
+                        public: ResolvedGraphSeedV1 {
+                            schema_version: 1,
+                            logical_id,
+                            seed_ordinal: u32::try_from(seeds.len()).unwrap_or(u32::MAX),
+                            query_score: Some(score),
+                        },
+                        scopes: vec![row_scope],
                     });
                 }
             }
@@ -1247,6 +1318,7 @@ fn resolve_seeds(
 pub(crate) fn read_graph_expand_in_tx(
     reader: &mut Connection,
     request: &GraphExpandRequestV1,
+    scope: &crate::scope::ScopePredicate,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     projection_runtime_state: ProjectionRuntimeStateV1,
     evidence_authority: Option<&crate::evidence::GraphEvidenceAuthority>,
@@ -1257,6 +1329,7 @@ pub(crate) fn read_graph_expand_in_tx(
     read_graph_expand_with_stop_words_in_tx(
         reader,
         request,
+        scope,
         frozen_binding,
         projection_runtime_state,
         evidence_authority,
@@ -1273,6 +1346,7 @@ pub(crate) fn read_graph_expand_in_tx(
 pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     reader: &mut Connection,
     request: &GraphExpandRequestV1,
+    scope: &crate::scope::ScopePredicate,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     projection_runtime_state: ProjectionRuntimeStateV1,
     evidence_authority: Option<&crate::evidence::GraphEvidenceAuthority>,
@@ -1314,8 +1388,10 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     )?;
     let view = context.view.freeze();
     let history_cursor = resolve_history_cursor(&tx, request)?;
-    let seeds =
-        resolve_seeds(&tx, request, view, &context.eligibility, stop_words, history_cursor)?;
+    let seed_entries =
+        resolve_seeds(&tx, request, view, &context.eligibility, scope, stop_words, history_cursor)?;
+    let seeds: Vec<ResolvedGraphSeedV1> =
+        seed_entries.iter().map(|entry| entry.public.clone()).collect();
     let seed_source = match request.seed {
         GraphSeedV1::Query { .. } => GraphSeedSourceV1::Query,
         GraphSeedV1::Explicit { .. } => GraphSeedSourceV1::Explicit,
@@ -1404,24 +1480,48 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
             edge_now: view.edge_now(),
             as_of_cursor: as_of_sql_i64(as_of),
             include_out_of_window: view.view.include_out_of_window,
-            check_derived_eligibility: has_dependency_or_closure_rows(&tx)?,
+            check_derived_eligibility: has_dependency_or_closure_rows(&tx, scope)?,
         },
     };
 
-    let all_seed_ids = seeds.iter().map(|seed| seed.logical_id.clone()).collect::<HashSet<_>>();
+    let all_seed_ids = seed_entries
+        .iter()
+        .flat_map(|entry| {
+            entry
+                .scopes
+                .iter()
+                .map(|seed_scope| (seed_scope.clone(), entry.public.logical_id.clone()))
+        })
+        .collect::<HashSet<_>>();
     let mut work_units = 0_u64;
-    let mut candidates: HashMap<String, GraphCandidate> = HashMap::new();
-    let mut worst_candidate_id: Option<String> = None;
-    let mut visited_by_seed =
-        seeds.iter().map(|seed| HashSet::from([seed.logical_id.clone()])).collect::<Vec<_>>();
-    let mut frontier = seeds
+    let mut candidates: HashMap<(String, String), GraphCandidate> = HashMap::new();
+    let mut worst_candidate_id: Option<(String, String)> = None;
+    let mut visited_by_seed = seed_entries
+        .iter()
+        .map(|entry| {
+            entry
+                .scopes
+                .iter()
+                .map(|seed_scope| (seed_scope.clone(), entry.public.logical_id.clone()))
+                .collect::<HashSet<_>>()
+        })
+        .collect::<Vec<_>>();
+    let mut frontier = seed_entries
         .iter()
         .enumerate()
-        .map(|(index, seed)| (index, seed.logical_id.clone()))
+        .flat_map(|(index, entry)| {
+            entry
+                .scopes
+                .iter()
+                .map(move |seed_scope| (index, seed_scope.clone(), entry.public.logical_id.clone()))
+        })
         .collect::<Vec<_>>();
     for depth in 0..request.max_depth {
         frontier.sort_by(|left, right| {
-            left.0.cmp(&right.0).then_with(|| left.1.as_bytes().cmp(right.1.as_bytes()))
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.cmp(&right.1))
+                .then_with(|| left.2.as_bytes().cmp(right.2.as_bytes()))
         });
         #[cfg(feature = "test-hooks")]
         let current_frontier_states = frontier.len();
@@ -1434,12 +1534,13 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
             visited_by_seed.iter().map(HashSet::len).sum(),
             candidates.len(),
         );
-        for (seed_index, current) in frontier {
+        for (seed_index, hop_scope, current) in frontier {
             let seed = &seeds[seed_index];
             let remaining = request.max_work_units.saturating_sub(work_units);
             let mut edges = load_incident_edges(
                 &tx,
                 &current,
+                &hop_scope,
                 request.direction,
                 edge_boundary,
                 &request.edge_kinds,
@@ -1520,18 +1621,19 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     continue;
                 }
                 let (terminal_direction, next) = direction_and_next(&edge);
+                let next_key = (hop_scope.clone(), next.to_string());
                 if depth + 1 < request.max_depth
-                    && !visited_by_seed[seed_index].insert(next.to_string())
+                    && !visited_by_seed[seed_index].insert(next_key.clone())
                 {
                     continue;
                 }
                 let is_terminal_depth = depth + 1 == request.max_depth;
                 if is_terminal_depth {
-                    if all_seed_ids.contains(next) {
+                    if all_seed_ids.contains(&next_key) {
                         continue;
                     }
                     if candidates.len() >= request.result_limit as usize {
-                        if let Some(existing) = candidates.get(next) {
+                        if let Some(existing) = candidates.get(&next_key) {
                             if !origin_key_lt(
                                 depth + 1,
                                 seed.seed_ordinal,
@@ -1550,7 +1652,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                                     .max_by(|(_, left), (_, right)| {
                                         origin_cmp(&left.target.origin, &right.target.origin)
                                     })
-                                    .map(|(logical_id, _)| logical_id.clone())
+                                    .map(|(key, _)| key.clone())
                                     .expect("result limit is validated nonzero")
                             });
                             if !origin_key_lt(
@@ -1560,7 +1662,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                                 terminal_direction,
                                 &edge.kind,
                                 next,
-                                &candidates[worst_id.as_str()].target.origin,
+                                &candidates[worst_id].target.origin,
                             ) {
                                 continue;
                             }
@@ -1571,22 +1673,30 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 // failing target_predicates must still load and extend multi-hop walks.
                 let hop_target_cpv: &[&PropertyPredicate] =
                     if is_terminal_depth { &pushed_target_predicates } else { &[] };
-                let Some(LoadedNodeRow { kind, body, write_cursor, properties: node_properties }) =
-                    load_node(
-                        &tx,
-                        next,
-                        view,
-                        &context.eligibility,
-                        hop_target_cpv,
-                        history_cursor,
-                    )?
+                let hop_scope_predicate =
+                    crate::scope::ScopePredicate::single_for_query(&hop_scope);
+                let Some(LoadedNodeRow {
+                    kind,
+                    body,
+                    write_cursor,
+                    properties: node_properties,
+                    scope: _,
+                }) = load_node(
+                    &tx,
+                    next,
+                    view,
+                    &context.eligibility,
+                    &hop_scope_predicate,
+                    hop_target_cpv,
+                    history_cursor,
+                )?
                 else {
                     continue;
                 };
                 if !is_terminal_depth {
-                    next_frontier.push((seed_index, next.to_string()));
+                    next_frontier.push((seed_index, hop_scope.clone(), next.to_string()));
                 }
-                if all_seed_ids.contains(next)
+                if all_seed_ids.contains(&next_key)
                     || (!request.target_kinds.is_empty() && !request.target_kinds.contains(&kind))
                     || (!request.target_predicates.is_empty()
                         && !request
@@ -1610,14 +1720,14 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 };
                 let target = GraphTargetV1 {
                     schema_version: 1,
-                    logical_id: next_owned.clone(),
+                    logical_id: next_owned,
                     kind,
                     body,
                     write_cursor,
                     properties: node_properties,
                     origin,
                 };
-                if let Some(existing) = candidates.get_mut(&next_owned) {
+                if let Some(existing) = candidates.get_mut(&next_key) {
                     if origin_cmp(&target.origin, &existing.target.origin).is_lt() {
                         *existing =
                             GraphCandidate { target, terminal_edge_cursor: edge.write_cursor };
@@ -1625,7 +1735,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     }
                 } else if candidates.len() < request.result_limit as usize {
                     candidates.insert(
-                        next_owned,
+                        next_key,
                         GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
                     );
                     worst_candidate_id = None;
@@ -1636,13 +1746,13 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                             .max_by(|(_, left), (_, right)| {
                                 origin_cmp(&left.target.origin, &right.target.origin)
                             })
-                            .map(|(logical_id, _)| logical_id.clone())
+                            .map(|(key, _)| key.clone())
                             .expect("result limit is validated nonzero")
                     });
                     if origin_cmp(&target.origin, &candidates[&worst].target.origin).is_lt() {
                         candidates.remove(&worst);
                         candidates.insert(
-                            next_owned,
+                            next_key,
                             GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
                         );
                     } else {

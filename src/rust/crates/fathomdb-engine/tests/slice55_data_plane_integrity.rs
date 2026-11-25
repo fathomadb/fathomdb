@@ -1420,9 +1420,11 @@ fn slice55_mutation_readiness_selects_only_bounded_subset() {
     opened
         .engine
         .execute_for_test(
-            "PRAGMA ignore_check_constraints=ON; \
+            "PRAGMA foreign_keys=OFF; \
+             PRAGMA ignore_check_constraints=ON; \
              UPDATE _fathomdb_actuation_receipts SET operation_id=zeroblob(129) \
-             WHERE operation_id='z-receipt'",
+             WHERE operation_id='z-receipt'; \
+             PRAGMA foreign_keys=ON",
         )
         .unwrap();
     let error = opened
@@ -1443,9 +1445,11 @@ fn slice55_receipt_variable_field_guards_precede_fetch() {
     opened
         .engine
         .execute_for_test(
-            "PRAGMA ignore_check_constraints=ON; \
+            "PRAGMA foreign_keys=OFF; \
+             PRAGMA ignore_check_constraints=ON; \
              UPDATE _fathomdb_actuation_receipts SET operation_id=zeroblob(129) \
-             WHERE operation_id='guarded-operation'",
+             WHERE operation_id='guarded-operation'; \
+             PRAGMA foreign_keys=ON",
         )
         .unwrap();
     let result = opened
@@ -1654,7 +1658,11 @@ fn slice55_fix6_dependency_dynamic_types_map_to_invalid_without_identity_leakage
         ),
         (
             "null dependency id",
-            "UPDATE _fathomdb_source_dependencies SET dependency_id=NULL \
+            "PRAGMA writable_schema=ON; \
+             UPDATE sqlite_schema SET sql=replace(sql, 'dependency_id TEXT NOT NULL', 'dependency_id TEXT') \
+             WHERE type='table' AND name='_fathomdb_source_dependencies'; \
+             PRAGMA writable_schema=RESET; \
+             UPDATE _fathomdb_source_dependencies SET dependency_id=NULL \
              WHERE dependency_id='integrity-dep-1'",
             false,
         ),
@@ -2019,11 +2027,17 @@ fn slice55_fix6_null_receipt_key_is_counted_ordered_bounded_and_private() {
     opened
         .engine
         .execute_for_test(
-            "PRAGMA ignore_check_constraints=ON; \
+            "PRAGMA foreign_keys=OFF; \
+             PRAGMA writable_schema=ON; \
+             UPDATE sqlite_schema SET sql=replace(sql, 'operation_id TEXT NOT NULL', 'operation_id TEXT') \
+             WHERE type='table' AND name='_fathomdb_actuation_receipts'; \
+             PRAGMA writable_schema=RESET; \
+             PRAGMA ignore_check_constraints=ON; \
              UPDATE _fathomdb_actuation_receipts SET operation_id=NULL \
                WHERE operation_id='a-null-receipt'; \
              UPDATE _fathomdb_actuation_receipts SET outcome='not-an-outcome' \
-               WHERE operation_id='z-corrupt-receipt'",
+               WHERE operation_id='z-corrupt-receipt'; \
+             PRAGMA foreign_keys=ON",
         )
         .unwrap();
 

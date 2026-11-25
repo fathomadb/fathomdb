@@ -209,6 +209,8 @@ impl Engine {
             return Err(EngineError::WriteValidation);
         }
         let _operation = self.ensure_open()?;
+        let write_scope =
+            self.scope_predicate().require_write_scope("write_node_importance")?.to_string();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         erasure_queue::guard_admin(connection)?;
@@ -219,8 +221,8 @@ impl Engine {
         crate::frozen_read::require_clean_visibility(&tx)?;
         dependency_closure::guard_no_pending_physical(&tx)?;
         tx.execute(
-            "UPDATE canonical_nodes SET importance = ?1 WHERE write_cursor = ?2",
-            params![importance, write_cursor],
+            "UPDATE canonical_nodes SET importance = ?1 WHERE scope = ?2 AND write_cursor = ?3",
+            params![importance, write_scope, write_cursor],
         )
         .map_err(|_| EngineError::Storage)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
@@ -433,6 +435,7 @@ impl Engine {
 
     fn write_inner(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
         let _operation = self.ensure_open()?;
+        let write_scope = self.scope_predicate().require_write_scope("write")?.to_string();
 
         if batch.is_empty() {
             return Err(EngineError::WriteValidation);
@@ -452,8 +455,8 @@ impl Engine {
         let abort_next_commit_for_test =
             crate::write_commit::take_write_commit_abort_marker_for_test(connection)
                 .map_err(|_| EngineError::Storage)?;
-        erasure_queue::guard_plain(connection, batch)?;
-        if !physical_erasure::guard_plain_write(connection, batch)? {
+        erasure_queue::guard_plain(connection, &write_scope, batch)?;
+        if !physical_erasure::guard_plain_write(connection, &write_scope, batch)? {
             dependency_closure::maintain_before_writer(connection)?;
         }
         let plans = validate_batch(connection, batch)?;
@@ -486,6 +489,7 @@ impl Engine {
         });
         let (dangling_edge_endpoints, unstranded, _closure_ids) = match commit_batch(
             connection,
+            &write_scope,
             batch,
             &plans,
             base_cursor,
@@ -546,6 +550,10 @@ impl Engine {
         row_kind: RowKind,
     ) -> Result<WriteReceipt, EngineError> {
         let _operation = self.ensure_open()?;
+        let write_scope = self
+            .scope_predicate()
+            .require_write_scope("write_canonical_row_with_kind_for_test")?
+            .to_string();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
 
@@ -588,9 +596,9 @@ impl Engine {
             // stay valid at every instant, which is the only correct answer for a
             // structural row that no caller can address a window to.
             tx.execute(
-                "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind)
-                 VALUES(?1, ?2, ?3, ?4, NULL, ?5)",
-                params![cursor, kind, body, engine_provenance.as_str(), row_kind.as_str()],
+                "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, scope)
+                 VALUES(?1, ?2, ?3, ?4, NULL, ?5, ?6)",
+                params![cursor, kind, body, engine_provenance.as_str(), row_kind.as_str(), write_scope],
             )
             .map_err(|_| EngineError::Storage)?;
             let enqueued = project_canonical_node_row(

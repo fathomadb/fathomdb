@@ -1154,7 +1154,7 @@ fn barrier_hides_derived_nodes_from_expansion_and_property_search() {
         .unwrap()
         .iter()
         .all(|node| node.logical_id != "derived"));
-    let expanded = opened.engine.search_expand("root needle", None, 1).unwrap();
+    let expanded = opened.engine.search_expand("root needle", None, 1, None).unwrap();
     assert!(expanded.expanded.iter().all(|(node, _)| node.logical_id != "derived"));
     let projected = opened
         .engine

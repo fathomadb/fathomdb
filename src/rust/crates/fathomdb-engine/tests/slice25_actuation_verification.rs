@@ -702,11 +702,11 @@ fn erasure_removes_receipt_evidence_from_database_and_wal_and_uses_reverse_index
         .prepare(
             "EXPLAIN QUERY PLAN SELECT operation_id \
              FROM _fathomdb_actuation_receipt_source_refs \
-             WHERE ref_kind=?1 AND ref_value=?2 AND operation_id>?3 \
+             WHERE scope=?1 AND ref_kind=?2 AND ref_value=?3 AND operation_id>?4 \
              ORDER BY operation_id LIMIT 64",
         )
         .unwrap()
-        .query_map(["source_id", "raw-erasure-source", ""], |row| row.get::<_, String>(3))
+        .query_map(["", "source_id", "raw-erasure-source", ""], |row| row.get::<_, String>(3))
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
         .unwrap();

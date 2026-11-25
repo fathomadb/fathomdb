@@ -84,7 +84,7 @@ fn absent_route(route: &str) {
             (r.search_result.results, r.search_result.degradations)
         }
         "expand" => {
-            let r = engine.search_expand(QUERY, None, 1).unwrap();
+            let r = engine.search_expand(QUERY, None, 1, None).unwrap();
             (r.search_hits, r.degradations)
         }
         "expand_frozen" => {
@@ -206,7 +206,7 @@ fn timeout_route(route: &str) {
             (r.search_result.results, r.search_result.degradations)
         }
         "expand" => {
-            let r = engine.search_expand(QUERY, None, 1).unwrap();
+            let r = engine.search_expand(QUERY, None, 1, None).unwrap();
             (r.search_hits, r.degradations)
         }
         "expand_frozen" => {

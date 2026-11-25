@@ -99,6 +99,7 @@ pub(crate) fn bm25f_search_inner(
     connection: &Connection,
     query: &str,
     plan: &Bm25fQueryPlan,
+    scope: &crate::scope::ScopePredicate,
 ) -> rusqlite::Result<Vec<(u64, f64)>> {
     let query_terms: Vec<String> = {
         let mut seen = BTreeSet::new();
@@ -109,6 +110,9 @@ pub(crate) fn bm25f_search_inner(
     }
     let effective_at = current_epoch_seconds();
     let strict_eligibility = dependency_closure::read_eligibility_sql("cn", false, false, false, 1);
+    let mut base_params = vec![rusqlite::types::Value::Integer(effective_at)];
+    let mut scope_sql = String::new();
+    scope.append_sql_values("cn.scope", &mut scope_sql, &mut base_params);
 
     // Corpus pass over ACTIVE rows (superseded versions excluded): accumulate
     // N, total field length per field (for avg field length), and per-term
@@ -121,10 +125,10 @@ pub(crate) fn bm25f_search_inner(
             "SELECT v.kind, v.body, v.status
              FROM search_index_v2 v
              JOIN canonical_nodes cn ON cn.write_cursor = v.write_cursor
-             WHERE cn.superseded_at IS NULL AND cn.state = 'active'{strict_eligibility}"
+             WHERE {scope_sql} AND cn.superseded_at IS NULL AND cn.state = 'active'{strict_eligibility}"
         );
         let mut stmt = connection.prepare(&sql)?;
-        let mut rows = stmt.query([effective_at])?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(base_params.iter()))?;
         while let Some(row) = rows.next()? {
             let fields =
                 [row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?];
@@ -158,10 +162,11 @@ pub(crate) fn bm25f_search_inner(
     let active: BTreeSet<i64> = {
         let sql = format!(
             "SELECT cn.write_cursor FROM canonical_nodes cn \
-             WHERE cn.superseded_at IS NULL AND cn.state = 'active'{strict_eligibility}"
+             WHERE {scope_sql} AND cn.superseded_at IS NULL AND cn.state = 'active'{strict_eligibility}"
         );
         let mut stmt = connection.prepare(&sql)?;
-        let rows = stmt.query_map([effective_at], |r| r.get::<_, i64>(0))?;
+        let rows =
+            stmt.query_map(rusqlite::params_from_iter(base_params.iter()), |r| r.get::<_, i64>(0))?;
         rows.collect::<rusqlite::Result<BTreeSet<i64>>>()?
     };
 

@@ -648,6 +648,7 @@ fn receipt_for_refusal(
 
 pub(super) fn load_receipt(
     connection: &Connection,
+    scope: &str,
     operation_id: &str,
     digest: &str,
     request: Option<&ActuationBatchV1>,
@@ -675,8 +676,8 @@ pub(super) fn load_receipt(
                     resulting_dependency_generation,pending_projection_write_cursors_json,\
                     closure_operation_ids_json,projection_generation_id \
              FROM _fathomdb_actuation_receipts \
-             WHERE operation_id=?1",
-            [operation_id],
+             WHERE scope=?1 AND operation_id=?2",
+            params![scope, operation_id],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -728,7 +729,7 @@ pub(super) fn load_receipt(
             && pending_json == "[]"
             && closure_json == "[]"
             && projection_generation_id.is_none()
-            && validate_source_refs(connection, operation_id, 0)?.is_empty();
+            && validate_source_refs(connection, scope, operation_id, 0)?.is_empty();
         if !erased_is_canonical {
             return Err(EngineError::Storage);
         }
@@ -785,12 +786,12 @@ pub(super) fn load_receipt(
     }
     let mut affected_exists = connection
         .prepare_cached(
-            "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id=?1)",
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2)",
         )
         .map_err(|_| EngineError::Storage)?;
     for revision_id in &affected_revision_ids {
         let exists: bool = affected_exists
-            .query_row([revision_id], |row| row.get(0))
+            .query_row(params![scope, revision_id], |row| row.get(0))
             .map_err(|_| EngineError::Storage)?;
         if !exists {
             return Err(EngineError::Storage);
@@ -890,8 +891,8 @@ pub(super) fn load_receipt(
                 let revision_id: Option<String> = connection
                     .query_row(
                         "SELECT revision_id FROM _fathomdb_artifact_revisions \
-                         WHERE write_cursor=?1",
-                        [cursor],
+                         WHERE scope=?1 AND write_cursor=?2",
+                        params![scope, cursor],
                         |row| row.get(0),
                     )
                     .optional()
@@ -924,8 +925,8 @@ pub(super) fn load_receipt(
                 let exists: bool = connection
                     .query_row(
                         "SELECT EXISTS(SELECT 1 FROM _fathomdb_dependency_closures \
-                         WHERE closure_operation_id=?1)",
-                        [closure_id],
+                         WHERE scope=?1 AND closure_operation_id=?2)",
+                        params![scope, closure_id],
                         |row| row.get(0),
                     )
                     .map_err(|_| EngineError::Storage)?;
@@ -952,20 +953,26 @@ pub(super) fn load_receipt(
         }
     }
     if let Some(request) = request {
-        let expected_affected = expected_affected_revisions(connection, request, outcome)?;
+        let expected_affected = expected_affected_revisions(connection, scope, request, outcome)?;
         if affected_revision_ids != expected_affected {
             return Err(EngineError::Storage);
         }
     }
     let stored_source_refs = validate_source_refs(
         connection,
+        scope,
         operation_id,
         source_ref_limit(operations_count, affected_revision_ids.len()),
     )?;
     if let Some(request) = request {
         let mut expected_source_refs = collect_source_refs(request);
         if outcome != ActuationOutcomeV1::Refused {
-            enrich_affected_refs(connection, &affected_revision_ids, &mut expected_source_refs)?;
+            enrich_affected_refs(
+                connection,
+                scope,
+                &affected_revision_ids,
+                &mut expected_source_refs,
+            )?;
         }
         if stored_source_refs != expected_source_refs {
             return Err(EngineError::Storage);
@@ -1040,6 +1047,7 @@ fn validate_refusal_shape(
 
 fn validate_source_refs(
     connection: &Connection,
+    scope: &str,
     operation_id: &str,
     max_refs: usize,
 ) -> Result<BTreeSet<(&'static str, String)>, EngineError> {
@@ -1048,11 +1056,11 @@ fn validate_source_refs(
         .prepare(
             "SELECT schema_version,ref_kind,ref_value \
              FROM _fathomdb_actuation_receipt_source_refs \
-             WHERE operation_id=?1 ORDER BY ref_kind,ref_value LIMIT ?2",
+             WHERE scope=?1 AND operation_id=?2 ORDER BY ref_kind,ref_value LIMIT ?3",
         )
         .map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map(params![operation_id, limit], |row| {
+        .query_map(params![scope, operation_id, limit], |row| {
             Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
         })
         .map_err(|_| EngineError::Storage)?
@@ -1088,6 +1096,7 @@ fn validate_source_refs(
 
 fn store_receipt(
     connection: &Connection,
+    scope: &str,
     receipt: &ActuationReceiptV1,
     operations: usize,
 ) -> Result<(), EngineError> {
@@ -1112,13 +1121,14 @@ fn store_receipt(
     connection
         .execute(
             "INSERT INTO _fathomdb_actuation_receipts(\
-               operation_id,schema_version,request_sha256,operations_count,outcome,\
+               scope,operation_id,schema_version,request_sha256,operations_count,outcome,\
                refused_operation_index,refused_field_path,reason_codes_json,\
                affected_revision_ids_json,resulting_write_boundary,\
                resulting_dependency_generation,pending_projection_write_cursors_json,\
                closure_operation_ids_json,projection_generation_id\
-             ) VALUES(?1,1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+             ) VALUES(?1,?2,1,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
             params![
+                scope,
                 receipt.operation_id,
                 receipt.request_sha256,
                 operations,
@@ -1188,6 +1198,7 @@ fn collect_source_refs(request: &ActuationBatchV1) -> BTreeSet<(&'static str, St
 
 fn enrich_affected_refs(
     connection: &Connection,
+    scope: &str,
     affected_revision_ids: &[String],
     refs: &mut BTreeSet<(&'static str, String)>,
 ) -> Result<(), EngineError> {
@@ -1198,9 +1209,9 @@ fn enrich_affected_refs(
                 "SELECT ar.artifact_class,ar.write_cursor,ar.artifact_role,link.source_id \
                  FROM _fathomdb_artifact_revisions ar \
                  LEFT JOIN _fathomdb_source_links link \
-                   ON link.artifact_revision_id=ar.revision_id \
-                 WHERE ar.revision_id=?1",
-                [revision],
+                   ON link.scope=ar.scope AND link.artifact_revision_id=ar.revision_id \
+                 WHERE ar.scope=?1 AND ar.revision_id=?2",
+                params![scope, revision],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()
@@ -1224,8 +1235,10 @@ fn enrich_affected_refs(
                 };
                 connection
                     .query_row(
-                        &format!("SELECT source_id FROM {table} WHERE write_cursor=?1"),
-                        [write_cursor],
+                        &format!(
+                            "SELECT source_id FROM {table} WHERE scope=?1 AND write_cursor=?2"
+                        ),
+                        params![scope, write_cursor],
                         |row| row.get(0),
                     )
                     .optional()
@@ -1242,6 +1255,7 @@ fn enrich_affected_refs(
 
 fn store_source_refs(
     connection: &Connection,
+    scope: &str,
     operation_id: &str,
     refs: &BTreeSet<(&'static str, String)>,
     operations_count: usize,
@@ -1254,9 +1268,9 @@ fn store_source_refs(
         connection
             .execute(
                 "INSERT INTO _fathomdb_actuation_receipt_source_refs(\
-                   operation_id,schema_version,ref_kind,ref_value\
-                 ) VALUES(?1,1,?2,?3)",
-                params![operation_id, kind, value],
+                   scope,operation_id,schema_version,ref_kind,ref_value\
+                 ) VALUES(?1,?2,1,?3,?4)",
+                params![scope, operation_id, kind, value],
             )
             .map_err(|_| EngineError::Storage)?;
     }
@@ -1265,6 +1279,7 @@ fn store_source_refs(
 
 pub(super) fn redact_actuation_receipts_for_refs(
     connection: &Connection,
+    scope: &str,
     refs: &BTreeSet<(String, String)>,
 ) -> Result<(), EngineError> {
     for (kind, value) in refs {
@@ -1274,12 +1289,12 @@ pub(super) fn redact_actuation_receipts_for_refs(
                 let mut statement = connection
                     .prepare(
                         "SELECT operation_id FROM _fathomdb_actuation_receipt_source_refs \
-                         WHERE ref_kind=?1 AND ref_value=?2 AND operation_id>?3 \
+                         WHERE scope=?1 AND ref_kind=?2 AND ref_value=?3 AND operation_id>?4 \
                          ORDER BY operation_id LIMIT 64",
                     )
                     .map_err(|_| EngineError::Storage)?;
                 let rows = statement
-                    .query_map(params![kind, value, after], |row| row.get::<_, String>(0))
+                    .query_map(params![scope, kind, value, after], |row| row.get::<_, String>(0))
                     .map_err(|_| EngineError::Storage)?
                     .collect::<rusqlite::Result<Vec<_>>>()
                     .map_err(|_| EngineError::Storage)?;
@@ -1292,18 +1307,18 @@ pub(super) fn redact_actuation_receipts_for_refs(
                 let digest: String = connection
                     .query_row(
                         "SELECT request_sha256 FROM _fathomdb_actuation_receipts \
-                         WHERE operation_id=?1 AND outcome!='erased'",
-                        [&operation_id],
+                         WHERE scope=?1 AND operation_id=?2 AND outcome!='erased'",
+                        params![scope, &operation_id],
                         |row| row.get(0),
                     )
                     .map_err(|_| EngineError::Storage)?;
-                let _ = load_receipt(connection, &operation_id, &digest, None)?
+                let _ = load_receipt(connection, scope, &operation_id, &digest, None)?
                     .ok_or(EngineError::Storage)?;
                 connection
                     .execute(
                         "DELETE FROM _fathomdb_actuation_receipt_source_refs \
-                         WHERE operation_id=?1",
-                        [&operation_id],
+                         WHERE scope=?1 AND operation_id=?2",
+                        params![scope, &operation_id],
                     )
                     .map_err(|_| EngineError::Storage)?;
                 connection
@@ -1315,8 +1330,8 @@ pub(super) fn redact_actuation_receipts_for_refs(
                            resulting_write_boundary=NULL,resulting_dependency_generation=NULL, \
                            pending_projection_write_cursors_json='[]',closure_operation_ids_json='[]', \
                            projection_generation_id=NULL \
-                         WHERE operation_id=?1",
-                        [&operation_id],
+                         WHERE scope=?1 AND operation_id=?2",
+                        params![scope, &operation_id],
                     )
                     .map_err(|_| EngineError::Storage)?;
             }
@@ -1328,15 +1343,16 @@ pub(super) fn redact_actuation_receipts_for_refs(
 
 fn current_revision_for_logical(
     connection: &Connection,
+    scope: &str,
     logical_id: &str,
 ) -> Result<Option<(String, LifecycleState, String)>, EngineError> {
     let row: Option<(String, String, String)> = connection
         .query_row(
             "SELECT ar.revision_id,n.state,ar.artifact_role \
              FROM canonical_nodes n JOIN _fathomdb_artifact_revisions ar \
-               ON ar.artifact_class='node' AND ar.write_cursor=n.write_cursor \
-             WHERE n.logical_id=?1 AND n.superseded_at IS NULL",
-            [logical_id],
+               ON ar.scope=n.scope AND ar.artifact_class='node' AND ar.write_cursor=n.write_cursor \
+             WHERE n.scope=?1 AND n.logical_id=?2 AND n.superseded_at IS NULL",
+            params![scope, logical_id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()
@@ -1349,6 +1365,7 @@ fn current_revision_for_logical(
 
 fn prior_edge_revisions(
     connection: &Connection,
+    scope: &str,
     edge: &ProvenancedEdgeV1,
     limit: usize,
 ) -> Result<Vec<(String, String)>, EngineError> {
@@ -1360,13 +1377,13 @@ fn prior_edge_revisions(
             .prepare(
                 "SELECT ar.revision_id,e.source_id FROM canonical_edges e \
                  JOIN _fathomdb_artifact_revisions ar \
-                   ON ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
-                 WHERE e.logical_id=?1 AND e.superseded_at IS NULL \
-                 ORDER BY e.write_cursor LIMIT ?2",
+                   ON ar.scope=e.scope AND ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
+                 WHERE e.scope=?1 AND e.logical_id=?2 AND e.superseded_at IS NULL \
+                 ORDER BY e.write_cursor LIMIT ?3",
             )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map(params![logical_id, limit], |row| {
+            .query_map(params![scope, logical_id, limit], |row| {
                 Ok((row.get::<_, String>(0)?, row.get(1)?))
             })
             .map_err(|_| EngineError::Storage)?
@@ -1383,13 +1400,13 @@ fn prior_edge_revisions(
             .prepare(
                 "SELECT ar.revision_id,e.source_id FROM canonical_edges e \
                  JOIN _fathomdb_artifact_revisions ar \
-                   ON ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
-                 WHERE e.from_id=?1 AND e.to_id=?2 AND e.kind=?3 \
-                   AND e.superseded_at IS NULL ORDER BY e.write_cursor LIMIT ?4",
+                   ON ar.scope=e.scope AND ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
+                 WHERE e.scope=?1 AND e.from_id=?2 AND e.to_id=?3 AND e.kind=?4 \
+                   AND e.superseded_at IS NULL ORDER BY e.write_cursor LIMIT ?5",
             )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map(params![edge.from, edge.to, edge.kind, limit], |row| {
+            .query_map(params![scope, edge.from, edge.to, edge.kind, limit], |row| {
                 Ok((row.get::<_, String>(0)?, row.get(1)?))
             })
             .map_err(|_| EngineError::Storage)?
@@ -1406,6 +1423,7 @@ fn prior_edge_revisions(
 
 fn expected_affected_revisions(
     connection: &Connection,
+    scope: &str,
     request: &ActuationBatchV1,
     outcome: ActuationOutcomeV1,
 ) -> Result<Vec<String>, EngineError> {
@@ -1424,20 +1442,22 @@ fn expected_affected_revisions(
             ActuationOperationV1::PutCanonicalNode(node)
             | ActuationOperationV1::PutDerivedNode(node) => {
                 let revision = node.provenance.artifact_revision_id.as_str();
-                let cursor = request_revision_cursor(connection, revision, "node")?;
+                let cursor = request_revision_cursor(connection, scope, revision, "node")?;
                 push(revision.to_string());
                 if let Some(logical_id) = node.logical_id.as_deref() {
                     let mut statement = connection
                         .prepare(
                             "SELECT ar.revision_id FROM canonical_nodes n \
                              JOIN _fathomdb_artifact_revisions ar \
-                               ON ar.artifact_class='node' AND ar.write_cursor=n.write_cursor \
-                             WHERE n.logical_id=?1 AND n.superseded_at=?2 \
+                               ON ar.scope=n.scope AND ar.artifact_class='node' AND ar.write_cursor=n.write_cursor \
+                             WHERE n.scope=?1 AND n.logical_id=?2 AND n.superseded_at=?3 \
                              ORDER BY n.write_cursor",
                         )
                         .map_err(|_| EngineError::Storage)?;
                     let prior = statement
-                        .query_map(params![logical_id, cursor], |row| row.get::<_, String>(0))
+                        .query_map(params![scope, logical_id, cursor], |row| {
+                            row.get::<_, String>(0)
+                        })
                         .map_err(|_| EngineError::Storage)?
                         .collect::<rusqlite::Result<Vec<_>>>()
                         .map_err(|_| EngineError::Storage)?;
@@ -1451,18 +1471,18 @@ fn expected_affected_revisions(
             }
             ActuationOperationV1::PutDerivedEdge(edge) => {
                 let revision = edge.provenance.artifact_revision_id.as_str();
-                let cursor = request_revision_cursor(connection, revision, "edge")?;
+                let cursor = request_revision_cursor(connection, scope, revision, "edge")?;
                 push(revision.to_string());
                 let mut statement = connection
                     .prepare(
                         "SELECT ar.revision_id,e.logical_id,e.from_id,e.to_id,e.kind \
                          FROM canonical_edges e JOIN _fathomdb_artifact_revisions ar \
-                           ON ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
-                         WHERE e.superseded_at=?1 ORDER BY e.write_cursor",
+                           ON ar.scope=e.scope AND ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
+                         WHERE e.scope=?1 AND e.superseded_at=?2 ORDER BY e.write_cursor",
                     )
                     .map_err(|_| EngineError::Storage)?;
                 let prior = statement
-                    .query_map([cursor], |row| {
+                    .query_map(params![scope, cursor], |row| {
                         Ok((
                             row.get::<_, String>(0)?,
                             row.get::<_, Option<String>>(1)?,
@@ -1500,14 +1520,15 @@ fn expected_affected_revisions(
 
 fn request_revision_cursor(
     connection: &Connection,
+    scope: &str,
     revision_id: &str,
     artifact_class: &str,
 ) -> Result<i64, EngineError> {
     connection
         .query_row(
             "SELECT write_cursor FROM _fathomdb_artifact_revisions \
-             WHERE revision_id=?1 AND artifact_class=?2",
-            params![revision_id, artifact_class],
+             WHERE scope=?1 AND revision_id=?2 AND artifact_class=?3",
+            params![scope, revision_id, artifact_class],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)
@@ -1541,6 +1562,7 @@ fn simulation_cursor_base(
 
 fn simulate_request(
     connection: &Connection,
+    scope: &str,
     request: &ActuationBatchV1,
     base_cursor: u64,
     provenance_row_cap: u64,
@@ -1567,7 +1589,7 @@ fn simulate_request(
                     let previous = node
                         .logical_id
                         .as_deref()
-                        .map(|logical| current_revision_for_logical(connection, logical))
+                        .map(|logical| current_revision_for_logical(connection, scope, logical))
                         .transpose()?
                         .flatten()
                         .map(|(revision, _, _)| revision);
@@ -1578,6 +1600,7 @@ fn simulate_request(
                     };
                     match apply_batch_in_transaction(
                         connection,
+                        scope,
                         &[write],
                         &[plan],
                         next_cursor,
@@ -1612,7 +1635,7 @@ fn simulate_request(
                 }
                 ActuationOperationV1::PutDerivedEdge(edge) => {
                     let previous =
-                        prior_edge_revisions(connection, edge, MAX_AFFECTED_REVISIONS + 1)?;
+                        prior_edge_revisions(connection, scope, edge, MAX_AFFECTED_REVISIONS + 1)?;
                     let write = PreparedWrite::ProvenancedEdge(edge.clone());
                     let plan = match validate_write(connection, &write) {
                         Ok(plan) => plan,
@@ -1620,6 +1643,7 @@ fn simulate_request(
                     };
                     match apply_batch_in_transaction(
                         connection,
+                        scope,
                         &[write],
                         &[plan],
                         next_cursor,
@@ -1654,20 +1678,23 @@ fn simulate_request(
                     let prospective = DependencyProspectiveState::default();
                     let validated = match validate_source_dependency_registration(
                         connection,
+                        scope,
                         dependency.clone(),
                         &prospective,
                     ) {
                         Ok(validated) => validated,
                         Err(error) => {
-                            let field = missing_dependency_field(connection, dependency).ok();
+                            let field =
+                                missing_dependency_field(connection, scope, dependency).ok();
                             return map_domain_error(error, index, field).map(Some);
                         }
                     };
-                    apply_validated_source_dependency(connection, &validated, 1)?;
+                    apply_validated_source_dependency(connection, scope, &validated, 1)?;
                 }
                 ActuationOperationV1::TransitionLifecycle(lifecycle) => {
                     match apply_lifecycle(
                         connection,
+                        scope,
                         lifecycle,
                         index,
                         dependency_closure::SoftClosureMode::Proving,
@@ -1692,7 +1719,7 @@ fn simulate_request(
                 }
             }
         }
-        validate_prospective_edge_endpoints(connection, request)
+        validate_prospective_edge_endpoints(connection, scope, request)
     })();
     connection
         .execute_batch(
@@ -1704,12 +1731,13 @@ fn simulate_request(
 
 fn validate_prospective_edge_endpoints(
     connection: &Connection,
+    scope: &str,
     request: &ActuationBatchV1,
 ) -> Result<Option<Refusal>, EngineError> {
     let mut exists = connection
         .prepare_cached(
             "SELECT EXISTS(SELECT 1 FROM canonical_nodes \
-             WHERE logical_id=?1 AND superseded_at IS NULL AND state='active')",
+             WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL AND state='active')",
         )
         .map_err(|_| EngineError::Storage)?;
     for (index, operation) in request.operations.iter().enumerate() {
@@ -1717,8 +1745,9 @@ fn validate_prospective_edge_endpoints(
             continue;
         };
         for (endpoint, suffix) in [(&edge.from, "from"), (&edge.to, "to")] {
-            let present: bool =
-                exists.query_row([endpoint], |row| row.get(0)).map_err(|_| EngineError::Storage)?;
+            let present: bool = exists
+                .query_row(params![scope, endpoint], |row| row.get(0))
+                .map_err(|_| EngineError::Storage)?;
             if !present {
                 return Ok(Some(Refusal {
                     reason: ActuationRefusalReasonV1::ReferenceUnavailable,
@@ -1796,12 +1825,13 @@ fn map_domain_error(
 
 fn missing_dependency_field(
     connection: &Connection,
+    scope: &str,
     dependency: &SourceDependencyRegistrationV1,
 ) -> Result<&'static str, EngineError> {
     let derived_exists: bool = connection
         .query_row(
-            "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id=?1)",
-            [dependency.derived_revision_id.as_str()],
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2)",
+            params![scope, dependency.derived_revision_id.as_str()],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
@@ -1810,11 +1840,12 @@ fn missing_dependency_field(
 
 fn apply_lifecycle(
     connection: &Connection,
+    scope: &str,
     operation: &LifecycleActuationV1,
     index: usize,
     closure_mode: dependency_closure::SoftClosureMode,
 ) -> Result<(String, Option<ClosureOperationId>, bool), RefusalOrInfrastructure> {
-    let current = current_revision_for_logical(connection, &operation.logical_id)
+    let current = current_revision_for_logical(connection, scope, &operation.logical_id)
         .map_err(RefusalOrInfrastructure::Infrastructure)?;
     let Some((revision, from_state, role)) = current else {
         return Err(RefusalOrInfrastructure::Refusal(Refusal {
@@ -1840,8 +1871,8 @@ fn apply_lifecycle(
     let (write_cursor, body, props): (i64, String, Option<crate::PropertyMap>) = connection
         .query_row(
             "SELECT write_cursor,body,properties FROM canonical_nodes \
-             WHERE logical_id=?1 AND superseded_at IS NULL",
-            [&operation.logical_id],
+             WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL",
+            params![scope, &operation.logical_id],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -1855,6 +1886,7 @@ fn apply_lifecycle(
     {
         dependency_closure::admit_soft_closure(
             connection,
+            scope,
             &revision,
             ClosureCauseV1::SoftDeleted,
             load_next_cursor(connection),
@@ -1867,7 +1899,7 @@ fn apply_lifecycle(
     if operation.to_state == LifecycleState::Active {
         validate_nested_projection_sources_for_body(connection, &body, props.as_ref())
             .map_err(RefusalOrInfrastructure::Infrastructure)?;
-        dependency_closure::guard_derived_reactivation(connection, write_cursor)
+        dependency_closure::guard_derived_reactivation(connection, scope, write_cursor)
             .map_err(RefusalOrInfrastructure::Infrastructure)?;
     }
     let new_reason =
@@ -1875,8 +1907,8 @@ fn apply_lifecycle(
     connection
         .execute(
             "UPDATE canonical_nodes SET state=?1, reason=?2 \
-             WHERE logical_id=?3 AND superseded_at IS NULL",
-            params![operation.to_state.as_str(), new_reason, operation.logical_id],
+             WHERE scope=?3 AND logical_id=?4 AND superseded_at IS NULL",
+            params![operation.to_state.as_str(), new_reason, scope, operation.logical_id],
         )
         .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     vector_storage::refresh_vector_eligibility_for_cursor(connection, write_cursor)
@@ -1896,8 +1928,8 @@ fn apply_lifecycle(
     let reopened = if operation.to_state == LifecycleState::Active {
         let (kind, row_kind): (String, String) = connection
             .query_row(
-                "SELECT kind,row_kind FROM canonical_nodes WHERE write_cursor=?1",
-                [write_cursor],
+                "SELECT kind,row_kind FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
+                params![scope, write_cursor],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
@@ -1946,6 +1978,7 @@ impl Engine {
     /// receipt for admitted domain failure.
     pub fn actuate(&self, request: ActuationBatchV1) -> Result<ActuationReceiptV1, EngineError> {
         let _operation = self.ensure_open()?;
+        let write_scope = self.scope_predicate().require_write_scope("actuate")?.to_string();
         validate_request(&request)?;
         let digest = request_digest(&request);
         let initial = {
@@ -1953,7 +1986,7 @@ impl Engine {
             let connection = connection.as_mut().ok_or(EngineError::Closing)?;
             erasure_queue::guard_admin(connection)?;
             dependency_closure::maintain_before_writer(connection)?;
-            load_receipt(connection, &request.operation_id, &digest, Some(&request))
+            load_receipt(connection, &write_scope, &request.operation_id, &digest, Some(&request))
         };
         match initial {
             Ok(Some(receipt)) => return Ok(receipt),
@@ -1984,7 +2017,7 @@ impl Engine {
             }
         }
         let mut admitted_started = None;
-        let result = self.actuate_new(&request, &digest, &mut admitted_started);
+        let result = self.actuate_new(&write_scope, &request, &digest, &mut admitted_started);
         match result {
             Ok(ActuationAttempt::Replay(receipt)) => Ok(receipt),
             Ok(ActuationAttempt::New(receipt)) => {
@@ -2041,6 +2074,7 @@ impl Engine {
 
     fn actuate_new(
         &self,
+        scope: &str,
         request: &ActuationBatchV1,
         digest: &str,
         admitted_started: &mut Option<Instant>,
@@ -2060,7 +2094,9 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         crate::frozen_read::require_clean_visibility(&tx)?;
         dependency_closure::guard_no_pending_physical(&tx)?;
-        if let Some(receipt) = load_receipt(&tx, &request.operation_id, digest, Some(request))? {
+        if let Some(receipt) =
+            load_receipt(&tx, scope, &request.operation_id, digest, Some(request))?
+        {
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok(ActuationAttempt::Replay(receipt));
         }
@@ -2078,9 +2114,10 @@ impl Engine {
                     path: Some("/expectedWriteBoundary".into()),
                 },
             );
-            store_receipt(&tx, &receipt, request.operations.len())?;
+            store_receipt(&tx, scope, &receipt, request.operations.len())?;
             store_source_refs(
                 &tx,
+                scope,
                 &request.operation_id,
                 &refs,
                 request.operations.len(),
@@ -2110,14 +2147,16 @@ impl Engine {
         let validation_base = simulation_cursor_base(&tx, put_count, base_cursor)?;
         if let Some(refusal) = simulate_request(
             &tx,
+            scope,
             request,
             validation_base,
             self.provenance_row_cap.load(Ordering::Relaxed),
         )? {
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
-            store_receipt(&tx, &receipt, request.operations.len())?;
+            store_receipt(&tx, scope, &receipt, request.operations.len())?;
             store_source_refs(
                 &tx,
+                scope,
                 &request.operation_id,
                 &refs,
                 request.operations.len(),
@@ -2152,9 +2191,10 @@ impl Engine {
                     path: Some(format!("/operations/{index}/record")),
                 },
             );
-            store_receipt(&tx, &receipt, request.operations.len())?;
+            store_receipt(&tx, scope, &receipt, request.operations.len())?;
             store_source_refs(
                 &tx,
+                scope,
                 &request.operation_id,
                 &refs,
                 request.operations.len(),
@@ -2214,7 +2254,7 @@ impl Engine {
                         let previous = node
                             .logical_id
                             .as_deref()
-                            .map(|logical| current_revision_for_logical(&tx, logical))
+                            .map(|logical| current_revision_for_logical(&tx, scope, logical))
                             .transpose()
                             .map_err(RefusalOrInfrastructure::Infrastructure)?
                             .flatten()
@@ -2233,6 +2273,7 @@ impl Engine {
                         };
                         match apply_batch_in_transaction(
                             &tx,
+                            scope,
                             &[write],
                             &[plan],
                             next_cursor,
@@ -2290,8 +2331,9 @@ impl Engine {
                     }
                 }
                 ActuationOperationV1::PutDerivedEdge(edge) => {
-                    let previous = prior_edge_revisions(&tx, edge, MAX_AFFECTED_REVISIONS + 1)
-                        .map_err(RefusalOrInfrastructure::Infrastructure)?;
+                    let previous =
+                        prior_edge_revisions(&tx, scope, edge, MAX_AFFECTED_REVISIONS + 1)
+                            .map_err(RefusalOrInfrastructure::Infrastructure)?;
                     let write = PreparedWrite::ProvenancedEdge(edge.clone());
                     let plan = validate_write(&tx, &write).map_err(|error| {
                         map_domain_error(error, index, None)
@@ -2300,6 +2342,7 @@ impl Engine {
                     })?;
                     match apply_batch_in_transaction(
                         &tx,
+                        scope,
                         &[write],
                         &[plan],
                         next_cursor,
@@ -2359,11 +2402,12 @@ impl Engine {
                     let prospective = DependencyProspectiveState::default();
                     let validated = validate_source_dependency_registration(
                         &tx,
+                        scope,
                         dependency.clone(),
                         &prospective,
                     )
                     .map_err(|error| {
-                        let field = missing_dependency_field(&tx, dependency).ok();
+                        let field = missing_dependency_field(&tx, scope, dependency).ok();
                         map_domain_error(error, index, field)
                             .map(RefusalOrInfrastructure::Refusal)
                             .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
@@ -2389,7 +2433,7 @@ impl Engine {
                                     }
                                 },
                             };
-                            apply_validated_source_dependency(&tx, &validated, generation)
+                            apply_validated_source_dependency(&tx, scope, &validated, generation)
                                 .map_err(RefusalOrInfrastructure::Infrastructure)?;
                             // Later operations in this same atomic batch must
                             // observe the generation of the dependency just
@@ -2404,6 +2448,7 @@ impl Engine {
                 ActuationOperationV1::TransitionLifecycle(lifecycle) => {
                     match apply_lifecycle(
                         &tx,
+                        scope,
                         lifecycle,
                         index,
                         dependency_closure::SoftClosureMode::Proving,
@@ -2444,9 +2489,10 @@ impl Engine {
             )
             .map_err(|_| EngineError::Storage)?;
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
-            store_receipt(&tx, &receipt, request.operations.len())?;
+            store_receipt(&tx, scope, &receipt, request.operations.len())?;
             store_source_refs(
                 &tx,
+                scope,
                 &request.operation_id,
                 &refs,
                 request.operations.len(),
@@ -2466,7 +2512,7 @@ impl Engine {
         if affected.len() > MAX_AFFECTED_REVISIONS {
             return Err(EngineError::Storage);
         }
-        enrich_affected_refs(&tx, &affected, &mut refs)?;
+        enrich_affected_refs(&tx, scope, &affected, &mut refs)?;
         let projection_generation_id = if pending.is_empty() {
             None
         } else {
@@ -2502,9 +2548,10 @@ impl Engine {
             )
             .map_err(|_| EngineError::Storage)?;
         }
-        store_receipt(&tx, &receipt, request.operations.len())?;
+        store_receipt(&tx, scope, &receipt, request.operations.len())?;
         store_source_refs(
             &tx,
+            scope,
             &request.operation_id,
             &refs,
             request.operations.len(),

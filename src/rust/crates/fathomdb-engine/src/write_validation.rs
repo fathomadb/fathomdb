@@ -303,13 +303,14 @@ fn value_contains_external_ref(value: &Value) -> bool {
 // UPDATE so the callers can prune stale vector_default rows.
 pub(crate) fn prior_edge_cursors_by_logical_id(
     tx: &Connection,
+    scope: &str,
     logical_id: &str,
 ) -> rusqlite::Result<Vec<i64>> {
     let mut s = tx.prepare_cached(
         "SELECT write_cursor FROM canonical_edges \
-         WHERE logical_id = ?1 AND superseded_at IS NULL",
+         WHERE scope = ?1 AND logical_id = ?2 AND superseded_at IS NULL",
     )?;
-    let rows = s.query_map(params![logical_id], |r| r.get(0))?;
+    let rows = s.query_map(params![scope, logical_id], |r| r.get(0))?;
     rows.collect()
 }
 
@@ -321,26 +322,28 @@ pub(crate) fn prior_edge_cursors_by_logical_id(
 /// keeps it robust and symmetric with the edge path.
 pub(crate) fn prior_node_cursors_by_logical_id(
     tx: &Connection,
+    scope: &str,
     logical_id: &str,
 ) -> rusqlite::Result<Vec<i64>> {
     let mut s = tx.prepare_cached(
         "SELECT write_cursor FROM canonical_nodes \
-         WHERE logical_id = ?1 AND superseded_at IS NULL",
+         WHERE scope = ?1 AND logical_id = ?2 AND superseded_at IS NULL",
     )?;
-    let rows = s.query_map(params![logical_id], |r| r.get(0))?;
+    let rows = s.query_map(params![scope, logical_id], |r| r.get(0))?;
     rows.collect()
 }
 
 pub(crate) fn prior_edge_cursors_by_triple(
     tx: &Connection,
+    scope: &str,
     from: &str,
     to: &str,
     kind: &str,
 ) -> rusqlite::Result<Vec<i64>> {
     let mut s = tx.prepare_cached(
         "SELECT write_cursor FROM canonical_edges \
-         WHERE from_id = ?1 AND to_id = ?2 AND kind = ?3 AND superseded_at IS NULL",
+         WHERE scope = ?1 AND from_id = ?2 AND to_id = ?3 AND kind = ?4 AND superseded_at IS NULL",
     )?;
-    let rows = s.query_map(params![from, to, kind], |r| r.get(0))?;
+    let rows = s.query_map(params![scope, from, to, kind], |r| r.get(0))?;
     rows.collect()
 }

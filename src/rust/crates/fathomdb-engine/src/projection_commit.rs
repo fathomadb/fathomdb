@@ -530,14 +530,21 @@ pub(crate) fn commit_projection_outcomes(
                         |row| row.get(0),
                     )?;
                     if existing == 0 {
+                        let row_scope: String = tx
+                            .query_row(
+                                "SELECT COALESCE((SELECT scope FROM canonical_nodes WHERE write_cursor = ?1 UNION ALL SELECT scope FROM canonical_edges WHERE write_cursor = ?1 LIMIT 1), '')",
+                                [cursor],
+                                |row| row.get(0),
+                            )
+                            .unwrap_or_default();
                         let payload = format!(
                             r#"{{"write_cursor":{cursor},"failure_code":"{failure_code}","recorded_at":0}}"#
                         );
                         tx.execute(
                             "INSERT INTO operational_mutations(
-                                collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
-                             ) VALUES('projection_failures', ?1, 'append', ?2, NULL, ?3)",
-                            params![cursor.to_string(), payload, cursor],
+                                collection_name, record_key, op_kind, payload_json, schema_id, write_cursor, scope
+                             ) VALUES('projection_failures', ?1, 'append', ?2, NULL, ?3, ?4)",
+                            params![cursor.to_string(), payload, cursor, row_scope],
                         )?;
                     }
                     record_projection_terminal(&tx, *cursor, "failed")?;

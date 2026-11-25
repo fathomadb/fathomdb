@@ -98,6 +98,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         dependency_closure::admit_soft_closure(
             &tx,
+            "",
             "source-r1",
             ClosureCauseV1::SoftDeleted,
             self.next_cursor.load(AtomicOrdering::SeqCst),
@@ -518,9 +519,10 @@ impl Engine {
                         "/context/schemaVersion",
                     ));
                 }
+                let scope = self.scope_predicate();
                 let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
                 let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-                Some(Box::new(frozen_read::authenticate(connection, context)?))
+                Some(Box::new(frozen_read::authenticate(connection, context, &scope)?))
             }
         };
         let context = match &request.context {
@@ -603,10 +605,13 @@ impl Engine {
         edge_kinds: &[String],
     ) -> Result<Vec<String>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope_pred = self.scope_predicate();
+        let hop_scope = scope_pred.read_scopes().first().map(String::as_str).unwrap_or("");
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let query = graph_expand_incident_query(
             "fixture",
+            hop_scope,
             direction,
             EdgeViewBoundary::Current { edge_now: 1_750_000_000 },
             edge_kinds,
@@ -628,10 +633,13 @@ impl Engine {
         check_derived_eligibility: bool,
     ) -> Result<Vec<String>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope_pred = self.scope_predicate();
+        let hop_scope = scope_pred.read_scopes().first().map(String::as_str).unwrap_or("");
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let query = graph_expand_incident_query(
             "fixture",
+            hop_scope,
             direction,
             EdgeViewBoundary::AsOf {
                 edge_now: 1_750_000_000,
@@ -655,6 +663,7 @@ impl Engine {
         as_of_write_cursor: u64,
     ) -> Result<Vec<String>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope_pred = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let view = ReadView { valid_as_of: Some(1_750_000_000), ..ReadView::default() }.freeze();
@@ -663,6 +672,7 @@ impl Engine {
             logical_id,
             view,
             &SearchFilter::default(),
+            &scope_pred,
             as_of_sql_i64(as_of_write_cursor),
         )?;
         explain_sql_with_params(connection, &sql, &params)

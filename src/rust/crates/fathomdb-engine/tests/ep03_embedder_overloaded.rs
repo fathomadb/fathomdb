@@ -311,7 +311,7 @@ fn search_expand_reports_embedder_overloaded() {
     let frozen = engine.freeze_read_context(&context).unwrap();
     let holder = hold_the_only_worker(&engine, &embedder);
 
-    let expanded = engine.search_expand(QUERY, None, 1).expect("search_expand degrades");
+    let expanded = engine.search_expand(QUERY, None, 1, None).expect("search_expand degrades");
     let expanded_frozen =
         engine.search_expand_frozen(QUERY, &frozen, 1, 10).expect("frozen expand degrades");
 
@@ -323,7 +323,7 @@ fn search_expand_reports_embedder_overloaded() {
         assert!(result.search_hits.iter().all(|hit| hit.branch == SoftFallbackBranch::Text));
     }
 
-    let healthy = engine.search_expand(QUERY, None, 1).expect("healthy search_expand");
+    let healthy = engine.search_expand(QUERY, None, 1, None).expect("healthy search_expand");
     assert!(healthy.degradations.is_empty(), "a served embed reports nothing");
     Arc::try_unwrap(engine).unwrap_or_else(|_| panic!("sole owner")).close().expect("close");
 }

@@ -1030,3 +1030,6 @@ required-features = ["operator", "migration-test-hooks", "test-hooks"]
 [[test]]
 name = "slice20_migrate_38_to_39"
 required-features = ["operator", "migration-test-hooks", "test-hooks"]
+
+[[test]]
+name = "slice20_caller_scope_isolation"

@@ -79,17 +79,17 @@ fn both_explain_is_the_exact_production_union_all_statement_and_binds() {
     let observed = engine.explain_graph_expand_for_test(TraversalDirection::Both).unwrap();
     let connection = Connection::open(path).unwrap();
     let sql = "EXPLAIN QUERY PLAN \
-        SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties \
+        SELECT canonical_edges.write_cursor,canonical_edges.kind,canonical_edges.from_id,canonical_edges.to_id,canonical_edges.logical_id,canonical_edges.superseded_at,canonical_edges.t_invalid,canonical_edges.properties \
         FROM canonical_edges \
-        WHERE from_id=?1 AND superseded_at IS NULL AND (t_valid IS NULL OR t_valid<=?2) AND (t_invalid IS NULL OR t_invalid>?2) \
+        WHERE canonical_edges.scope=?2 AND canonical_edges.from_id=?1 AND canonical_edges.superseded_at IS NULL AND (canonical_edges.t_valid IS NULL OR canonical_edges.t_valid<=?3) AND (canonical_edges.t_invalid IS NULL OR canonical_edges.t_invalid>?3) \
         UNION ALL \
-        SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties \
+        SELECT canonical_edges.write_cursor,canonical_edges.kind,canonical_edges.from_id,canonical_edges.to_id,canonical_edges.logical_id,canonical_edges.superseded_at,canonical_edges.t_invalid,canonical_edges.properties \
         FROM canonical_edges \
-        WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL AND (t_valid IS NULL OR t_valid<=?2) AND (t_invalid IS NULL OR t_invalid>?2) \
-        LIMIT ?3";
+        WHERE canonical_edges.scope=?2 AND canonical_edges.to_id=?1 AND canonical_edges.from_id!=?1 AND canonical_edges.superseded_at IS NULL AND (canonical_edges.t_valid IS NULL OR canonical_edges.t_valid<=?3) AND (canonical_edges.t_invalid IS NULL OR canonical_edges.t_invalid>?3) \
+        LIMIT ?4";
     let mut statement = connection.prepare(sql).unwrap();
     let expected = statement
-        .query_map(rusqlite::params!["root", 1_750_000_000_i64, 10_i64], |row| {
+        .query_map(rusqlite::params!["root", "", 1_750_000_000_i64, 10_i64], |row| {
             row.get::<_, String>(3)
         })
         .unwrap()

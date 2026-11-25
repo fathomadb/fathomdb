@@ -11,7 +11,7 @@ use tempfile::TempDir;
 
 const NODE_CURSOR_INDEX: &str = "canonical_nodes_write_cursor_idx";
 const EDGE_CURSOR_INDEX: &str = "canonical_edges_write_cursor_idx";
-const ACTIVE_NODE_CURSOR_INDEX: &str = "canonical_nodes_state_active_idx";
+const ACTIVE_NODE_CURSOR_INDEX: &str = "canonical_nodes_scope_state_active_idx";
 
 fn db_path(dir: &TempDir, name: &str) -> PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
@@ -151,7 +151,7 @@ fn projected_text_hydration_plan_retains_active_node_cursor_index() {
         "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id \
          FROM property_search_index p \
          JOIN canonical_nodes n ON n.write_cursor = p.write_cursor \
-         WHERE p.attr_name = 'title' AND property_search_index MATCH 'joinindex' \
+         WHERE n.scope = '' AND p.attr_name = 'title' AND property_search_index MATCH 'joinindex' \
            AND n.superseded_at IS NULL AND n.state = 'active' \
            AND (n.valid_from IS NULL OR n.valid_from <= 2_000_000_000) \
            AND (n.valid_until IS NULL OR n.valid_until > 2_000_000_000) \

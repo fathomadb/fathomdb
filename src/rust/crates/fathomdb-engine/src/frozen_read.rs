@@ -129,6 +129,7 @@ pub(crate) struct FrozenReadBinding {
     registry_digest: [u8; 32],
     serving_digest: [u8; 32],
     context_digest: [u8; 32],
+    scope_digest: Option<[u8; 32]>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -168,16 +169,18 @@ pub(crate) fn validate_context(context: &ReadContextV1) -> Result<Vec<u8>, Froze
 pub(crate) fn mint(
     connection: &mut Connection,
     context: &ReadContextV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<(FrozenReadContextV1, u64), EngineError> {
-    mint_inner(connection, context).map(|(frozen, generation, _)| (frozen, generation))
+    mint_inner(connection, context, scope).map(|(frozen, generation, _)| (frozen, generation))
 }
 
 #[cfg(feature = "test-hooks")]
 pub(crate) fn mint_measured(
     connection: &mut Connection,
     context: &ReadContextV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<(FrozenReadContextV1, u64, MintStageTiming), EngineError> {
-    let (frozen, generation, timing) = mint_inner(connection, context)?;
+    let (frozen, generation, timing) = mint_inner(connection, context, scope)?;
     Ok((
         frozen,
         generation,
@@ -193,6 +196,7 @@ pub(crate) fn mint_measured(
 fn mint_inner(
     connection: &mut Connection,
     context: &ReadContextV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<(FrozenReadContextV1, u64, [u128; 4]), EngineError> {
     #[cfg(feature = "test-hooks")]
     let context_started = Instant::now();
@@ -224,8 +228,12 @@ fn mint_inner(
     let snapshot_validation_ns = 0;
     #[cfg(feature = "test-hooks")]
     let binding_started = Instant::now();
-    let mut binding =
-        binding_for_snapshot(&tx, effective_valid_at, digest(CONTEXT_DOMAIN, &context_bytes))?;
+    let mut binding = binding_for_snapshot(
+        &tx,
+        effective_valid_at,
+        digest(CONTEXT_DOMAIN, &context_bytes),
+        scope.frozen_digest(),
+    )?;
     #[cfg(feature = "test-hooks")]
     let binding_ns = binding_started.elapsed().as_nanos();
     #[cfg(not(feature = "test-hooks"))]
@@ -260,6 +268,7 @@ fn mint_inner(
 pub(crate) fn authenticate(
     connection: &Connection,
     frozen: &FrozenReadContextV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<FrozenReadBinding, EngineError> {
     if frozen.schema_version != FROZEN_READ_SCHEMA_VERSION {
         return Err(FrozenReadError::new(
@@ -298,6 +307,13 @@ pub(crate) fn authenticate(
     if binding.database_id != database_id {
         return Err(FrozenReadError::new(FrozenReadErrorReason::DatabaseMismatch, "/token").into());
     }
+    if binding.scope_digest != scope.frozen_digest() {
+        return Err(FrozenReadError::new(
+            FrozenReadErrorReason::TokenAuthenticationFailed,
+            "/token",
+        )
+        .into());
+    }
     let context_bytes = validate_context(&frozen.context)?;
     if frozen.effective_valid_at != binding.effective_valid_at
         || frozen.context.view.valid_as_of != Some(binding.effective_valid_at)
@@ -312,9 +328,13 @@ pub(crate) fn validate_snapshot(
     connection: &Connection,
     expected: &FrozenReadBinding,
 ) -> Result<u64, FrozenReadError> {
-    let actual =
-        binding_for_snapshot(connection, expected.effective_valid_at, expected.context_digest)
-            .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
+    let actual = binding_for_snapshot(
+        connection,
+        expected.effective_valid_at,
+        expected.context_digest,
+        expected.scope_digest,
+    )
+    .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
     if actual != *expected {
         return Err(FrozenReadError::new(FrozenReadErrorReason::StateDrifted, "/token"));
     }
@@ -539,6 +559,7 @@ fn binding_for_snapshot(
     connection: &Connection,
     effective_valid_at: i64,
     context_digest: [u8; 32],
+    scope_digest: Option<[u8; 32]>,
 ) -> Result<FrozenReadBinding, EngineError> {
     #[cfg(any(test, feature = "migration-test-hooks"))]
     {
@@ -563,6 +584,7 @@ fn binding_for_snapshot(
         registry_digest: projection_registry_digest(connection)?,
         serving_digest: projection_serving_digest(connection)?,
         context_digest,
+        scope_digest,
     })
 }
 
@@ -796,6 +818,9 @@ fn encode_binding(binding: &FrozenReadBinding) -> Vec<u8> {
     bytes.extend_from_slice(&binding.registry_digest);
     bytes.extend_from_slice(&binding.serving_digest);
     bytes.extend_from_slice(&binding.context_digest);
+    if let Some(scope_digest) = binding.scope_digest {
+        bytes.extend_from_slice(&scope_digest);
+    }
     bytes
 }
 
@@ -809,16 +834,33 @@ fn decode_binding(bytes: &[u8]) -> Result<FrozenReadBinding, EngineError> {
         )
         .into());
     }
+    let database_id = cursor.string()?;
+    let effective_valid_at = cursor.i64()?;
+    let canonical_write_boundary = cursor.u64()?;
+    let read_visibility_generation = cursor.u64()?;
+    let dependency_generation = cursor.u64()?;
+    let projection_cursor = cursor.u64()?;
+    let registry_digest = cursor.array32()?;
+    let serving_digest = cursor.array32()?;
+    let context_digest = cursor.array32()?;
+    let scope_digest = if cursor.offset == bytes.len() {
+        None
+    } else if bytes.len().saturating_sub(cursor.offset) == 32 {
+        Some(cursor.array32()?)
+    } else {
+        return Err(FrozenReadError::new(FrozenReadErrorReason::TokenMalformed, "/token").into());
+    };
     let binding = FrozenReadBinding {
-        database_id: cursor.string()?,
-        effective_valid_at: cursor.i64()?,
-        canonical_write_boundary: cursor.u64()?,
-        read_visibility_generation: cursor.u64()?,
-        dependency_generation: cursor.u64()?,
-        projection_cursor: cursor.u64()?,
-        registry_digest: cursor.array32()?,
-        serving_digest: cursor.array32()?,
-        context_digest: cursor.array32()?,
+        database_id,
+        effective_valid_at,
+        canonical_write_boundary,
+        read_visibility_generation,
+        dependency_generation,
+        projection_cursor,
+        registry_digest,
+        serving_digest,
+        context_digest,
+        scope_digest,
     };
     if cursor.offset != bytes.len() || encode_binding(&binding) != bytes {
         return Err(FrozenReadError::new(FrozenReadErrorReason::TokenMalformed, "/token").into());
@@ -1032,11 +1074,12 @@ impl Engine {
         let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let scope = self.scope_predicate();
         let started = Instant::now();
         pagination::authenticate_cursor(connection, page)?;
         let cursor_authentication_ns = started.elapsed().as_nanos();
         let started = Instant::now();
-        let binding = authenticate(connection, context)?;
+        let binding = authenticate(connection, context, &scope)?;
         let token_authentication_ns = started.elapsed().as_nanos();
         let started = Instant::now();
         validate_snapshot(connection, &binding)?;
@@ -1056,9 +1099,10 @@ impl Engine {
         context: &ReadContextV1,
     ) -> Result<Slice45MintStageTiming, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let (_, generation, timing) = mint_measured(connection, context)?;
+        let (_, generation, timing) = mint_measured(connection, context, &scope)?;
         self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
         Ok(Slice45MintStageTiming {
             context_validation_ns: timing.context_validation_ns,
@@ -1095,6 +1139,7 @@ mod tests {
             registry_digest in any::<[u8; 32]>(),
             serving_digest in any::<[u8; 32]>(),
             context_digest in any::<[u8; 32]>(),
+            scope_digest in any::<Option<[u8; 32]>>(),
         ) {
             let expected = FrozenReadBinding {
                 database_id,
@@ -1106,6 +1151,7 @@ mod tests {
                 registry_digest,
                 serving_digest,
                 context_digest,
+                scope_digest,
             };
             let encoded = encode_binding(&expected);
             let decoded = decode_binding(&encoded).unwrap();
@@ -1184,7 +1230,8 @@ mod tests {
         if let Some(expected) = fixture["projection_serving_encoding_hex"].as_str() {
             assert_eq!(hex_encode(&projection_serving_encoding(&connection).unwrap()), expected);
         }
-        let (frozen, _) = mint(&mut connection, &context).unwrap();
+        let (frozen, _) =
+            mint(&mut connection, &context, &crate::scope::ScopePredicate::unscoped()).unwrap();
         let payload_hex = frozen.token.split('.').nth(1).unwrap();
         assert_eq!(payload_hex, fixture["payload_hex"].as_str().unwrap());
         assert_eq!(frozen.token, fixture["token"].as_str().unwrap());
@@ -1329,7 +1376,8 @@ mod tests {
             )
             .unwrap();
         let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-        let (frozen, _) = mint(&mut connection, &context).unwrap();
+        let unscoped = crate::scope::ScopePredicate::unscoped();
+        let (frozen, _) = mint(&mut connection, &context, &unscoped).unwrap();
 
         connection
             .execute(
@@ -1340,7 +1388,7 @@ mod tests {
             .unwrap();
         migrate(&connection).unwrap();
 
-        let binding = authenticate(&connection, &frozen).unwrap();
+        let binding = authenticate(&connection, &frozen, &unscoped).unwrap();
         assert!(matches!(
             validate_snapshot(&connection, &binding),
             Err(error) if error.reason == FrozenReadErrorReason::StateDrifted
@@ -1381,11 +1429,12 @@ mod tests {
             load_visibility_generation(&right).unwrap()
         );
         let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-        let (left_frozen, _) = mint(&mut left, &context).unwrap();
-        let left_binding = authenticate(&left, &left_frozen).unwrap();
+        let unscoped = crate::scope::ScopePredicate::unscoped();
+        let (left_frozen, _) = mint(&mut left, &context, &unscoped).unwrap();
+        let left_binding = authenticate(&left, &left_frozen, &unscoped).unwrap();
         validate_snapshot(&left, &left_binding).unwrap();
 
-        let copied_binding = authenticate(&right, &left_frozen).unwrap();
+        let copied_binding = authenticate(&right, &left_frozen, &unscoped).unwrap();
         assert!(matches!(
             validate_snapshot(&right, &copied_binding),
             Err(error) if error.reason == FrozenReadErrorReason::StateDrifted

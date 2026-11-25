@@ -688,9 +688,12 @@ fn page_query_plans_use_governed_indexes_without_mutation_log_or_temp_sort() {
     let canonical = plans.iter().find(|(name, _)| name == "canonical_page").unwrap().1.join(" ");
     let point = plans.iter().find(|(name, _)| name == "operational_point").unwrap().1.join(" ");
     let state_page = plans.iter().find(|(name, _)| name == "operational_page").unwrap().1.join(" ");
-    assert!(canonical.contains("canonical_nodes_kind_cursor_page_idx"), "{canonical}");
+    assert!(canonical.contains("canonical_nodes_scope_kind_cursor_page_idx"), "{canonical}");
     assert!(point.contains("sqlite_autoindex_operational_state_1"), "{point}");
-    assert!(state_page.contains("operational_state_collection_cursor_page_idx"), "{state_page}");
+    assert!(
+        state_page.contains("operational_state_scope_collection_cursor_page_idx"),
+        "{state_page}"
+    );
     for plan in [canonical, point, state_page] {
         assert!(!plan.contains("USE TEMP B-TREE"), "{plan}");
         assert!(!plan.contains("operational_mutations"), "{plan}");

@@ -134,6 +134,7 @@ pub(super) fn engine_config_from_py(
             "0 or max",
         )?,
         query_stop_words: query_stop_words_from_py(config)?,
+        scope_policy: fathomdb_engine::ScopePolicy::default(),
     })
 }
 

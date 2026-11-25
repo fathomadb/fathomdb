@@ -227,38 +227,6 @@ fn redact_jsonl_line(line: &[u8], erased: &std::collections::HashSet<&str>) -> O
 /// ([`IdSpace::to_prefixed`]) of the canonical rows an erasure verb is about to
 /// delete, so they can be redacted from the telemetry sink.
 ///
-/// Must be called INSIDE the erasing transaction and BEFORE the DELETEs — after
-/// them the rows, and with them the `logical_id`/`body` the ids derive from, are
-/// gone. Both queries take one bound parameter (`?1`), applied to nodes and
-/// edges respectively; `derive_stable_id` reproduces exactly what
-/// `capture_telemetry` wrote into `result_stable_ids`.
-fn collect_erased_stable_ids(
-    tx: &Connection,
-    node_sql: &str,
-    edge_sql: &str,
-    bind: &str,
-) -> Result<Vec<String>, EngineError> {
-    let mut ids = Vec::new();
-    for sql in [node_sql, edge_sql] {
-        let mut stmt = tx.prepare(sql).map_err(|_| EngineError::Storage)?;
-        let rows = stmt
-            .query_map(params![bind], |row| {
-                Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?))
-            })
-            .map_err(|_| EngineError::Storage)?;
-        for row in rows {
-            let (logical_id, body) = row.map_err(|_| EngineError::Storage)?;
-            ids.push(
-                derive_stable_id(logical_id.as_deref(), body.as_deref().unwrap_or(""))
-                    .to_prefixed(),
-            );
-        }
-    }
-    ids.sort_unstable();
-    ids.dedup();
-    Ok(ids)
-}
-
 fn collect_erased_stable_ids_for_cursors(
     connection: &Connection,
     node_cursors: &[i64],
@@ -303,6 +271,7 @@ fn telemetry_incomplete() -> EngineError {
 
 fn enqueue_pending_redaction(
     tx: &Connection,
+    scope: &str,
     verb: &str,
     erased_stable_ids: &[String],
     write_cursor: u64,
@@ -323,9 +292,9 @@ fn enqueue_pending_redaction(
     .map_err(|_| EngineError::Storage)?;
     tx.execute(
         "INSERT INTO operational_mutations(
-            collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
-         ) VALUES(?1, ?2, 'append', ?3, NULL, ?4)",
-        params![ERASURE_PENDING_REDACTION_COLLECTION, verb, payload, write_cursor],
+            collection_name, record_key, op_kind, payload_json, schema_id, write_cursor, scope
+         ) VALUES(?1, ?2, 'append', ?3, NULL, ?4, ?5)",
+        params![ERASURE_PENDING_REDACTION_COLLECTION, verb, payload, write_cursor, scope],
     )
     .map_err(|_| EngineError::Storage)?;
     Ok(())
@@ -333,6 +302,7 @@ fn enqueue_pending_redaction(
 
 fn delete_dependencies_for_erased_revisions(
     connection: &Connection,
+    scope: &str,
     affected: &std::collections::HashSet<i64>,
 ) -> Result<(), EngineError> {
     let mut statement = connection
@@ -341,13 +311,14 @@ fn delete_dependencies_for_erased_revisions(
                     ar.write_cursor \
              FROM _fathomdb_source_dependencies d \
              LEFT JOIN _fathomdb_source_links l \
-               ON l.artifact_revision_id=d.derived_revision_id \
+               ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
              LEFT JOIN _fathomdb_artifact_revisions ar \
-               ON ar.revision_id=d.derived_revision_id",
+               ON ar.scope=d.scope AND ar.revision_id=d.derived_revision_id \
+             WHERE d.scope=?1",
         )
         .map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map([], |row| {
+        .query_map([scope], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -363,6 +334,7 @@ fn delete_dependencies_for_erased_revisions(
         let source_revision = source_revision.ok_or(EngineError::Storage)?;
         validate_dependency_chain(
             connection,
+            scope,
             &source_revision,
             &derived_revision,
             DependencyValidationMode::Persisted,
@@ -379,8 +351,8 @@ fn delete_dependencies_for_erased_revisions(
     for dependency_id in delete_ids {
         connection
             .execute(
-                "DELETE FROM _fathomdb_source_dependencies WHERE dependency_id=?1",
-                [dependency_id],
+                "DELETE FROM _fathomdb_source_dependencies WHERE scope=?1 AND dependency_id=?2",
+                params![scope, dependency_id],
             )
             .map_err(|_| EngineError::Storage)?;
     }
@@ -389,6 +361,7 @@ fn delete_dependencies_for_erased_revisions(
 
 fn actuation_erasure_refs_for_cursors(
     connection: &Connection,
+    scope: &str,
     cursors: &[i64],
     source_ids: impl IntoIterator<Item = String>,
 ) -> Result<BTreeSet<(String, String)>, EngineError> {
@@ -399,8 +372,8 @@ fn actuation_erasure_refs_for_cursors(
     for cursor in cursors {
         let revision: Option<String> = connection
             .query_row(
-                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE write_cursor=?1",
-                [cursor],
+                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE scope=?1 AND write_cursor=?2",
+                params![scope, cursor],
                 |row| row.get(0),
             )
             .optional()
@@ -415,6 +388,7 @@ fn actuation_erasure_refs_for_cursors(
 
 fn erase_artifact_identity_for_cursors(
     tx: &Connection,
+    scope: &str,
     cursors: &[i64],
     refuse_surviving_dependents: bool,
     source_bucket: Option<&str>,
@@ -425,8 +399,8 @@ fn erase_artifact_identity_for_cursors(
         let row = tx
             .query_row(
                 "SELECT revision_id, artifact_role FROM _fathomdb_artifact_revisions \
-                 WHERE write_cursor = ?1",
-                [cursor],
+                 WHERE scope = ?1 AND write_cursor = ?2",
+                params![scope, cursor],
                 |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
             )
             .optional()
@@ -436,7 +410,7 @@ fn erase_artifact_identity_for_cursors(
         }
     }
 
-    delete_dependencies_for_erased_revisions(tx, &affected)?;
+    delete_dependencies_for_erased_revisions(tx, scope, &affected)?;
 
     if refuse_surviving_dependents {
         for (revision_id, role) in &revisions {
@@ -447,12 +421,12 @@ fn erase_artifact_identity_for_cursors(
                 .prepare(
                     "SELECT ar.write_cursor FROM _fathomdb_source_links link \
                      LEFT JOIN _fathomdb_artifact_revisions ar \
-                       ON ar.revision_id = link.artifact_revision_id \
-                     WHERE link.source_revision_id = ?1",
+                       ON ar.scope = link.scope AND ar.revision_id = link.artifact_revision_id \
+                     WHERE link.scope = ?1 AND link.source_revision_id = ?2",
                 )
                 .map_err(|_| EngineError::Storage)?;
             let dependent_cursors = statement
-                .query_map([revision_id], |row| row.get::<_, Option<i64>>(0))
+                .query_map(params![scope, revision_id], |row| row.get::<_, Option<i64>>(0))
                 .map_err(|_| EngineError::Storage)?;
             for dependent in dependent_cursors {
                 let dependent = dependent.map_err(|_| EngineError::Storage)?;
@@ -475,12 +449,12 @@ fn erase_artifact_identity_for_cursors(
             .prepare(
                 "SELECT ar.write_cursor FROM _fathomdb_source_links link \
                  LEFT JOIN _fathomdb_artifact_revisions ar \
-                   ON ar.revision_id = link.artifact_revision_id \
-                 WHERE link.source_id = ?1",
+                   ON ar.scope = link.scope AND ar.revision_id = link.artifact_revision_id \
+                 WHERE link.scope = ?1 AND link.source_id = ?2",
             )
             .map_err(|_| EngineError::Storage)?;
         let owner_cursors = statement
-            .query_map([source_id], |row| row.get::<_, Option<i64>>(0))
+            .query_map(params![scope, source_id], |row| row.get::<_, Option<i64>>(0))
             .map_err(|_| EngineError::Storage)?;
         for owner_cursor in owner_cursors {
             if owner_cursor
@@ -494,45 +468,54 @@ fn erase_artifact_identity_for_cursors(
 
     for (revision_id, _) in &revisions {
         tx.execute(
-            "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id = ?1",
-            [revision_id],
+            "DELETE FROM _fathomdb_source_links WHERE scope = ?1 AND artifact_revision_id = ?2",
+            params![scope, revision_id],
         )
         .map_err(|_| EngineError::Storage)?;
     }
     for (revision_id, role) in &revisions {
         if role == "canonical_source" {
             tx.execute(
-                "DELETE FROM _fathomdb_source_links WHERE source_revision_id = ?1",
-                [revision_id],
+                "DELETE FROM _fathomdb_source_links WHERE scope = ?1 AND source_revision_id = ?2",
+                params![scope, revision_id],
             )
             .map_err(|_| EngineError::Storage)?;
             tx.execute(
-                "DELETE FROM _fathomdb_source_versions WHERE source_revision_id = ?1",
-                [revision_id],
+                "DELETE FROM _fathomdb_source_versions WHERE scope = ?1 AND source_revision_id = ?2",
+                params![scope, revision_id],
             )
             .map_err(|_| EngineError::Storage)?;
         }
     }
     if let Some(source_id) = source_bucket {
-        tx.execute("DELETE FROM _fathomdb_source_links WHERE source_id = ?1", [source_id])
-            .map_err(|_| EngineError::Storage)?;
-        tx.execute("DELETE FROM _fathomdb_source_versions WHERE source_id = ?1", [source_id])
-            .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "DELETE FROM _fathomdb_source_links WHERE scope = ?1 AND source_id = ?2",
+            params![scope, source_id],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "DELETE FROM _fathomdb_source_versions WHERE scope = ?1 AND source_id = ?2",
+            params![scope, source_id],
+        )
+        .map_err(|_| EngineError::Storage)?;
     }
     for cursor in cursors {
-        tx.execute("DELETE FROM _fathomdb_artifact_revisions WHERE write_cursor = ?1", [cursor])
-            .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "DELETE FROM _fathomdb_artifact_revisions WHERE scope = ?1 AND write_cursor = ?2",
+            params![scope, cursor],
+        )
+        .map_err(|_| EngineError::Storage)?;
     }
 
     for (revision_id, _) in &revisions {
         let orphans: i64 = tx
             .query_row(
                 "SELECT \
-                   EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id = ?1) + \
-                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE artifact_revision_id = ?1) + \
-                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE source_revision_id = ?1) + \
-                   EXISTS(SELECT 1 FROM _fathomdb_source_versions WHERE source_revision_id = ?1)",
-                [revision_id],
+                   EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE scope = ?1 AND revision_id = ?2) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE scope = ?1 AND artifact_revision_id = ?2) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE scope = ?1 AND source_revision_id = ?2) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_versions WHERE scope = ?1 AND source_revision_id = ?2)",
+                params![scope, revision_id],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -544,9 +527,9 @@ fn erase_artifact_identity_for_cursors(
         let orphans: i64 = tx
             .query_row(
                 "SELECT \
-                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE source_id = ?1) + \
-                   EXISTS(SELECT 1 FROM _fathomdb_source_versions WHERE source_id = ?1)",
-                [source_id],
+                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE scope = ?1 AND source_id = ?2) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_versions WHERE scope = ?1 AND source_id = ?2)",
+                params![scope, source_id],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -820,9 +803,10 @@ impl Engine {
     /// `secure_delete=ON` zeroes freed ordinary/shadow pages; it does not by itself
     /// remove retained FTS terms. Durable root debt fences mutation until complete.
     pub fn purge(&self, logical_id: &str) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
+        let write_scope = self.scope_predicate().require_write_scope("purge")?.to_string();
         self.require_autonomous_erasure()?;
         let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
-        let _operation = self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
         let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
         let _service = self.physical_service_gate.try_lock().map_err(|error| match error {
@@ -839,11 +823,16 @@ impl Engine {
         let pending = {
             let connection = self.physical_writer(false)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            dependency_closure::pending_physical_retry(connection, "purge", &lid)?
+            dependency_closure::pending_physical_retry(connection, &write_scope, "purge", &lid)?
         };
         let root_retry = {
             let guard = self.physical_writer(false)?;
-            physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, "purge", &lid)?
+            physical_erasure::retry(
+                guard.as_ref().ok_or(EngineError::Closing)?,
+                Some(&write_scope),
+                "purge",
+                &lid,
+            )?
         };
         if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
@@ -869,7 +858,7 @@ impl Engine {
         // the immediate Slice-30 feedback and remove the pending row instead.
         self.freeze_projection_for_erasure()?;
         let outcome = (|| {
-            let closure_ids = self.purge_inner(&lid)?;
+            let closure_ids = self.purge_inner(&write_scope, &lid)?;
             self.finish_physical_dependency_closures("purge", &closure_ids)
         })();
         self.projection_runtime.set_frozen(false);
@@ -885,7 +874,11 @@ impl Engine {
     /// returned: they are enqueued for redaction inside this transaction (see
     /// [`enqueue_pending_redaction`]), because a caller-held vector is lost on the
     /// retry path that codex Â§9 P2 found.
-    pub(crate) fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
+    pub(crate) fn purge_inner(
+        &self,
+        scope: &str,
+        lid: &str,
+    ) -> Result<Vec<ClosureOperationId>, EngineError> {
         let _native = self.physical_maintenance.metrics.timer("native");
         let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
         let mut connection = self.physical_writer(false)?;
@@ -905,8 +898,8 @@ impl Engine {
         let current: Option<String> = tx
             .query_row(
                 "SELECT state FROM canonical_nodes \
-                 WHERE logical_id = ?1 AND superseded_at IS NULL",
-                params![lid],
+                 WHERE scope = ?1 AND logical_id = ?2 AND superseded_at IS NULL",
+                params![scope, lid],
                 |r| r.get::<_, String>(0),
             )
             .optional()
@@ -915,8 +908,8 @@ impl Engine {
             None => {
                 let touching: bool = tx
                     .query_row(
-                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE from_id=?1 OR to_id=?1)",
-                        [lid],
+                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE scope=?1 AND (from_id=?2 OR to_id=?2))",
+                        params![scope, lid],
                         |r| r.get(0),
                     )
                     .map_err(|_| EngineError::Storage)?;
@@ -926,7 +919,7 @@ impl Engine {
                         &[],
                         self.next_cursor.load(Ordering::SeqCst),
                     )?;
-                    physical_erasure::admit(&tx, root, "purge", lid, &[])?;
+                    physical_erasure::admit(&tx, root, Some(scope), "purge", lid, &[])?;
                     tx.commit().map_err(|_| EngineError::Storage)?;
                     return Ok(Vec::new());
                 }
@@ -950,10 +943,12 @@ impl Engine {
         // shadow tables are keyed by these per-row `write_cursor`s.
         let mut node_cursors: Vec<i64> = {
             let mut stmt = tx
-                .prepare("SELECT write_cursor FROM canonical_nodes WHERE logical_id = ?1")
+                .prepare(
+                    "SELECT write_cursor FROM canonical_nodes WHERE scope = ?1 AND logical_id = ?2",
+                )
                 .map_err(|_| EngineError::Storage)?;
             let rows = stmt
-                .query_map(params![lid], |row| row.get::<_, i64>(0))
+                .query_map(params![scope, lid], |row| row.get::<_, i64>(0))
                 .map_err(|_| EngineError::Storage)?;
             rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
         };
@@ -961,24 +956,24 @@ impl Engine {
             let mut stmt = tx
                 .prepare(
                     "SELECT write_cursor FROM canonical_edges \
-                     WHERE from_id = ?1 OR to_id = ?1",
+                     WHERE scope = ?1 AND (from_id = ?2 OR to_id = ?2)",
                 )
                 .map_err(|_| EngineError::Storage)?;
             let rows = stmt
-                .query_map(params![lid], |row| row.get::<_, i64>(0))
+                .query_map(params![scope, lid], |row| row.get::<_, i64>(0))
                 .map_err(|_| EngineError::Storage)?;
             rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
         };
 
         let source_revisions = node_cursors
             .iter()
-            .map(|cursor| dependency_closure::source_revision_for_cursor(&tx, *cursor))
+            .map(|cursor| dependency_closure::source_revision_for_cursor(&tx, scope, *cursor))
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
         let physical_plans =
-            dependency_closure::physical_dependents_for_sources(&tx, &source_revisions)?;
+            dependency_closure::physical_dependents_for_sources(&tx, scope, &source_revisions)?;
         for (_, dependents) in &physical_plans {
             for (class, cursor) in dependents {
                 match class.as_str() {
@@ -1009,12 +1004,12 @@ impl Engine {
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
         let mut erased_source_ids = BTreeSet::new();
         for sql in [
-            "SELECT source_id FROM canonical_nodes WHERE logical_id=?1 AND source_id IS NOT NULL",
-            "SELECT source_id FROM canonical_edges WHERE (from_id=?1 OR to_id=?1) AND source_id IS NOT NULL",
+            "SELECT source_id FROM canonical_nodes WHERE scope=?1 AND logical_id=?2 AND source_id IS NOT NULL",
+            "SELECT source_id FROM canonical_edges WHERE scope=?1 AND (from_id=?2 OR to_id=?2) AND source_id IS NOT NULL",
         ] {
             let mut statement = tx.prepare(sql).map_err(|_| EngineError::Storage)?;
             let rows = statement
-                .query_map([lid], |row| row.get::<_, String>(0))
+                .query_map(params![scope, lid], |row| row.get::<_, String>(0))
                 .map_err(|_| EngineError::Storage)?
                 .collect::<rusqlite::Result<Vec<_>>>()
                 .map_err(|_| EngineError::Storage)?;
@@ -1022,13 +1017,19 @@ impl Engine {
         }
         let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
         let receipt_refs =
-            actuation_erasure_refs_for_cursors(&tx, &affected_cursors, erased_source_ids)?;
-        let proof_scope =
-            dependency_closure::physical_proof_scope(&tx, &affected_cursors, &receipt_refs, None)?;
+            actuation_erasure_refs_for_cursors(&tx, scope, &affected_cursors, erased_source_ids)?;
+        let proof_scope = dependency_closure::physical_proof_scope(
+            &tx,
+            scope,
+            &affected_cursors,
+            &receipt_refs,
+            None,
+        )?;
         for (source_revision, dependents) in &physical_plans {
             if let Some(id) = dependency_closure::record_physical_closure(
                 &tx,
                 dependency_closure::PhysicalClosureAdmission {
+                    scope,
                     root_kind: "source_revision",
                     root_value: source_revision,
                     retry_verb: "purge",
@@ -1041,7 +1042,7 @@ impl Engine {
                 closure_ids.push(id);
             }
         }
-        actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
+        actuation::redact_actuation_receipts_for_refs(&tx, scope, &receipt_refs)?;
         // Same hazard as `excise_source_inner`: receipt validation reads the
         // correction closures, so they are deleted only afterwards, inside
         // this transaction. Every erased revision is covered, not only those
@@ -1051,13 +1052,13 @@ impl Engine {
         for source_revision in &source_revisions {
             tx.execute(
                 "DELETE FROM _fathomdb_dependency_closures \
-                 WHERE root_kind='source_revision' AND root_value=?1 \
+                 WHERE scope=?1 AND root_kind='source_revision' AND root_value=?2 \
                    AND cause IN ('superseded','soft_deleted')",
-                [source_revision],
+                params![scope, source_revision],
             )
             .map_err(|_| EngineError::Storage)?;
         }
-        erase_artifact_identity_for_cursors(&tx, &affected_cursors, true, None)?;
+        erase_artifact_identity_for_cursors(&tx, scope, &affected_cursors, true, None)?;
 
         // Erase the row-owned projection shadows for every collected cursor.
         // 0.8.20 Slice 5a (R-20-E1): registry-driven — the hand-rolled delete
@@ -1072,30 +1073,42 @@ impl Engine {
         // purged root. The root-wide deletes that follow retain the pre-Slice-30
         // all-version and endpoint cascade contract.
         for cursor in &node_cursors {
-            tx.execute("DELETE FROM canonical_nodes WHERE write_cursor = ?1", [cursor])
-                .map_err(|_| EngineError::Storage)?;
+            tx.execute(
+                "DELETE FROM canonical_nodes WHERE scope = ?1 AND write_cursor = ?2",
+                params![scope, cursor],
+            )
+            .map_err(|_| EngineError::Storage)?;
         }
         for cursor in &edge_cursors {
-            tx.execute("DELETE FROM canonical_edges WHERE write_cursor = ?1", [cursor])
-                .map_err(|_| EngineError::Storage)?;
+            tx.execute(
+                "DELETE FROM canonical_edges WHERE scope = ?1 AND write_cursor = ?2",
+                params![scope, cursor],
+            )
+            .map_err(|_| EngineError::Storage)?;
         }
 
         // Erase the canonical root rows: all node versions + all touching edges
         // (gap-3 CASCADE-REMOVE — no content-free stubs in Phase-1).
-        tx.execute("DELETE FROM canonical_nodes WHERE logical_id = ?1", params![lid])
-            .map_err(|_| EngineError::Storage)?;
-        tx.execute("DELETE FROM canonical_edges WHERE from_id = ?1 OR to_id = ?1", params![lid])
-            .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "DELETE FROM canonical_nodes WHERE scope = ?1 AND logical_id = ?2",
+            params![scope, lid],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "DELETE FROM canonical_edges WHERE scope = ?1 AND (from_id = ?2 OR to_id = ?2)",
+            params![scope, lid],
+        )
+        .map_err(|_| EngineError::Storage)?;
 
         // 0.8.20 Slice 5 fix-1 (codex §9 P2) — durably record the redaction this
         // erasure now owes, atomically with the deletes above. Registered
         // original sinks remain obligations across attachment changes/reopens.
         if enqueued {
-            enqueue_pending_redaction(&tx, "purge", &erased_stable_ids, pending_cursor)?;
+            enqueue_pending_redaction(&tx, scope, "purge", &erased_stable_ids, pending_cursor)?;
         }
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
-        physical_erasure::admit(&tx, root_debt, "purge", lid, &closure_ids)?;
+        physical_erasure::admit(&tx, root_debt, Some(scope), "purge", lid, &closure_ids)?;
         physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
@@ -1141,11 +1154,13 @@ impl Engine {
     /// reserved `source_id`; [`EngineError::ErasureIncomplete`] if the erasure
     /// could not be completed at rest (see [`Engine::complete_erasure_at_rest`]).
     pub fn erase_source(&self, source_id: &str) -> Result<ExciseReport, EngineError> {
+        let _operation = self.ensure_open()?;
+        let write_scope = self.scope_predicate().require_write_scope("erase_source")?.to_string();
         self.require_autonomous_erasure()?;
         // Construct-to-validate: reuse the newtype's rule rather than restating
         // it, so the erasure boundary and the write boundary cannot drift.
         let _validated = SourceId::new(source_id)?;
-        self.erase_source_shared("erase_source", source_id)
+        self.erase_source_shared("erase_source", Some(&write_scope), source_id)
     }
 
     /// Phase 9 Pack B / AC-028a/b/c source excise — the **operator/recovery**
@@ -1161,7 +1176,7 @@ impl Engine {
             let _operation = self.ensure_open()?;
             return Err(EngineError::WriteValidation);
         }
-        self.erase_source_shared("excise_source", source_id)
+        self.erase_source_shared("excise_source", None, source_id)
     }
 
     /// The single erasure implementation behind [`Engine::erase_source`] and
@@ -1174,6 +1189,7 @@ impl Engine {
     fn erase_source_shared(
         &self,
         verb: &'static str,
+        target_scope: Option<&str>,
         source_id: &str,
     ) -> Result<ExciseReport, EngineError> {
         let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
@@ -1206,11 +1222,32 @@ impl Engine {
         let pending = {
             let connection = self.physical_writer(false)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            dependency_closure::pending_physical_retry(connection, verb, source_id)?
+            match target_scope {
+                Some(scope) => {
+                    dependency_closure::pending_physical_retry(connection, scope, verb, source_id)?
+                }
+                None => {
+                    #[cfg(feature = "operator")]
+                    {
+                        dependency_closure::pending_physical_retry_any_scope(
+                            connection, verb, source_id,
+                        )?
+                    }
+                    #[cfg(not(feature = "operator"))]
+                    {
+                        unreachable!("target_scope is only None under operator feature")
+                    }
+                }
+            }
         };
         let root_retry = {
             let guard = self.physical_writer(false)?;
-            physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, verb, source_id)?
+            physical_erasure::retry(
+                guard.as_ref().ok_or(EngineError::Closing)?,
+                target_scope,
+                verb,
+                source_id,
+            )?
         };
         if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
@@ -1247,8 +1284,8 @@ impl Engine {
         // otherwise-unserviceable no-embedder rows.
         self.freeze_projection_for_erasure()?;
         let outcome = (|| {
-            let (report, closure_ids, needs_physical_finish) =
-                self.excise_source_inner_with_prior(verb, source_id, completed_prior)?;
+            let (report, closure_ids, needs_physical_finish) = self
+                .excise_source_inner_with_prior(verb, target_scope, source_id, completed_prior)?;
             if needs_physical_finish {
                 self.finish_physical_dependency_closures(verb, &closure_ids)?;
             }
@@ -1453,19 +1490,21 @@ impl Engine {
     /// body behind BOTH `erase_source` (governed SDK) and `excise_source`
     /// (operator seam). Still private; the gate that matters is on the two
     /// public spellings.
-    pub(crate) fn excise_source_inner(
+    pub(crate) fn excise_source_inner_for_scope(
         &self,
         verb: &'static str,
+        target_scope: Option<&str>,
         source_id: &str,
     ) -> Result<(ExciseReport, Vec<ClosureOperationId>), EngineError> {
         let (report, closure_ids, _) =
-            self.excise_source_inner_with_prior(verb, source_id, false)?;
+            self.excise_source_inner_with_prior(verb, target_scope, source_id, false)?;
         Ok((report, closure_ids))
     }
 
     fn excise_source_inner_with_prior(
         &self,
         verb: &'static str,
+        target_scope: Option<&str>,
         source_id: &str,
         completed_prior: bool,
     ) -> Result<(ExciseReport, Vec<ClosureOperationId>, bool), EngineError> {
@@ -1484,89 +1523,177 @@ impl Engine {
         crate::frozen_read::require_clean_visibility(&tx)?;
         dependency_closure::guard_no_pending_physical(&tx)?;
 
-        // Collect the cursor sets up-front so we can targeted-delete
-        // shadow rows AND emit an accurate audit row in one txn.
-        let node_cursors: Vec<i64> = {
-            let mut stmt = tx
-                .prepare("SELECT write_cursor FROM canonical_nodes WHERE source_id = ?1")
-                .map_err(|_| EngineError::Storage)?;
-            let rows = stmt
-                .query_map([source_id], |row| row.get::<_, i64>(0))
-                .map_err(|_| EngineError::Storage)?;
-            rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
-        };
-        let edge_cursors: Vec<i64> = {
-            let mut stmt = tx
-                .prepare("SELECT write_cursor FROM canonical_edges WHERE source_id = ?1")
-                .map_err(|_| EngineError::Storage)?;
-            let rows = stmt
-                .query_map([source_id], |row| row.get::<_, i64>(0))
-                .map_err(|_| EngineError::Storage)?;
-            rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
+        let scopes_to_process: Vec<String> = match target_scope {
+            Some(scope) => vec![scope.to_string()],
+            None => {
+                let mut found = BTreeSet::new();
+                for (sql, bind) in [
+                    ("SELECT DISTINCT scope FROM canonical_nodes WHERE source_id = ?1", source_id),
+                    ("SELECT DISTINCT scope FROM canonical_edges WHERE source_id = ?1", source_id),
+                    (
+                        "SELECT DISTINCT scope FROM _fathomdb_source_links WHERE source_id = ?1",
+                        source_id,
+                    ),
+                    (
+                        "SELECT DISTINCT scope FROM _fathomdb_source_versions WHERE source_id = ?1",
+                        source_id,
+                    ),
+                    (
+                        "SELECT DISTINCT scope FROM _fathomdb_actuation_receipt_source_refs \
+                         WHERE ref_kind = 'source_id' AND ref_value = ?1",
+                        source_id,
+                    ),
+                    (
+                        "SELECT DISTINCT scope FROM _fathomdb_dependency_closures \
+                         WHERE root_kind = 'source_bucket' AND root_value = ?1",
+                        source_id,
+                    ),
+                ] {
+                    let mut stmt = tx.prepare(sql).map_err(|_| EngineError::Storage)?;
+                    let rows = stmt
+                        .query_map([bind], |row| row.get::<_, String>(0))
+                        .map_err(|_| EngineError::Storage)?;
+                    for row in rows {
+                        found.insert(row.map_err(|_| EngineError::Storage)?);
+                    }
+                }
+                if found.is_empty() {
+                    vec![self.scope_predicate().write_scope().unwrap_or("").to_string()]
+                } else {
+                    found.into_iter().collect()
+                }
+            }
         };
 
-        let source_revisions = node_cursors
-            .iter()
-            .map(|cursor| dependency_closure::source_revision_for_cursor(&tx, *cursor))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        let physical_plans =
-            dependency_closure::physical_dependents_for_sources(&tx, &source_revisions)?;
-        let affected_dependencies = physical_plans.iter().map(|(_, rows)| rows.len()).sum();
+        struct ScopeExcisePlan {
+            scope: String,
+            source_revisions: Vec<String>,
+            affected_dependencies: usize,
+            affected_cursors: Vec<i64>,
+            receipt_refs: BTreeSet<(String, String)>,
+            proof_scope: dependency_closure::PhysicalProofScope,
+        }
+
+        let mut scope_plans = Vec::with_capacity(scopes_to_process.len());
+        let mut all_node_cursors = Vec::new();
+        let mut all_edge_cursors = Vec::new();
+        for scope in scopes_to_process {
+            let node_cursors: Vec<i64> = {
+                let mut stmt = tx
+                    .prepare(
+                        "SELECT write_cursor FROM canonical_nodes WHERE scope = ?1 AND source_id = ?2",
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                let rows = stmt
+                    .query_map(params![&scope, source_id], |row| row.get::<_, i64>(0))
+                    .map_err(|_| EngineError::Storage)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
+            };
+            let edge_cursors: Vec<i64> = {
+                let mut stmt = tx
+                    .prepare(
+                        "SELECT write_cursor FROM canonical_edges WHERE scope = ?1 AND source_id = ?2",
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                let rows = stmt
+                    .query_map(params![&scope, source_id], |row| row.get::<_, i64>(0))
+                    .map_err(|_| EngineError::Storage)?;
+                rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
+            };
+            let source_revisions = node_cursors
+                .iter()
+                .map(|cursor| dependency_closure::source_revision_for_cursor(&tx, &scope, *cursor))
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            let physical_plans = dependency_closure::physical_dependents_for_sources(
+                &tx,
+                &scope,
+                &source_revisions,
+            )?;
+            let affected_dependencies = physical_plans.iter().map(|(_, rows)| rows.len()).sum();
+            let affected_cursors: Vec<i64> =
+                node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+            let receipt_refs = actuation_erasure_refs_for_cursors(
+                &tx,
+                &scope,
+                &affected_cursors,
+                [source_id.to_string()],
+            )?;
+            let proof_scope = dependency_closure::physical_proof_scope(
+                &tx,
+                &scope,
+                &affected_cursors,
+                &receipt_refs,
+                Some(source_id),
+            )?;
+            all_node_cursors.extend_from_slice(&node_cursors);
+            all_edge_cursors.extend_from_slice(&edge_cursors);
+            scope_plans.push(ScopeExcisePlan {
+                scope,
+                source_revisions,
+                affected_dependencies,
+                affected_cursors,
+                receipt_refs,
+                proof_scope,
+            });
+        }
+
         let proof_boundary = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
 
         // 0.8.20 Slice 5b (R-20-E6) — stable ids the telemetry sink may hold for
         // these rows, collected BEFORE the DELETEs.
-        let erased_stable_ids = collect_erased_stable_ids(
-            &tx,
-            "SELECT logical_id, body FROM canonical_nodes WHERE source_id = ?1",
-            "SELECT logical_id, body FROM canonical_edges WHERE source_id = ?1",
-            source_id,
-        )?;
+        let erased_stable_ids =
+            collect_erased_stable_ids_for_cursors(&tx, &all_node_cursors, &all_edge_cursors)?;
 
         let affected_cursors: Vec<i64> =
-            node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+            all_node_cursors.iter().chain(all_edge_cursors.iter()).copied().collect();
         let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
-        let receipt_refs =
-            actuation_erasure_refs_for_cursors(&tx, &affected_cursors, [source_id.to_string()])?;
-        let proof_scope = dependency_closure::physical_proof_scope(
-            &tx,
-            &affected_cursors,
-            &receipt_refs,
-            Some(source_id),
-        )?;
-        let closure_ids = dependency_closure::record_physical_closure(
-            &tx,
-            dependency_closure::PhysicalClosureAdmission {
-                root_kind: "source_bucket",
-                root_value: source_id,
-                retry_verb: verb,
-                retry_argument: source_id,
-                cause: ClosureCauseV1::SourceErased,
-                boundary: proof_boundary,
-                affected_count: affected_dependencies,
-            },
-        )?
-        .into_iter()
-        .collect::<Vec<_>>();
-        actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
-        // A correction receipt can reference soft closures for the source
-        // revision being erased. Receipt validation therefore has to run while
-        // those closures still exist; deleting them first makes the valid
-        // receipt appear corrupt and rolls the erasure back. Both steps remain
-        // in this transaction, so any validation failure is atomic.
-        for source_revision in &source_revisions {
-            tx.execute(
-                "DELETE FROM _fathomdb_dependency_closures \
-                 WHERE root_kind='source_revision' AND root_value=?1 \
-                   AND cause IN ('superseded','soft_deleted')",
-                [source_revision],
-            )
-            .map_err(|_| EngineError::Storage)?;
+
+        let mut closure_ids = Vec::new();
+        let mut scope_closures_to_measure = Vec::with_capacity(scope_plans.len());
+        for plan in &scope_plans {
+            let scope_closures = dependency_closure::record_physical_closure(
+                &tx,
+                dependency_closure::PhysicalClosureAdmission {
+                    scope: &plan.scope,
+                    root_kind: "source_bucket",
+                    root_value: source_id,
+                    retry_verb: verb,
+                    retry_argument: source_id,
+                    cause: ClosureCauseV1::SourceErased,
+                    boundary: proof_boundary,
+                    affected_count: plan.affected_dependencies,
+                },
+            )?
+            .into_iter()
+            .collect::<Vec<_>>();
+            actuation::redact_actuation_receipts_for_refs(&tx, &plan.scope, &plan.receipt_refs)?;
+            // A correction receipt can reference soft closures for the source
+            // revision being erased. Receipt validation therefore has to run while
+            // those closures still exist; deleting them first makes the valid
+            // receipt appear corrupt and rolls the erasure back. Both steps remain
+            // in this transaction, so any validation failure is atomic.
+            for source_revision in &plan.source_revisions {
+                tx.execute(
+                    "DELETE FROM _fathomdb_dependency_closures \
+                     WHERE scope=?1 AND root_kind='source_revision' AND root_value=?2 \
+                       AND cause IN ('superseded','soft_deleted')",
+                    params![&plan.scope, source_revision],
+                )
+                .map_err(|_| EngineError::Storage)?;
+            }
+            erase_artifact_identity_for_cursors(
+                &tx,
+                &plan.scope,
+                &plan.affected_cursors,
+                false,
+                Some(source_id),
+            )?;
+            closure_ids.extend(scope_closures.iter().cloned());
+            scope_closures_to_measure.push((scope_closures, &plan.proof_scope));
         }
-        erase_artifact_identity_for_cursors(&tx, &affected_cursors, false, Some(source_id))?;
 
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven erasure. The previous
         // hand-rolled list here OMITTED `search_index_v2`, a CONTENT-STORING
@@ -1578,12 +1705,26 @@ impl Engine {
         let shadow_invalidated = erase_row_projections(&tx, affected_cursors.as_slice())
             .map_err(|_| EngineError::Storage)?;
 
-        let nodes_excised = tx
-            .execute("DELETE FROM canonical_nodes WHERE source_id = ?1", [source_id])
-            .map_err(|_| EngineError::Storage)? as u64;
-        let edges_excised = tx
-            .execute("DELETE FROM canonical_edges WHERE source_id = ?1", [source_id])
-            .map_err(|_| EngineError::Storage)? as u64;
+        let (nodes_excised, edges_excised) = match target_scope {
+            Some(scope) => (
+                tx.execute(
+                    "DELETE FROM canonical_nodes WHERE scope = ?1 AND source_id = ?2",
+                    params![scope, source_id],
+                )
+                .map_err(|_| EngineError::Storage)? as u64,
+                tx.execute(
+                    "DELETE FROM canonical_edges WHERE scope = ?1 AND source_id = ?2",
+                    params![scope, source_id],
+                )
+                .map_err(|_| EngineError::Storage)? as u64,
+            ),
+            None => (
+                tx.execute("DELETE FROM canonical_nodes WHERE source_id = ?1", [source_id])
+                    .map_err(|_| EngineError::Storage)? as u64,
+                tx.execute("DELETE FROM canonical_edges WHERE source_id = ?1", [source_id])
+                    .map_err(|_| EngineError::Storage)? as u64,
+            ),
+        };
 
         // AC-028a audit row: a single append on the
         // `excise_source_audit` collection naming the excised source.
@@ -1611,6 +1752,10 @@ impl Engine {
         // mirror the vec writer pattern (load + 1, then store post-commit)
         // so the audit row's `write_cursor` is strictly greater than every
         // canonical row that preceded it.
+        let audit_scope_owned = target_scope
+            .map(str::to_owned)
+            .unwrap_or_else(|| self.scope_predicate().write_scope().unwrap_or("").to_string());
+        let audit_scope = audit_scope_owned.as_str();
         let suppress_duplicate_audit = completed_prior && nodes_excised == 0 && edges_excised == 0;
         if suppress_duplicate_audit
             && tx.total_changes() == total_changes_before
@@ -1647,9 +1792,9 @@ impl Engine {
             audit_cursor = audit_cursor.saturating_add(1);
             tx.execute(
                 "INSERT INTO operational_mutations(
-                    collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
-                 ) VALUES('excise_source_audit', ?1, 'append', ?2, NULL, ?3)",
-                params![source_id, payload, audit_cursor],
+                    collection_name, record_key, op_kind, payload_json, schema_id, write_cursor, scope
+                 ) VALUES('excise_source_audit', ?1, 'append', ?2, NULL, ?3, ?4)",
+                params![source_id, payload, audit_cursor, audit_scope],
             )
             .map_err(|_| EngineError::Storage)?;
             wrote_audit = true;
@@ -1658,10 +1803,12 @@ impl Engine {
         // 0.8.20 Slice 5 fix-1 (codex §9 P2) — durably record the redaction this
         // erasure owes, atomically with the deletes. Shares `audit_cursor`: one
         // erasure event, and this row is retired as soon as the sink is clean.
-        enqueue_pending_redaction(&tx, verb, &erased_stable_ids, audit_cursor)?;
+        enqueue_pending_redaction(&tx, audit_scope, verb, &erased_stable_ids, audit_cursor)?;
 
-        dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
-        physical_erasure::admit(&tx, root_debt, verb, source_id, &closure_ids)?;
+        for (scope_closures, scope_proof) in scope_closures_to_measure {
+            dependency_closure::measure_physical_closures(&tx, &scope_closures, scope_proof)?;
+        }
+        physical_erasure::admit(&tx, root_debt, target_scope, verb, source_id, &closure_ids)?;
         physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;

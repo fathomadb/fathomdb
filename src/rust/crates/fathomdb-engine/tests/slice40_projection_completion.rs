@@ -694,7 +694,14 @@ fn status_query_plans_bound_correlations_with_durable_indexes() {
         }
     }
     for branch in ["registered_node", "registered_edge"] {
-        for indexed_alias in ["r", "d", "owner"] {
+        assert!(
+            plans.iter().any(|line| {
+                line.starts_with(branch)
+                    && line.contains("d USING COVERING INDEX _fathomdb_source_dependencies_scope_derived_idx")
+            }),
+            "{branch} must drive from `_fathomdb_source_dependencies_scope_derived_idx`: {plans:#?}"
+        );
+        for indexed_alias in ["r", "owner"] {
             assert!(
                 plans.iter().any(|line| {
                     line.starts_with(branch) && line.contains(&format!("SEARCH {indexed_alias} "))

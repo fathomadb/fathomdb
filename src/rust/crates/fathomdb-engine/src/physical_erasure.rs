@@ -197,18 +197,33 @@ pub(crate) fn cursor_floor(c: &Connection) -> Result<u64, EngineError> {
     Ok(root(c)?.map_or(0, |debt| debt.boundary))
 }
 
-fn fingerprint(verb: &str, argument: &str) -> String {
+fn fingerprint_scoped(scope: Option<&str>, domain: &str, value: &str) -> String {
     use sha2::Digest;
     let mut hash = sha2::Sha256::new();
-    hash.update(b"fathomdb.physical-root.v1\0");
-    hash.update((verb.len() as u64).to_le_bytes());
-    hash.update(verb.as_bytes());
-    hash.update(argument.as_bytes());
+    match scope {
+        Some(scope) => {
+            hash.update(b"fathomdb.physical-root.v2\0");
+            hash.update((scope.len() as u64).to_le_bytes());
+            hash.update(scope.as_bytes());
+            hash.update([0]);
+        }
+        None => {
+            hash.update(b"fathomdb.physical-root.v1\0");
+        }
+    }
+    hash.update((domain.len() as u64).to_le_bytes());
+    hash.update(domain.as_bytes());
+    hash.update(value.as_bytes());
     crate::identity::hex_encode(&hash.finalize())
 }
 
-pub(crate) fn retry(c: &Connection, verb: &str, argument: &str) -> Result<bool, EngineError> {
-    Ok(root(c)?.is_some_and(|debt| debt.retry == fingerprint(verb, argument)))
+pub(crate) fn retry(
+    c: &Connection,
+    scope: Option<&str>,
+    verb: &str,
+    argument: &str,
+) -> Result<bool, EngineError> {
+    Ok(root(c)?.is_some_and(|debt| debt.retry == fingerprint_scoped(scope, verb, argument)))
 }
 
 pub(crate) fn capture(
@@ -252,16 +267,22 @@ pub(crate) fn capture(
 pub(crate) fn admit(
     c: &Connection,
     mut debt: RootDebt,
+    scope: Option<&str>,
     verb: &str,
     argument: &str,
     ids: &[ClosureOperationId],
 ) -> Result<(), EngineError> {
     debt.ticket = crate::erasure_queue::activate_in(c, verb, argument)?;
-    debt.retry = fingerprint(verb, argument);
+    debt.retry = fingerprint_scoped(scope, verb, argument);
+    let deny_scope = scope.unwrap_or("");
     if verb == "purge" {
-        debt.denied_identities.push(admission::deny_hash("identity", &format!("l:{argument}")));
+        debt.denied_identities.push(admission::deny_hash(
+            "identity",
+            deny_scope,
+            &format!("l:{argument}"),
+        ));
     } else {
-        debt.denied_sources.push(admission::deny_hash("source", argument));
+        debt.denied_sources.push(admission::deny_hash("source", deny_scope, argument));
     }
     admission::set_prospective_policy(c, true)?;
     debt.generation = load_dependency_generation(c)?;
@@ -741,7 +762,7 @@ mod tests {
         let mut debt = capture(&c, &[10], 10).unwrap();
         erase_row_projections(&c, &[10_i64][..]).unwrap();
         debt.vectors.extend(1000..2000);
-        admit(&c, debt, "purge", "subject", &[]).unwrap();
+        admit(&c, debt, Some(""), "purge", "subject", &[]).unwrap();
         let debt = root(&c).unwrap().unwrap();
         let prepared_reads = Arc::new(AtomicUsize::new(0));
         let observed = Arc::clone(&prepared_reads);
@@ -764,7 +785,7 @@ mod tests {
         let debt = capture(&c, &[10], 10).unwrap();
         assert_eq!(debt.vectors, vec![101, 102]);
         erase_row_projections(&c, &[10_i64][..]).unwrap();
-        admit(&c, debt, "purge", "subject", &[]).unwrap();
+        admit(&c, debt, Some(""), "purge", "subject", &[]).unwrap();
         validate_pending(&c, &[]).unwrap();
         let blob = vector_storage::encode_vector_blob(&[1.; 8]);
         c.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope) VALUES(102,?1,vec_quantize_binary(?1),'article','doc',0,'',0,-9223372036854775808,9223372036854775807,'')", [blob]).unwrap();

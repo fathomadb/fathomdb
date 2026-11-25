@@ -76,30 +76,32 @@ pub(crate) fn envelope(c: &Connection) -> Result<(), EngineError> {
     Ok(())
 }
 
-pub(super) fn deny_hash(domain: &str, value: &str) -> String {
-    fingerprint(domain, value)
+pub(super) fn deny_hash(domain: &str, scope: &str, value: &str) -> String {
+    fingerprint_scoped(Some(scope), domain, value)
 }
 
 pub(super) fn capture_denial(c: &Connection, debt: &mut RootDebt) -> Result<(), EngineError> {
     let cursors = serde_json::to_string(&debt.cursors).map_err(|_| EngineError::Storage)?;
     for table in ["canonical_nodes", "canonical_edges"] {
-        let mut statement = c.prepare(&format!("SELECT source_id,logical_id,body FROM {table} WHERE write_cursor IN (SELECT value FROM json_each(?1))")).map_err(|_| EngineError::Storage)?;
+        let mut statement = c.prepare(&format!("SELECT scope,source_id,logical_id,body FROM {table} WHERE write_cursor IN (SELECT value FROM json_each(?1))")).map_err(|_| EngineError::Storage)?;
         let rows = statement
             .query_map([&cursors], |r| {
                 Ok((
-                    r.get::<_, Option<String>>(0)?,
+                    r.get::<_, String>(0)?,
                     r.get::<_, Option<String>>(1)?,
                     r.get::<_, Option<String>>(2)?,
+                    r.get::<_, Option<String>>(3)?,
                 ))
             })
             .map_err(|_| EngineError::Storage)?;
         for row in rows {
-            let (source, logical, body) = row.map_err(|_| EngineError::Storage)?;
+            let (row_scope, source, logical, body) = row.map_err(|_| EngineError::Storage)?;
             if let Some(source) = source {
-                debt.denied_sources.push(deny_hash("source", &source));
+                debt.denied_sources.push(deny_hash("source", &row_scope, &source));
             }
             debt.denied_identities.push(deny_hash(
                 "identity",
+                &row_scope,
                 &derive_stable_id(logical.as_deref(), body.as_deref().unwrap_or("")).to_prefixed(),
             ));
         }
@@ -124,14 +126,17 @@ pub(super) fn set_prospective_policy(c: &Connection, enabled: bool) -> Result<()
 
 fn check_identity(
     debt: &RootDebt,
+    scope: &str,
     source: &str,
     logical: Option<&str>,
     body: &str,
 ) -> Result<(), EngineError> {
-    if debt.denied_sources.contains(&deny_hash("source", source))
-        || debt
-            .denied_identities
-            .contains(&deny_hash("identity", &derive_stable_id(logical, body).to_prefixed()))
+    if debt.denied_sources.contains(&deny_hash("source", scope, source))
+        || debt.denied_identities.contains(&deny_hash(
+            "identity",
+            scope,
+            &derive_stable_id(logical, body).to_prefixed(),
+        ))
     {
         return Err(refused());
     }
@@ -140,9 +145,10 @@ fn check_identity(
 
 pub(crate) fn guard_plain_write(
     c: &Connection,
+    scope: &str,
     batch: &[PreparedWrite],
 ) -> Result<bool, EngineError> {
-    match guard_plain_write_inner(c, batch) {
+    match guard_plain_write_inner(c, scope, batch) {
         Err(error @ EngineError::ErasureIncomplete { .. }) => {
             dependency_closure::guard_no_pending_physical(c)?;
             Err(error)
@@ -151,7 +157,11 @@ pub(crate) fn guard_plain_write(
     }
 }
 
-fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bool, EngineError> {
+fn guard_plain_write_inner(
+    c: &Connection,
+    scope: &str,
+    batch: &[PreparedWrite],
+) -> Result<bool, EngineError> {
     let _timer = physical_metrics::stage("plain_write_eligibility");
     if !active(c)? {
         return Ok(false);
@@ -183,15 +193,16 @@ fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bo
                 source_id.as_str(),
                 logical_id.as_deref(),
                 body.as_str(),
-                "logical_id=?1",
+                "logical_id=?2",
                 None,
             ),
             PreparedWrite::Edge { source_id, logical_id, body, from, to, kind, .. } => {
                 for endpoint in [from, to] {
-                    if debt
-                        .denied_identities
-                        .contains(&deny_hash("identity", &format!("l:{endpoint}")))
-                    {
+                    if debt.denied_identities.contains(&deny_hash(
+                        "identity",
+                        scope,
+                        &format!("l:{endpoint}"),
+                    )) {
                         return Err(refused());
                     }
                 }
@@ -200,15 +211,15 @@ fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bo
                     source_id.as_str(),
                     logical_id.as_deref(),
                     body.as_deref().unwrap_or(""),
-                    "logical_id=?1 OR (from_id=?2 AND to_id=?3 AND kind=?4)",
+                    "(logical_id=?2 OR (from_id=?3 AND to_id=?4 AND kind=?5))",
                     Some((from, to, kind)),
                 )
             }
             _ => return Err(refused()),
         };
-        check_identity(&debt, source, logical, body)?;
+        check_identity(&debt, scope, source, logical, body)?;
         let endpoints = if table == "canonical_edges" { "n.from_id,n.to_id" } else { "NULL,NULL" };
-        let sql = format!("SELECT n.source_id,n.logical_id,n.body,r.revision_id,r.artifact_role,{endpoints} FROM {table} n LEFT JOIN _fathomdb_artifact_revisions r ON r.write_cursor=n.write_cursor WHERE {prior_sql}");
+        let sql = format!("SELECT n.source_id,n.logical_id,n.body,r.revision_id,r.artifact_role,{endpoints} FROM {table} n LEFT JOIN _fathomdb_artifact_revisions r ON r.scope=n.scope AND r.write_cursor=n.write_cursor WHERE n.scope=?1 AND ({prior_sql})");
         let mut statement = c.prepare(&sql).map_err(|_| EngineError::Storage)?;
         let read = |r: &rusqlite::Row<'_>| {
             Ok((
@@ -222,22 +233,26 @@ fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bo
             ))
         };
         let rows = if let Some((from, to, kind)) = extra {
-            statement.query_map(params![logical, from, to, kind], read)
+            statement.query_map(params![scope, logical, from, to, kind], read)
         } else {
-            statement.query_map(params![logical], read)
+            statement.query_map(params![scope, logical], read)
         }
         .map_err(|_| EngineError::Storage)?;
         for row in rows {
             let (source, logical, body, revision, role, from, to) =
                 row.map_err(|_| EngineError::Storage)?;
             for endpoint in [from, to].into_iter().flatten() {
-                if debt.denied_identities.contains(&deny_hash("identity", &format!("l:{endpoint}")))
-                {
+                if debt.denied_identities.contains(&deny_hash(
+                    "identity",
+                    scope,
+                    &format!("l:{endpoint}"),
+                )) {
                     return Err(refused());
                 }
             }
             check_identity(
                 &debt,
+                scope,
                 source.as_deref().unwrap_or(""),
                 logical.as_deref(),
                 body.as_deref().unwrap_or(""),
@@ -245,7 +260,7 @@ fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bo
             if role.as_deref() != Some("legacy") {
                 return Err(refused());
             }
-            let protected: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE artifact_revision_id=?1 OR source_revision_id=?1) OR EXISTS(SELECT 1 FROM _fathomdb_source_dependencies WHERE derived_revision_id=?1) OR EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE root_value=?1) OR EXISTS(SELECT 1 FROM _fathomdb_actuation_receipt_source_refs WHERE ref_value=?1 OR (ref_kind='source_id' AND ref_value=?2))", params![revision,source], |r| r.get(0)).map_err(|_| EngineError::Storage)?;
+            let protected: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE scope=?1 AND (artifact_revision_id=?2 OR source_revision_id=?2)) OR EXISTS(SELECT 1 FROM _fathomdb_source_dependencies WHERE scope=?1 AND derived_revision_id=?2) OR EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE scope=?1 AND root_value=?2) OR EXISTS(SELECT 1 FROM _fathomdb_actuation_receipt_source_refs WHERE scope=?1 AND (ref_value=?2 OR (ref_kind='source_id' AND ref_value=?3)))", params![scope, revision, source], |r| r.get(0)).map_err(|_| EngineError::Storage)?;
             if protected {
                 return Err(refused());
             }

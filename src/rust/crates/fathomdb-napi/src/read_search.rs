@@ -1241,7 +1241,7 @@ mod degradation_tests {
     #[test]
     fn search_expand_result_reports_embedder_overloaded() {
         let (overloaded, healthy) = overloaded_and_healthy(|engine| {
-            engine.search_expand("napiep03needle", None, 1).unwrap()
+            engine.search_expand("napiep03needle", None, 1, None).unwrap()
         });
         assert_eq!(overloaded.degradations.len(), 1, "precondition: a real overloaded result");
 
@@ -1297,7 +1297,7 @@ mod degradation_tests {
         let dir = tempfile::tempdir().unwrap();
         let engine = absent_engine(&dir);
         let converted = SearchExpandResult::from_rust(
-            engine.search_expand("sliceseventyneedle", None, 1).unwrap(),
+            engine.search_expand("sliceseventyneedle", None, 1, None).unwrap(),
         );
         engine.close().unwrap();
         let words = converted
@@ -1376,7 +1376,7 @@ mod degradation_tests {
     #[test]
     fn search_expand_result_reports_started_timeout() {
         let result = started_timeout_result(|engine| {
-            engine.search_expand("sliceseventyneedle", None, 1).unwrap()
+            engine.search_expand("sliceseventyneedle", None, 1, None).unwrap()
         });
         assert_eq!(result.search_hits.len(), 1);
         assert_eq!(result.search_hits[0].id.value, "s70-native-timeout-note");

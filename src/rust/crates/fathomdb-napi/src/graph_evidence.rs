@@ -130,7 +130,8 @@ pub async fn search_expand(
     let inner = Arc::clone(&engine.inner);
     let limit = search_limit.unwrap_or(10) as usize;
     let result =
-        call_engine(move || inner.search_expand_with_limit(&query, filter, depth, limit)).await?;
+        call_engine(move || inner.search_expand_with_limit(&query, filter, depth, limit, None))
+            .await?;
     Ok(SearchExpandResult::from_rust(result))
 }
 

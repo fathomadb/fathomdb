@@ -7,11 +7,12 @@ use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError};
 use crate::pagination::{self, PageErrorReason, PageRequestV1, PageV1};
 use crate::properties::PropertyMap;
 use crate::reader_transaction::begin_attributed_reader_tx;
+use crate::scope::ScopePredicate;
 use crate::temporal::ReadView;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::test_hooks::frozen_after_validation_hook;
 use crate::wal_attribution::WalAttributionCollector;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -77,6 +78,7 @@ pub(crate) fn read_get_by_id_in_tx(
     reader: &mut Connection,
     logical_ids: &[String],
     view: &ReadView,
+    scope: &ScopePredicate,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> rusqlite::Result<Vec<Option<NodeRecord>>> {
@@ -92,11 +94,22 @@ pub(crate) fn read_get_by_id_in_tx(
             let mut seen = std::collections::HashSet::new();
             logical_ids.iter().filter(|id| seen.insert((*id).clone())).collect()
         };
-        let placeholders = std::iter::repeat_n("?", unique.len()).collect::<Vec<_>>().join(", ");
-        // The `?` placeholders above auto-number 1..=unique.len(), so the
-        // validity instant takes the next positional slot.
-        let now_idx = unique.len() + 1;
+        let mut binds: Vec<rusqlite::types::Value> = Vec::with_capacity(unique.len() + 4);
+        let mut scope_sql = String::new();
+        scope.append_sql_values("scope", &mut scope_sql, &mut binds);
+        let lid_start = binds.len() + 1;
+        let placeholders = (lid_start..lid_start + unique.len())
+            .map(|idx| format!("?{idx}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        for s in &unique {
+            binds.push(rusqlite::types::Value::Text((*s).clone()));
+        }
+        let now_idx = binds.len() + 1;
         let node_sql = view.node_sql("canonical_nodes", now_idx);
+        if let Some(now) = view.now_param() {
+            binds.push(rusqlite::types::Value::Integer(now));
+        }
         // R-20-RV: with `include_superseded` a logical_id can match several
         // rows. `ORDER BY write_cursor` + last-write-wins into `found` resolves
         // the slot DETERMINISTICALLY to the most recent version, rather than
@@ -104,15 +117,10 @@ pub(crate) fn read_get_by_id_in_tx(
         let sql = format!(
             "SELECT logical_id, kind, body, write_cursor, properties
              FROM canonical_nodes
-             WHERE logical_id IN ({placeholders}){node_sql}
+             WHERE {scope_sql} AND logical_id IN ({placeholders}){node_sql}
              ORDER BY write_cursor"
         );
         let mut statement = tx.prepare(&sql)?;
-        let mut binds: Vec<rusqlite::types::Value> =
-            unique.iter().map(|s| rusqlite::types::Value::Text((*s).clone())).collect();
-        if let Some(now) = view.now_param() {
-            binds.push(rusqlite::types::Value::Integer(now));
-        }
         let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
             let logical_id: String = row.get(0)?;
             Ok(NodeRecord {
@@ -154,6 +162,7 @@ pub(crate) fn read_collection_in_tx(
     collection: &str,
     after_id: Option<i64>,
     limit: usize,
+    scope: &ScopePredicate,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> rusqlite::Result<Vec<OpStoreRow>> {
@@ -167,14 +176,24 @@ pub(crate) fn read_collection_in_tx(
     // id?" ambiguity without changing happy-path semantics.
     let after = after_id.unwrap_or(0).max(0);
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
-    let mut statement = tx.prepare(
+    let mut binds: Vec<rusqlite::types::Value> = Vec::with_capacity(4);
+    let mut scope_sql = String::new();
+    scope.append_sql_values("scope", &mut scope_sql, &mut binds);
+    let coll_idx = binds.len() + 1;
+    binds.push(rusqlite::types::Value::Text(collection.to_string()));
+    let after_idx = binds.len() + 1;
+    binds.push(rusqlite::types::Value::Integer(after));
+    let limit_idx = binds.len() + 1;
+    binds.push(rusqlite::types::Value::Integer(clamped));
+    let sql = format!(
         "SELECT id, collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
          FROM operational_mutations
-         WHERE collection_name = ?1 AND id > ?2
+         WHERE {scope_sql} AND collection_name = ?{coll_idx} AND id > ?{after_idx}
          ORDER BY id
-         LIMIT ?3",
-    )?;
-    let rows = statement.query_map(params![collection, after, clamped], |row| {
+         LIMIT ?{limit_idx}"
+    );
+    let mut statement = tx.prepare(&sql)?;
+    let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
         Ok(OpStoreRow {
             id: row.get(0)?,
             collection: row.get(1)?,
@@ -267,6 +286,7 @@ pub(crate) struct ReadListQuery<'a> {
     pub(crate) property_predicates: &'a [crate::properties::PropertyPredicate],
     pub(crate) limit: usize,
     pub(crate) view: &'a ReadView,
+    pub(crate) scope: &'a ScopePredicate,
 }
 
 pub(crate) fn read_list_in_tx(
@@ -275,7 +295,8 @@ pub(crate) fn read_list_in_tx(
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<Vec<NodeRecord>, PageReaderError> {
-    let ReadListQuery { kind, predicates, source_types, property_predicates, limit, view } = query;
+    let ReadListQuery { kind, predicates, source_types, property_predicates, limit, view, scope } =
+        query;
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if !property_predicates.is_empty() {
         crate::filter::validate_property_predicates_on_snapshot(&tx, property_predicates)
@@ -290,20 +311,15 @@ pub(crate) fn read_list_in_tx(
     if limit == 0 {
         return Ok(Vec::new());
     }
-    // Build the SQL WHERE clauses for each predicate.
-    // Parameters: ?1 = kind; ?2..?N = predicate values; ?now = view validity;
-    // remaining binds = declared property predicates; limit is inlined.
-    // `logical_id IS NOT NULL` is a SQL-level predicate so that LIMIT counts
-    // only rows that can be represented as NodeRecord (which requires a non-null
-    // String logical_id). Anonymous nodes (PreparedWrite::Node { logical_id: None })
-    // cannot be included in NodeRecord results and are excluded before LIMIT.
-    // When predicates are present we add `json_valid(body)` so rows with
-    // non-JSON bodies are skipped rather than causing a `malformed JSON` error.
     let json_valid_guard = if predicates.is_empty() { "" } else { " AND json_valid(cn.body)" };
 
-    // Bind parameters in exact placeholder order: [kind, predicate_values..., optional now, property_predicates...].
-    let mut params: Vec<rusqlite::types::Value> = Vec::with_capacity(2 + predicates.len());
+    // Bind parameters in exact placeholder order: [scope..., kind, predicate_values..., optional now, property_predicates...].
+    let mut params: Vec<rusqlite::types::Value> = Vec::with_capacity(4 + predicates.len());
+    let mut scope_sql = String::new();
+    scope.append_sql_values("cn.scope", &mut scope_sql, &mut params);
+    let kind_idx = params.len() + 1;
     params.push(rusqlite::types::Value::Text(kind.to_string()));
+    let pred_start = params.len() + 1;
     for pred in predicates {
         params.push(Predicate::bind_value(pred));
     }
@@ -316,13 +332,12 @@ pub(crate) fn read_list_in_tx(
     let mut sql = format!(
         "SELECT cn.logical_id, cn.kind, cn.body, cn.write_cursor, cn.properties \
          FROM canonical_nodes cn \
-         WHERE cn.kind = ?1{node_sql} \
+         WHERE {scope_sql} AND cn.kind = ?{kind_idx}{node_sql} \
          AND cn.logical_id IS NOT NULL{json_valid_guard}"
     );
 
-    // Predicate params start at ?2 (and may reference `body` on `cn`).
     for (i, pred) in predicates.iter().enumerate() {
-        let param_idx = i + 2; // ?1 is kind
+        let param_idx = pred_start + i;
         sql.push_str(" AND ");
         sql.push_str(&Predicate::to_sql_clause(pred, param_idx));
     }
@@ -366,12 +381,13 @@ pub(crate) fn read_canonical_page_in_tx(
     kind: &str,
     frozen: &FrozenReadContextV1,
     page: &PageRequestV1,
+    scope: &ScopePredicate,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<PageV1<NodeRecord>, PageReaderError> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let cursor = pagination::authenticate_cursor(&tx, page)?;
-    let binding = frozen_read::authenticate(&tx, frozen)?;
+    let binding = frozen_read::authenticate(&tx, frozen, scope)?;
     let after = pagination::resume_after(
         cursor.as_ref(),
         pagination::PageOperation::CanonicalNode,
@@ -392,6 +408,7 @@ pub(crate) fn read_canonical_page_in_tx(
         &frozen.context.eligibility,
         after,
         page.limit,
+        scope,
     )?;
     if has_more {
         items.pop();
@@ -419,6 +436,7 @@ pub(crate) fn read_canonical_page_baseline_in_tx(
     kind: &str,
     context: &FrozenReadContextV1,
     limit: usize,
+    scope: &ScopePredicate,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<Vec<NodeRecord>, PageReaderError> {
@@ -432,6 +450,7 @@ pub(crate) fn read_canonical_page_baseline_in_tx(
         &context.context.eligibility,
         0,
         limit,
+        scope,
     )?;
     if has_more {
         items.pop();
@@ -447,8 +466,10 @@ fn query_canonical_page_rows(
     filter: &SearchFilter,
     after: u64,
     limit: usize,
+    scope: &ScopePredicate,
 ) -> rusqlite::Result<(Vec<NodeRecord>, bool)> {
-    let (sql, binds) = canonical_page_query_on(Some(connection), kind, view, filter, after, limit)?;
+    let (sql, binds) =
+        canonical_page_query_on(Some(connection), kind, view, filter, after, limit, scope)?;
     let mut statement = connection.prepare(&sql)?;
     let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
         Ok(NodeRecord {
@@ -471,8 +492,9 @@ pub(crate) fn canonical_page_query(
     filter: &SearchFilter,
     after: u64,
     limit: usize,
+    scope: &ScopePredicate,
 ) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
-    canonical_page_query_on(None, kind, view, filter, after, limit)
+    canonical_page_query_on(None, kind, view, filter, after, limit, scope)
 }
 
 fn canonical_page_query_on(
@@ -482,14 +504,17 @@ fn canonical_page_query_on(
     filter: &SearchFilter,
     after: u64,
     limit: usize,
+    scope: &ScopePredicate,
 ) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
-    let mut binds = vec![
-        rusqlite::types::Value::Text(kind.to_string()),
-        rusqlite::types::Value::Integer(
-            i64::try_from(after)
-                .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, i64::MAX))?,
-        ),
-    ];
+    let mut binds = Vec::with_capacity(6);
+    let mut scope_sql = String::new();
+    scope.append_sql_values("n.scope", &mut scope_sql, &mut binds);
+    let kind_idx = binds.len() + 1;
+    binds.push(rusqlite::types::Value::Text(kind.to_string()));
+    let after_idx = binds.len() + 1;
+    binds.push(rusqlite::types::Value::Integer(
+        i64::try_from(after).map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, i64::MAX))?,
+    ));
     let now_idx = binds.len() + 1;
     let visibility = view.node_sql("n", now_idx);
     if let Some(now) = view.now_param() {
@@ -514,51 +539,74 @@ fn canonical_page_query_on(
     let sql = format!(
         "SELECT n.logical_id,n.kind,n.body,n.write_cursor,n.properties \
          FROM canonical_nodes n \
-         WHERE n.kind=?1 AND n.write_cursor>?2 AND n.logical_id IS NOT NULL \
+         WHERE {scope_sql} AND n.kind=?{kind_idx} AND n.write_cursor>?{after_idx} AND n.logical_id IS NOT NULL \
          {visibility}{eligibility} \
          ORDER BY n.write_cursor ASC LIMIT ?{limit_idx}"
     );
     Ok((sql, binds))
 }
 
-pub(crate) const OPERATIONAL_STATE_POINT_SQL: &str =
-    "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
-     FROM operational_state WHERE collection_name=?1 AND record_key=?2";
+pub(crate) fn operational_state_point_sql(scope: &ScopePredicate) -> String {
+    let (scope_sql, _) = scope.sql_clause("scope", 3);
+    let order_tail = if scope.single_read_scope().is_some() {
+        ""
+    } else {
+        " ORDER BY write_cursor DESC LIMIT 1"
+    };
+    format!(
+        "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
+         FROM operational_state WHERE {scope_sql} AND collection_name=?1 AND record_key=?2{order_tail}"
+    )
+}
 
-pub(crate) const OPERATIONAL_STATE_PAGE_SQL: &str =
-    "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
-     FROM operational_state \
-     WHERE collection_name=?1 AND write_cursor>?2 \
-     ORDER BY write_cursor ASC LIMIT ?3";
+pub(crate) fn operational_state_page_sql(scope: &ScopePredicate) -> String {
+    let (scope_sql, _) = scope.sql_clause("scope", 4);
+    format!(
+        "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
+         FROM operational_state \
+         WHERE {scope_sql} AND collection_name=?1 AND write_cursor>?2 \
+         ORDER BY write_cursor ASC LIMIT ?3"
+    )
+}
 
 pub(crate) fn read_operational_state_in_tx(
     reader: &mut Connection,
     collection: &str,
     record_key: &str,
     frozen: Option<&FrozenReadContextV1>,
+    scope: &ScopePredicate,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<Option<OperationalStateRecordV1>, PageReaderError> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(frozen) = frozen {
-        let binding = frozen_read::authenticate(&tx, frozen)?;
+        let binding = frozen_read::authenticate(&tx, frozen, scope)?;
         frozen_read::validate_snapshot(&tx, &binding)?;
         #[cfg(any(test, feature = "test-hooks"))]
         frozen_after_validation_hook::fire(attribution);
         validate_operational_context(frozen)?;
     }
     validate_operational_collection(&tx, collection)?;
+    let mut binds = vec![
+        rusqlite::types::Value::Text(collection.to_string()),
+        rusqlite::types::Value::Text(record_key.to_string()),
+    ];
+    scope.push_values(&mut binds);
     let record = tx
-        .query_row(OPERATIONAL_STATE_POINT_SQL, params![collection, record_key], |row| {
-            Ok(OperationalStateRecordV1 {
-                schema_version: 1,
-                collection: row.get(0)?,
-                record_key: row.get(1)?,
-                payload: row.get(2)?,
-                schema_id: row.get(3)?,
-                write_cursor: row.get::<_, i64>(4)? as u64,
-            })
-        })
+        .query_row(
+            &operational_state_point_sql(scope),
+            rusqlite::params_from_iter(binds.iter()),
+            |row| {
+                Ok(OperationalStateRecordV1 {
+                    schema_version: 1,
+                    collection: row.get(0)?,
+                    record_key: row.get(1)?,
+                    payload: row.get(2)?,
+                    schema_id: row.get(3)?,
+                    write_cursor: row.get::<_, i64>(4)? as u64,
+                })
+            },
+        )
         .optional()?;
     tx.commit()?;
     Ok(record)
@@ -569,12 +617,13 @@ pub(crate) fn read_operational_state_page_in_tx(
     collection: &str,
     frozen: &FrozenReadContextV1,
     page: &PageRequestV1,
+    scope: &ScopePredicate,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<PageV1<OperationalStateRecordV1>, PageReaderError> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let cursor = pagination::authenticate_cursor(&tx, page)?;
-    let binding = frozen_read::authenticate(&tx, frozen)?;
+    let binding = frozen_read::authenticate(&tx, frozen, scope)?;
     let after = pagination::resume_after(
         cursor.as_ref(),
         pagination::PageOperation::OperationalState,
@@ -589,8 +638,14 @@ pub(crate) fn read_operational_state_page_in_tx(
     validate_operational_collection(&tx, collection)?;
     let limit = i64::try_from(page.limit + 1).map_err(|_| EngineError::Storage)?;
     let after = i64::try_from(after).map_err(|_| EngineError::Storage)?;
-    let mut statement = tx.prepare(OPERATIONAL_STATE_PAGE_SQL)?;
-    let rows = statement.query_map(params![collection, after, limit], |row| {
+    let mut binds = vec![
+        rusqlite::types::Value::Text(collection.to_string()),
+        rusqlite::types::Value::Integer(after),
+        rusqlite::types::Value::Integer(limit),
+    ];
+    scope.push_values(&mut binds);
+    let mut statement = tx.prepare(&operational_state_page_sql(scope))?;
+    let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
         Ok(OperationalStateRecordV1 {
             schema_version: 1,
             collection: row.get(0)?,

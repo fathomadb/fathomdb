@@ -117,6 +117,7 @@ reported root::tests
 reported runtime_configuration
 reported runtime_configuration::tests
 reported runtime_lifecycle
+governed scope
 governed search
 governed search::bm25f
 governed search::fts_fast_path
@@ -269,7 +270,7 @@ unparsed-macro actuation::tests <module> proptest ddd003ceb259de46
 # Passive observation encoding only; preserve the lossless-u64 property oracle.
 unparsed-macro cuda_pool_observation::tests <module> proptest 1b1e1d90698cb78d
 unparsed-macro evidence::tests <module> proptest 174c5b885c19479e
-unparsed-macro frozen_read::tests <module> proptest 8077e5a8a7846daf
+unparsed-macro frozen_read::tests <module> proptest b56ed82bac6577d5
 unparsed-macro pagination::tests <module> proptest b18a9c1d1a2ce7f9
 unparsed-macro properties::tests <module> proptest 717aea22ff638526
 unparsed-macro root::tests <module> proptest 63b596e64e50b5bf

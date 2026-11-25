@@ -67,6 +67,7 @@ pub(super) fn execute_vector_arm(
     filter: Option<&SearchFilter>,
     view: FrozenView,
     now_param: Option<i64>,
+    scope: &crate::scope::ScopePredicate,
     read_dependency_eligibility: &dyn Fn(&str, usize) -> String,
 ) -> Result<Vec<FusionHit>, SearchReaderError> {
     let Some(query_vector) = query_vector.filter(|_| !vector_eligibility_degraded) else {
@@ -78,30 +79,45 @@ pub(super) fn execute_vector_arm(
     let rank_probe = crate::slice30_observer::rank_probe_route();
     #[cfg(any(test, feature = "slice30-observer"))]
     let vector_observation = crate::slice30_observer::span("vector_retrieval");
-    let mut rowids = Vec::new();
+    let mut rowids: Vec<(i64, f64)> = Vec::new();
     let bin_vector = query_vector_bin.unwrap_or(query_vector);
     {
         #[cfg(any(test, feature = "slice30-observer"))]
         let sql_observation = crate::slice30_observer::span("vector_phase1_f32_sql");
         let candidate_limit = candidate_limit.max(final_limit).max(TOP_K_BIT_CANDIDATES);
-        let (sql, tail_params) = build_vector_phase1_plan(
-            Some(tx),
-            filter,
-            candidate_limit,
-            &view.view,
-            view.edge_now(),
-        )?;
-        let mut params: Vec<rusqlite::types::Value> = vec![
-            rusqlite::types::Value::Text(bin_vector.to_string()),
-            rusqlite::types::Value::Text(query_vector.to_string()),
-        ];
-        params.extend(tail_params);
-        let mut statement = prepare_search_statement(tx, &sql)?;
-        let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
-        })?;
-        for row in rows {
-            rowids.push(row?);
+        let run_phase1_for = |phase_scope: &crate::scope::ScopePredicate| -> Result<Vec<(i64, f64)>, rusqlite::Error> {
+            let (sql, tail_params) = build_vector_phase1_plan(
+                Some(tx),
+                filter,
+                candidate_limit,
+                &view.view,
+                view.edge_now(),
+                phase_scope,
+            )?;
+            let mut params: Vec<rusqlite::types::Value> = vec![
+                rusqlite::types::Value::Text(bin_vector.to_string()),
+                rusqlite::types::Value::Text(query_vector.to_string()),
+            ];
+            params.extend(tail_params);
+            let mut statement = prepare_search_statement(tx, &sql)?;
+            let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
+            })?;
+            rows.collect()
+        };
+        if scope.read_scopes().len() > 1
+            && !crate::filter::filter_needs_preselection(Some(tx), filter, &view.view)?
+        {
+            for single in scope.read_scopes() {
+                let single_scope = crate::scope::ScopePredicate::single_for_query(single);
+                rowids.extend(run_phase1_for(&single_scope)?);
+            }
+            rowids.sort_by(|left, right| {
+                left.1.total_cmp(&right.1).then_with(|| left.0.cmp(&right.0))
+            });
+            rowids.truncate(candidate_limit);
+        } else {
+            rowids = run_phase1_for(scope)?;
         }
         #[cfg(test)]
         if rank_probe.is_some() {
@@ -121,22 +137,25 @@ pub(super) fn execute_vector_arm(
     let node_existence = view.view.existence_sql("canonical_nodes");
     let node_validity = view.validity_sql("canonical_nodes", 2);
     let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
+    let node_scope_start = if now_param.is_some() { 3 } else { 2 };
+    let (node_scope_sql, _) = scope.sql_clause("scope", node_scope_start);
     let mut node_stmt = prepare_search_statement(
         tx,
         &format!(
             "SELECT kind, body, logical_id, source_id, properties FROM canonical_nodes \
-         WHERE write_cursor = ?1{node_existence}\
+         WHERE write_cursor = ?1 AND {node_scope_sql}{node_existence}\
          {node_validity}{node_eligibility} LIMIT 1"
         ),
     )?;
     let edge_existence = view.view.edge_existence_sql("canonical_edges");
     let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
     let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
+    let (edge_scope_sql, _) = scope.sql_clause("scope", 3);
     let mut edge_stmt = prepare_search_statement(
         tx,
         &format!(
             "SELECT body, logical_id, source_id, properties FROM canonical_edges \
-         WHERE write_cursor = ?1 AND body IS NOT NULL{edge_existence}\
+         WHERE write_cursor = ?1 AND {edge_scope_sql} AND body IS NOT NULL{edge_existence}\
          {edge_validity}{edge_eligibility} LIMIT 1"
         ),
     )?;
@@ -145,6 +164,7 @@ pub(super) fn execute_vector_arm(
         if let Some(now) = now_param {
             p.push(rusqlite::types::Value::Integer(now));
         }
+        scope.push_values(&mut p);
         p
     };
     for (rowid, score) in rowids {
@@ -178,32 +198,39 @@ pub(super) fn execute_vector_arm(
                     properties,
                 },
             });
-        } else if let Some((body, logical_id, source_id, properties)) = edge_stmt
-            .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
-                Ok((
-                    search_body_from_row(row, 0, true)?,
-                    row.get::<_, Option<String>>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    decode_properties_row_col(row, 3)?,
-                ))
-            })
-            .optional()?
-        {
-            let id = derive_stable_id(logical_id.as_deref(), &body);
-            results.push(FusionHit {
-                ownership: FusionOwnership::CanonicalEdge,
-                hit: SearchHit {
-                    id,
-                    write_cursor: rowid as u64,
-                    kind: "edge_fact".to_string(),
-                    body,
-                    score,
-                    branch: SoftFallbackBranch::TextEdge,
-                    source_id,
-                    ce_score: None,
-                    properties,
-                },
-            });
+        } else {
+            let mut edge_params = vec![
+                rusqlite::types::Value::Integer(rowid),
+                rusqlite::types::Value::Integer(view.edge_now()),
+            ];
+            scope.push_values(&mut edge_params);
+            if let Some((body, logical_id, source_id, properties)) = edge_stmt
+                .query_row(rusqlite::params_from_iter(edge_params.iter()), |row| {
+                    Ok((
+                        search_body_from_row(row, 0, true)?,
+                        row.get::<_, Option<String>>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        decode_properties_row_col(row, 3)?,
+                    ))
+                })
+                .optional()?
+            {
+                let id = derive_stable_id(logical_id.as_deref(), &body);
+                results.push(FusionHit {
+                    ownership: FusionOwnership::CanonicalEdge,
+                    hit: SearchHit {
+                        id,
+                        write_cursor: rowid as u64,
+                        kind: "edge_fact".to_string(),
+                        body,
+                        score,
+                        branch: SoftFallbackBranch::TextEdge,
+                        source_id,
+                        ce_score: None,
+                        properties,
+                    },
+                });
+            }
         }
     }
     #[cfg(any(test, feature = "slice30-observer"))]
@@ -220,6 +247,7 @@ pub(super) fn detect_vector_soft_fallback(
     query_vector: Option<&str>,
     vector_eligibility_degraded: bool,
     vector_rows_visible: bool,
+    scope: &crate::scope::ScopePredicate,
 ) -> rusqlite::Result<Option<SoftFallback>> {
     #[cfg(any(test, feature = "slice30-observer"))]
     let observation = crate::slice30_observer::span("source_fallback_selection");
@@ -232,18 +260,24 @@ pub(super) fn detect_vector_soft_fallback(
         {
             probe_attempted = true;
         }
-        tx.query_row(
+        let mut params = vec![rusqlite::types::Value::Text(compiled.match_expression.clone())];
+        let mut scope_sql = String::new();
+        scope.append_sql_values("cn.scope", &mut scope_sql, &mut params);
+        let sql = format!(
             "SELECT 1
              FROM search_index
+             JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor
              JOIN _fathomdb_vector_kinds ON _fathomdb_vector_kinds.kind = search_index.kind
              LEFT JOIN _fathomdb_projection_terminal
                ON _fathomdb_projection_terminal.write_cursor = search_index.write_cursor
              WHERE search_index MATCH ?1
+              AND {scope_sql}
               AND _fathomdb_projection_terminal.write_cursor IS NULL
-             LIMIT 1",
-            [compiled.match_expression.as_str()],
-            |_row| Ok(SoftFallback { branch: SoftFallbackBranch::Vector }),
-        )
+             LIMIT 1"
+        );
+        tx.query_row(&sql, rusqlite::params_from_iter(params.iter()), |_row| {
+            Ok(SoftFallback { branch: SoftFallbackBranch::Vector })
+        })
         .optional()?
     } else {
         None

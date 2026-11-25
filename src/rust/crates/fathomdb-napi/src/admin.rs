@@ -227,6 +227,7 @@ impl EngineConfig {
                 .query_stop_words
                 .map(QueryStopWordsConfig::into_rust)
                 .transpose()?,
+            scope_policy: fathomdb_engine::ScopePolicy::default(),
         })
     }
 }

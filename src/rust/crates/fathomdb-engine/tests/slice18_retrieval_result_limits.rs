@@ -86,7 +86,7 @@ fn ranked_search_families_default_to_ten_and_honor_requested_k() {
         10
     );
     assert_eq!(
-        engine.search_expand("needle", None, 0).expect("default expand").search_hits.len(),
+        engine.search_expand("needle", None, 0, None).expect("default expand").search_hits.len(),
         10
     );
 
@@ -112,7 +112,7 @@ fn ranked_search_families_default_to_ten_and_honor_requested_k() {
         );
         assert_eq!(
             engine
-                .search_expand_with_limit("needle", None, 0, limit)
+                .search_expand_with_limit("needle", None, 0, limit, None)
                 .expect("expand")
                 .search_hits
                 .len(),
@@ -149,7 +149,7 @@ fn ranked_search_limits_reject_out_of_range_requests() {
             Err(EngineError::InvalidArgument { .. })
         ));
         assert!(matches!(
-            engine.search_expand_with_limit("needle", None, 0, limit),
+            engine.search_expand_with_limit("needle", None, 0, limit, None),
             Err(EngineError::InvalidArgument { .. })
         ));
     }

@@ -26,10 +26,10 @@ const DEFAULT_MAX_WORK_UNITS: u32 = 101;
 
 const TO_SOURCE_CANDIDATE_QUERY: &str = "SELECT d.rowid,d.derived_revision_id \
      FROM _fathomdb_source_dependencies d \
-     JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-     JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
-     JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
-     WHERE d.derived_revision_id=?1 AND typeof(d.derived_revision_id)='text' \
+     JOIN _fathomdb_source_links l ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+     JOIN _fathomdb_artifact_revisions sr ON sr.scope=d.scope AND sr.revision_id=l.source_revision_id \
+     JOIN canonical_nodes sn ON sn.scope=sr.scope AND sn.write_cursor=sr.write_cursor \
+     WHERE d.scope=?12 AND d.derived_revision_id=?1 AND typeof(d.derived_revision_id)='text' \
        AND typeof(l.source_revision_id)='text' AND sr.schema_version=1 \
        AND sr.artifact_class='node' AND sr.artifact_role='canonical_source' \
        AND sr.completeness='complete' \
@@ -54,11 +54,11 @@ const TO_SOURCE_CANDIDATE_QUERY: &str = "SELECT d.rowid,d.derived_revision_id \
 
 const TO_DEPENDENTS_CANDIDATE_QUERY: &str = "SELECT d.rowid,l.artifact_revision_id \
      FROM _fathomdb_source_links l INDEXED BY _fathomdb_source_links_source_derived_idx \
-     JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=l.artifact_revision_id \
-     JOIN _fathomdb_artifact_revisions dr ON dr.revision_id=d.derived_revision_id \
-     LEFT JOIN canonical_nodes dn ON dr.artifact_class='node' AND dn.write_cursor=dr.write_cursor \
-     LEFT JOIN canonical_edges de ON dr.artifact_class='edge' AND de.write_cursor=dr.write_cursor \
-     WHERE l.source_revision_id=?1 AND l.artifact_revision_id>?2 \
+     JOIN _fathomdb_source_dependencies d ON d.scope=l.scope AND d.derived_revision_id=l.artifact_revision_id \
+     JOIN _fathomdb_artifact_revisions dr ON dr.scope=d.scope AND dr.revision_id=d.derived_revision_id \
+     LEFT JOIN canonical_nodes dn ON dr.artifact_class='node' AND dn.scope=dr.scope AND dn.write_cursor=dr.write_cursor \
+     LEFT JOIN canonical_edges de ON dr.artifact_class='edge' AND de.scope=dr.scope AND de.write_cursor=dr.write_cursor \
+     WHERE l.scope=?13 AND l.source_revision_id=?1 AND l.artifact_revision_id>?2 \
        AND typeof(l.source_revision_id)='text' \
        AND typeof(l.artifact_revision_id)='text' \
        AND typeof(d.derived_revision_id)='text' \
@@ -318,6 +318,7 @@ fn unavailable() -> EngineError {
 
 fn visible_artifact(
     connection: &Connection,
+    scope: &str,
     revision_id: &str,
     effective: i64,
     context: &ReadContextV1,
@@ -325,10 +326,10 @@ fn visible_artifact(
     let row: Option<(String, String, String, i64)> = connection
         .query_row(
             "SELECT artifact_class,artifact_role,completeness,write_cursor \
-             FROM _fathomdb_artifact_revisions WHERE revision_id=?1 AND schema_version=1 \
+             FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2 AND schema_version=1 \
                AND typeof(artifact_class)='text' AND typeof(artifact_role)='text' \
                AND typeof(completeness)='text' AND typeof(write_cursor)='integer'",
-            [revision_id],
+            rusqlite::params![scope, revision_id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()
@@ -346,11 +347,11 @@ fn visible_artifact(
         let state: Option<StoredNodeLifecycle> = connection
             .query_row(
                 "SELECT kind,state,superseded_at,valid_from,valid_until FROM canonical_nodes \
-                 WHERE write_cursor=?1 AND typeof(kind)='text' AND typeof(state)='text' \
+                 WHERE scope=?1 AND write_cursor=?2 AND typeof(kind)='text' AND typeof(state)='text' \
                    AND (superseded_at IS NULL OR typeof(superseded_at)='integer') \
                    AND (valid_from IS NULL OR typeof(valid_from)='integer') \
                    AND (valid_until IS NULL OR typeof(valid_until)='integer')",
-                [cursor],
+                rusqlite::params![scope, cursor],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
             )
             .optional()
@@ -388,11 +389,11 @@ fn visible_artifact(
         let state: Option<StoredEdgeLifecycle> = connection
             .query_row(
                 "SELECT kind,superseded_at,t_valid,t_invalid FROM canonical_edges \
-                 WHERE write_cursor=?1 AND typeof(kind)='text' \
+                 WHERE scope=?1 AND write_cursor=?2 AND typeof(kind)='text' \
                    AND (superseded_at IS NULL OR typeof(superseded_at)='integer') \
                    AND (t_valid IS NULL OR typeof(t_valid)='integer') \
                    AND (t_invalid IS NULL OR typeof(t_invalid)='integer')",
-                [cursor],
+                rusqlite::params![scope, cursor],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()
@@ -453,13 +454,14 @@ fn valid_hash(value: &str) -> bool {
 
 pub(crate) fn source_link_valid(
     connection: &Connection,
+    scope: &str,
     artifact_revision_id: &str,
     expected_source_revision_id: Option<&str>,
 ) -> Result<bool, EngineError> {
     let shape_decodable: bool = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_links \
-             WHERE artifact_revision_id=?1 \
+             WHERE scope=?1 AND artifact_revision_id=?2 \
                AND typeof(schema_version)='integer' \
                AND typeof(source_id)='text' \
                AND typeof(source_version_id)='text' \
@@ -469,7 +471,7 @@ pub(crate) fn source_link_valid(
                AND (end_byte IS NULL OR typeof(end_byte)='integer') \
                AND typeof(hash_algorithm)='text' \
                AND typeof(hash_digest)='text')",
-            [artifact_revision_id],
+            rusqlite::params![scope, artifact_revision_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
@@ -480,8 +482,8 @@ pub(crate) fn source_link_valid(
         .query_row(
             "SELECT schema_version,source_id,source_version_id,source_revision_id,locator_kind,\
                     start_byte,end_byte,hash_algorithm,hash_digest \
-             FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
-            [artifact_revision_id],
+             FROM _fathomdb_source_links WHERE scope=?1 AND artifact_revision_id=?2",
+            rusqlite::params![scope, artifact_revision_id],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -521,12 +523,12 @@ pub(crate) fn source_link_valid(
     let canonical: Option<(String, String)> = connection
         .query_row(
             "SELECT n.source_id,n.body FROM _fathomdb_artifact_revisions r \
-             JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-             WHERE r.revision_id=?1 AND r.schema_version=1 \
+             JOIN canonical_nodes n ON n.scope=r.scope AND n.write_cursor=r.write_cursor \
+             WHERE r.scope=?1 AND r.revision_id=?2 AND r.schema_version=1 \
                AND r.artifact_class='node' AND r.artifact_role='canonical_source' \
                AND r.completeness='complete' \
                AND typeof(n.source_id)='text' AND typeof(n.body)='text'",
-            [&source_revision],
+            rusqlite::params![scope, &source_revision],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
@@ -540,9 +542,9 @@ pub(crate) fn source_link_valid(
     let version_valid: bool = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
-             WHERE schema_version=1 AND source_revision_id=?1 \
-               AND source_id=?2 AND source_version_id=?3)",
-            rusqlite::params![source_revision, source_id, version_id],
+             WHERE scope=?1 AND schema_version=1 AND source_revision_id=?2 \
+               AND source_id=?3 AND source_version_id=?4)",
+            rusqlite::params![scope, source_revision, source_id, version_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
@@ -563,22 +565,24 @@ pub(crate) fn source_link_valid(
 
 pub(crate) fn canonical_source_chain_valid(
     connection: &Connection,
+    scope: &str,
     source_revision_id: &str,
 ) -> Result<bool, EngineError> {
-    if !source_link_valid(connection, source_revision_id, Some(source_revision_id))? {
+    if !source_link_valid(connection, scope, source_revision_id, Some(source_revision_id))? {
         return Ok(false);
     }
     connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions v \
              JOIN _fathomdb_source_links l \
-               ON l.artifact_revision_id=v.source_revision_id \
+               ON l.scope=v.scope \
+              AND l.artifact_revision_id=v.source_revision_id \
               AND l.source_id=v.source_id AND l.source_version_id=v.source_version_id \
-             WHERE v.source_revision_id=?1 AND v.schema_version=1 \
-               AND l.schema_version=1 AND l.source_revision_id=?1 \
+             WHERE v.scope=?1 AND v.source_revision_id=?2 AND v.schema_version=1 \
+               AND l.schema_version=1 AND l.source_revision_id=?2 \
                AND l.locator_kind='whole_body' AND l.start_byte IS NULL \
                AND l.end_byte IS NULL AND l.hash_algorithm='sha256')",
-            [source_revision_id],
+            rusqlite::params![scope, source_revision_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)
@@ -616,25 +620,26 @@ fn registered_dependency_for_cursor_inner(
     include_out_of_window: bool,
 ) -> Result<bool, EngineError> {
     let cursor = i64::try_from(write_cursor).map_err(|_| EngineError::Storage)?;
-    let derived_revision_id: Option<String> = connection
+    let owner: Option<(String, String)> = connection
         .query_row(
-            "SELECT revision_id FROM _fathomdb_artifact_revisions \
+            "SELECT scope, revision_id FROM _fathomdb_artifact_revisions \
              WHERE write_cursor=?1 AND schema_version=1 \
                AND artifact_role='derived_semantic' AND completeness='complete'",
             [cursor],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let Some(derived_revision_id) = derived_revision_id else { return Ok(false) };
+    let Some((row_scope, derived_revision_id)) = owner else { return Ok(false) };
     let dependency: Option<(i64, String, String, i64)> = connection
         .query_row(
             "SELECT d.schema_version,d.dependency_id,l.source_revision_id,\
                     d.registered_dependency_generation \
              FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             WHERE d.derived_revision_id=?1",
-            [&derived_revision_id],
+             JOIN _fathomdb_source_links l \
+               ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.scope=?1 AND d.derived_revision_id=?2",
+            rusqlite::params![&row_scope, &derived_revision_id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()
@@ -646,11 +651,13 @@ fn registered_dependency_for_cursor_inner(
     let source_eligible = match as_of_cursor {
         None => crate::dependency_closure::source_revision_is_strictly_eligible(
             connection,
+            &row_scope,
             &source_revision_id,
             effective_at,
         )?,
         Some(as_of) => crate::dependency_closure::source_revision_is_eligible_as_of(
             connection,
+            &row_scope,
             &source_revision_id,
             effective_at,
             as_of,
@@ -663,14 +670,24 @@ fn registered_dependency_for_cursor_inner(
         || u64::try_from(generation).ok().is_none_or(|value| value > current_generation)
         || crate::validate_dependency_chain(
             connection,
+            &row_scope,
             &source_revision_id,
             &derived_revision_id,
             crate::DependencyValidationMode::Persisted,
         )
         .is_err()
-        || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
-        || !canonical_source_chain_valid(connection, &source_revision_id)?
-        || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
+        || !source_link_valid(
+            connection,
+            &row_scope,
+            &derived_revision_id,
+            Some(&source_revision_id),
+        )?
+        || !canonical_source_chain_valid(connection, &row_scope, &source_revision_id)?
+        || crate::dependency_closure::active_barrier_for_source(
+            connection,
+            &row_scope,
+            &source_revision_id,
+        )?
         || !source_eligible
     {
         return Ok(false);
@@ -680,14 +697,15 @@ fn registered_dependency_for_cursor_inner(
 
 fn root_chain_role(
     connection: &Connection,
+    scope: &str,
     revision_id: &str,
 ) -> Result<Option<TraceArtifactRoleV1>, EngineError> {
     let role: Option<String> = connection
         .query_row(
             "SELECT artifact_role FROM _fathomdb_artifact_revisions \
-             WHERE revision_id=?1 AND schema_version=1 \
+             WHERE scope=?1 AND revision_id=?2 AND schema_version=1 \
                AND typeof(artifact_role)='text'",
-            [revision_id],
+            rusqlite::params![scope, revision_id],
             |row| row.get(0),
         )
         .optional()
@@ -697,40 +715,46 @@ fn root_chain_role(
         "canonical_source" => (
             TraceArtifactRoleV1::CanonicalSource,
             revision_id.to_string(),
-            canonical_source_chain_valid(connection, revision_id)?,
+            canonical_source_chain_valid(connection, scope, revision_id)?,
         ),
         "derived_semantic" => {
             let source_revision_id: Option<String> = connection
                 .query_row(
                     "SELECT source_revision_id FROM _fathomdb_source_links \
-                     WHERE artifact_revision_id=?1 AND typeof(source_revision_id)='text'",
-                    [revision_id],
+                     WHERE scope=?1 AND artifact_revision_id=?2 AND typeof(source_revision_id)='text'",
+                    rusqlite::params![scope, revision_id],
                     |row| row.get(0),
                 )
                 .optional()
                 .map_err(|_| EngineError::Storage)?;
             let Some(source_revision_id) = source_revision_id else { return Ok(None) };
-            if !source_link_valid(connection, revision_id, Some(&source_revision_id))? {
+            if !source_link_valid(connection, scope, revision_id, Some(&source_revision_id))? {
                 return Ok(None);
             }
             (
                 TraceArtifactRoleV1::Derived,
                 source_revision_id.clone(),
-                canonical_source_chain_valid(connection, &source_revision_id)?,
+                canonical_source_chain_valid(connection, scope, &source_revision_id)?,
             )
         }
         _ => return Ok(None),
     };
     if !root_chain_valid
-        || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
+        || crate::dependency_closure::active_barrier_for_source(
+            connection,
+            scope,
+            &source_revision_id,
+        )?
     {
         return Ok(None);
     }
     Ok(Some(role))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn include_candidate(
     connection: &Connection,
+    scope: &str,
     request: &DependencyTraceRequestV1,
     effective: i64,
     dependency_generation: u64,
@@ -739,21 +763,35 @@ fn include_candidate(
     edges: &mut Vec<DependencyTraceEdgeV1>,
 ) -> Result<(), EngineError> {
     let (dependency_id, source_revision_id, derived_revision_id, generation, schema) = candidate;
-    let Some(source) =
-        visible_artifact(connection, &source_revision_id, effective, &request.context.context)?
+    let Some(source) = visible_artifact(
+        connection,
+        scope,
+        &source_revision_id,
+        effective,
+        &request.context.context,
+    )?
     else {
         return Ok(());
     };
-    let Some(derived) =
-        visible_artifact(connection, &derived_revision_id, effective, &request.context.context)?
+    let Some(derived) = visible_artifact(
+        connection,
+        scope,
+        &derived_revision_id,
+        effective,
+        &request.context.context,
+    )?
     else {
         return Ok(());
     };
     if source.role != TraceArtifactRoleV1::CanonicalSource
         || derived.role != TraceArtifactRoleV1::Derived
-        || !canonical_source_chain_valid(connection, &source_revision_id)?
-        || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
-        || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
+        || !canonical_source_chain_valid(connection, scope, &source_revision_id)?
+        || !source_link_valid(connection, scope, &derived_revision_id, Some(&source_revision_id))?
+        || crate::dependency_closure::active_barrier_for_source(
+            connection,
+            scope,
+            &source_revision_id,
+        )?
     {
         return Ok(());
     }
@@ -794,6 +832,7 @@ fn include_candidate(
 
 fn authorize_candidate_chain(
     connection: &Connection,
+    scope: &str,
     request: &DependencyTraceRequestV1,
     effective: i64,
     rowid: i64,
@@ -802,10 +841,11 @@ fn authorize_candidate_chain(
         .query_row(
             "SELECT l.source_revision_id,d.derived_revision_id \
              FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             WHERE d.rowid=?1 AND typeof(l.source_revision_id)='text' \
+             JOIN _fathomdb_source_links l \
+               ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.scope=?1 AND d.rowid=?2 AND typeof(l.source_revision_id)='text' \
                AND typeof(d.derived_revision_id)='text'",
-            [rowid],
+            rusqlite::params![scope, rowid],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
@@ -822,26 +862,41 @@ fn authorize_candidate_chain(
     {
         return Ok(None);
     }
-    if !canonical_source_chain_valid(connection, &source_revision_id)?
+    if !canonical_source_chain_valid(connection, scope, &source_revision_id)?
         || crate::validate_dependency_chain(
             connection,
+            scope,
             &source_revision_id,
             &derived_revision_id,
             crate::DependencyValidationMode::Persisted,
         )
         .is_err()
-        || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
-        || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
+        || !source_link_valid(connection, scope, &derived_revision_id, Some(&source_revision_id))?
+        || crate::dependency_closure::active_barrier_for_source(
+            connection,
+            scope,
+            &source_revision_id,
+        )?
     {
         return Ok(None);
     }
-    let Some(source) =
-        visible_artifact(connection, &source_revision_id, effective, &request.context.context)?
+    let Some(source) = visible_artifact(
+        connection,
+        scope,
+        &source_revision_id,
+        effective,
+        &request.context.context,
+    )?
     else {
         return Ok(None);
     };
-    let Some(derived) =
-        visible_artifact(connection, &derived_revision_id, effective, &request.context.context)?
+    let Some(derived) = visible_artifact(
+        connection,
+        scope,
+        &derived_revision_id,
+        effective,
+        &request.context.context,
+    )?
     else {
         return Ok(None);
     };
@@ -855,6 +910,7 @@ fn authorize_candidate_chain(
 
 fn load_authorized_candidate(
     connection: &Connection,
+    scope: &str,
     rowid: i64,
 ) -> Result<StoredDependencyCandidate, EngineError> {
     let candidate: Option<GuardedDependencyCandidate> = connection
@@ -866,9 +922,10 @@ fn load_authorized_candidate(
                          THEN d.registered_dependency_generation END,\
                     CASE WHEN typeof(d.schema_version)='integer' THEN d.schema_version END \
              FROM _fathomdb_source_dependencies d \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-             WHERE d.rowid=?1",
-            [rowid],
+             JOIN _fathomdb_source_links l \
+               ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.scope=?1 AND d.rowid=?2",
+            rusqlite::params![scope, rowid],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
         .optional()
@@ -886,6 +943,7 @@ fn load_authorized_candidate(
 pub(crate) fn execute(
     connection: &mut Connection,
     request: DependencyTraceRequestV1,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<DependencyTraceResultV1, EngineError> {
     if request.schema_version != SCHEMA_VERSION {
         return Err(DependencyTraceErrorV1::new(
@@ -916,20 +974,36 @@ pub(crate) fn execute(
         .into());
     }
     let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-    let binding = frozen_read::authenticate(&tx, &request.context)?;
+    let binding = frozen_read::authenticate(&tx, &request.context, scope)?;
     frozen_read::validate_snapshot(&tx, &binding)?;
     let effective = request.context.effective_valid_at;
-    let Some(preflight_role) = root_chain_role(&tx, &request.root_revision_id)? else {
-        return Err(unavailable());
-    };
-    let Some(mut root) =
-        visible_artifact(&tx, &request.root_revision_id, effective, &request.context.context)?
-    else {
-        return Err(unavailable());
-    };
-    if root.role != preflight_role {
-        return Err(unavailable());
+    let mut matched_root: Option<(String, DependencyTraceNodeV1)> = None;
+    for candidate_scope in scope.read_scopes() {
+        let Some(preflight_role) =
+            root_chain_role(&tx, candidate_scope, &request.root_revision_id)?
+        else {
+            continue;
+        };
+        let Some(mut candidate_root) = visible_artifact(
+            &tx,
+            candidate_scope,
+            &request.root_revision_id,
+            effective,
+            &request.context.context,
+        )?
+        else {
+            continue;
+        };
+        if candidate_root.role != preflight_role {
+            continue;
+        }
+        candidate_root.depth = 0;
+        matched_root = Some((candidate_scope.clone(), candidate_root));
+        break;
     }
+    let Some((row_scope, root)) = matched_root else {
+        return Err(unavailable());
+    };
     let role_ok = matches!(
         (request.direction, root.role),
         (DependencyTraceDirectionV1::ToSource, TraceArtifactRoleV1::Derived)
@@ -942,7 +1016,6 @@ pub(crate) fn execute(
         )
         .into());
     }
-    root.depth = 0;
     let dependency_generation = load_dependency_generation(&tx)?;
     let mut nodes = vec![root];
     let mut edges = Vec::new();
@@ -968,16 +1041,19 @@ pub(crate) fn execute(
                         filter.created_after,
                         filter.status.as_deref(),
                         &attribute_filter,
+                        &row_scope,
                     ],
                     |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
                 )
                 .optional()
                 .map_err(|_| EngineError::Storage)?;
             if let Some((rowid, _)) = candidate_key {
-                if authorize_candidate_chain(&tx, &request, effective, rowid)?.is_some() {
-                    let candidate = load_authorized_candidate(&tx, rowid)?;
+                if authorize_candidate_chain(&tx, &row_scope, &request, effective, rowid)?.is_some()
+                {
+                    let candidate = load_authorized_candidate(&tx, &row_scope, rowid)?;
                     include_candidate(
                         &tx,
+                        &row_scope,
                         &request,
                         effective,
                         dependency_generation,
@@ -1014,6 +1090,7 @@ pub(crate) fn execute(
                                 filter.created_after,
                                 filter.status.as_deref(),
                                 &attribute_filter,
+                                &row_scope,
                             ],
                             |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
                         )
@@ -1026,11 +1103,13 @@ pub(crate) fn execute(
                 }
                 for (rowid, derived_revision_id) in page {
                     after_key = derived_revision_id;
-                    let authorized = authorize_candidate_chain(&tx, &request, effective, rowid)?;
+                    let authorized =
+                        authorize_candidate_chain(&tx, &row_scope, &request, effective, rowid)?;
                     if authorized.is_some() {
-                        let candidate = load_authorized_candidate(&tx, rowid)?;
+                        let candidate = load_authorized_candidate(&tx, &row_scope, rowid)?;
                         include_candidate(
                             &tx,
+                            &row_scope,
                             &request,
                             effective,
                             dependency_generation,
@@ -1575,9 +1654,10 @@ impl Engine {
         request: DependencyTraceRequestV1,
     ) -> Result<DependencyTraceResultV1, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        crate::dependency_trace::execute(connection, request)
+        crate::dependency_trace::execute(connection, request, &scope)
     }
 }
 
@@ -1586,6 +1666,8 @@ impl Engine {
     #[cfg(feature = "test-hooks")]
     pub fn dependency_trace_query_plans_for_test(&self) -> Result<Vec<String>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
+        let scope_value = scope.read_scopes().first().map(String::as_str).unwrap_or("");
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let candidate_queries = candidate_queries_for_test();
@@ -1608,6 +1690,7 @@ impl Engine {
                             Option::<i64>::None,
                             Option::<&str>::None,
                             "[]",
+                            scope_value,
                         ],
                         |row| row.get::<_, String>(3),
                     )
@@ -1635,6 +1718,7 @@ impl Engine {
                             Option::<i64>::None,
                             Option::<&str>::None,
                             "[]",
+                            scope_value,
                         ],
                         |row| row.get::<_, String>(3),
                     )
@@ -1682,7 +1766,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let rss_before = telemetry::process_peak_rss_bytes();
         let started = Instant::now();
-        let outcome = execute(connection, request);
+        let outcome = execute(connection, request, &self.scope_predicate());
         let elapsed = started.elapsed();
         let rss_after = telemetry::process_peak_rss_bytes();
         connection

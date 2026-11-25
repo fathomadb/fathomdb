@@ -246,8 +246,10 @@ fn owed_debt_routes_match_independent_survivor_only_stores_before_caps_and_stati
                     hits(candidate.search("common").unwrap()),
                     hits(control.search("common").unwrap())
                 );
-                let expanded = candidate.search_expand_with_limit("common", None, 2, 1).unwrap();
-                let reference = control.search_expand_with_limit("common", None, 2, 1).unwrap();
+                let expanded =
+                    candidate.search_expand_with_limit("common", None, 2, 1, None).unwrap();
+                let reference =
+                    control.search_expand_with_limit("common", None, 2, 1, None).unwrap();
                 assert_eq!(expanded.all_logical_ids, reference.all_logical_ids);
                 assert_eq!(expanded.expanded, reference.expanded);
                 assert!(matches!(

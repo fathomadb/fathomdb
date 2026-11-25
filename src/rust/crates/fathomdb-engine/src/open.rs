@@ -1037,7 +1037,7 @@ impl Engine {
                     report.embedder_mean_vec_pinned,
                     Arc::clone(&subscribers),
                     Arc::clone(&wal_attribution),
-                    resolved_config,
+                    resolved_config.clone(),
                     #[cfg(any(test, feature = "test-hooks"))]
                     Arc::clone(&managed_connections),
                 )?;
@@ -1068,6 +1068,8 @@ impl Engine {
                     });
                 }
 
+                let reader_scope = resolved_config.scope_policy.predicate();
+                let provenance_row_cap = resolved_config.provenance_row_cap;
                 let parts = startup.into_parts();
                 let opened = OpenedEngine {
                     engine: Self {
@@ -1114,6 +1116,7 @@ impl Engine {
                             parts.readers,
                             Arc::clone(&wal_attribution),
                             Arc::clone(&query_stop_words),
+                            reader_scope,
                             #[cfg(any(test, feature = "test-hooks"))]
                             Arc::clone(&managed_connections),
                         ),
@@ -1134,7 +1137,7 @@ impl Engine {
                         actual_checkpoint_observations: Mutex::new(None),
                         #[cfg(any(test, feature = "test-hooks"))]
                         binding_native_state_observations: Mutex::new(None),
-                        provenance_row_cap: AtomicU64::new(resolved_config.provenance_row_cap),
+                        provenance_row_cap: AtomicU64::new(provenance_row_cap),
                         profile_contexts: Mutex::new(parts.profile_contexts),
                         reader_lookaside_rcs,
                         telemetry: Arc::new(Mutex::new(None)),

@@ -723,8 +723,9 @@ mod degradation_tests {
 
     #[test]
     fn search_expand_result_reports_embedder_overloaded() {
-        let (overloaded, healthy) =
-            overloaded_and_healthy(|engine| engine.search_expand("pyep03needle", None, 1).unwrap());
+        let (overloaded, healthy) = overloaded_and_healthy(|engine| {
+            engine.search_expand("pyep03needle", None, 1, None).unwrap()
+        });
         assert_eq!(overloaded.degradations.len(), 1, "precondition: a real overloaded result");
 
         let converted = PySearchExpandResult::from_rust(overloaded);
@@ -779,7 +780,7 @@ mod degradation_tests {
     fn search_expand_result_reports_per_call_absence() {
         let dir = tempfile::tempdir().unwrap();
         let engine = absent_engine(&dir);
-        let result = engine.search_expand("sliceseventyneedle", None, 1).unwrap();
+        let result = engine.search_expand("sliceseventyneedle", None, 1, None).unwrap();
         assert_eq!(result.search_hits.len(), 1);
         assert_eq!(result.search_hits[0].id.value, "s70-native-note");
         assert_eq!(result.search_hits[0].branch, SoftFallbackBranch::Text);
@@ -858,7 +859,7 @@ mod degradation_tests {
     #[test]
     fn search_expand_result_reports_started_timeout() {
         let result = started_timeout_result(|engine| {
-            engine.search_expand("sliceseventyneedle", None, 1).unwrap()
+            engine.search_expand("sliceseventyneedle", None, 1, None).unwrap()
         });
         assert_eq!(result.search_hits.len(), 1);
         assert_eq!(result.search_hits[0].id.value, "s70-native-timeout-note");

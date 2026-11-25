@@ -199,6 +199,7 @@ impl Engine {
         reason: Option<String>,
     ) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
+        let write_scope = self.scope_predicate().require_write_scope("transition")?.to_string();
         let lid = Self::resolve_lifecycle_target(logical_id)?;
 
         // Settle in-flight projection work first: the async projection worker
@@ -230,8 +231,8 @@ impl Engine {
         let current: Option<(String, i64, String, String, String, Option<PropertyMap>)> = tx
             .query_row(
                 "SELECT state, write_cursor, kind, body, row_kind, properties FROM canonical_nodes \
-                 WHERE logical_id = ?1 AND superseded_at IS NULL",
-                params![lid],
+                 WHERE scope = ?1 AND logical_id = ?2 AND superseded_at IS NULL",
+                params![&write_scope, lid],
                 |r| {
                     Ok((
                         r.get::<_, String>(0)?,
@@ -268,17 +269,18 @@ impl Engine {
                 validate_nested_projection_sources_for_body(&tx, body, props.as_ref())?;
             }
             if let Some((_, cursor, _, _, _, _)) = &current {
-                dependency_closure::guard_derived_reactivation(&tx, *cursor)?;
+                dependency_closure::guard_derived_reactivation(&tx, &write_scope, *cursor)?;
             }
         }
 
         if matches!(to_state, LifecycleState::Deleted) {
             if let Some((_, cursor, _, _, _, _)) = &current {
                 if let Some(source_revision) =
-                    dependency_closure::source_revision_for_cursor(&tx, *cursor)?
+                    dependency_closure::source_revision_for_cursor(&tx, &write_scope, *cursor)?
                 {
                     dependency_closure::admit_soft_closure(
                         &tx,
+                        &write_scope,
                         &source_revision,
                         ClosureCauseV1::SoftDeleted,
                         self.next_cursor.load(Ordering::SeqCst),
@@ -296,8 +298,8 @@ impl Engine {
         };
         tx.execute(
             "UPDATE canonical_nodes SET state = ?1, reason = ?2 \
-             WHERE logical_id = ?3 AND superseded_at IS NULL",
-            params![to_state.as_str(), new_reason, lid],
+             WHERE scope = ?3 AND logical_id = ?4 AND superseded_at IS NULL",
+            params![to_state.as_str(), new_reason, &write_scope, lid],
         )
         .map_err(|_| EngineError::Storage)?;
 

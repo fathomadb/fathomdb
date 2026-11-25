@@ -9,9 +9,10 @@ impl Engine {
         context: &ReadContextV1,
     ) -> Result<FrozenReadContextV1, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let (frozen, generation) = frozen_read::mint(connection, context)?;
+        let (frozen, generation) = frozen_read::mint(connection, context, &scope)?;
         let previous = self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
         if generation < previous {
             return Err(FrozenReadError {
@@ -36,9 +37,10 @@ impl Engine {
         frozen: &FrozenReadContextV1,
     ) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let binding = frozen_read::authenticate(connection, frozen)?;
+        let binding = frozen_read::authenticate(connection, frozen, &scope)?;
         frozen_read::validate_snapshot(connection, &binding)?;
         Ok(())
     }
@@ -90,10 +92,11 @@ impl Engine {
         graph_options: Option<GraphArmOptions>,
     ) -> Result<SearchResult, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            frozen_read::authenticate(connection, frozen)?
+            frozen_read::authenticate(connection, frozen, &scope)?
         };
         self.search_inner_with_frozen_binding_and_stats(
             query,
@@ -240,10 +243,11 @@ impl Engine {
             .into());
         }
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            frozen_read::authenticate(connection, &request.context)
+            frozen_read::authenticate(connection, &request.context, &scope)
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?
         };
         let result_limit = request.limit as usize;
@@ -344,14 +348,15 @@ impl Engine {
             .into());
         }
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-        let binding = frozen_read::authenticate(&tx, &request.context)
+        let binding = frozen_read::authenticate(&tx, &request.context, &scope)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        let result = evidence::resolve(&tx, request)?;
+        let result = evidence::resolve(&tx, request, &scope)?;
         #[cfg(any(test, feature = "test-hooks"))]
         self.evidence_before_resolve_return_hook.fire();
         frozen_read::validate_snapshot(&tx, &binding)
@@ -420,14 +425,15 @@ impl Engine {
             });
         }
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-        let binding = frozen_read::authenticate(&tx, context)
+        let binding = frozen_read::authenticate(&tx, context, &scope)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        let items = evidence::resolve_many_raw(&tx, raw_refs, context)?;
+        let items = evidence::resolve_many_raw(&tx, raw_refs, context, &scope)?;
         #[cfg(any(test, feature = "test-hooks"))]
         self.evidence_before_resolve_return_hook.fire();
         frozen_read::validate_snapshot(&tx, &binding)
@@ -452,15 +458,16 @@ impl Engine {
             .into());
         }
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-        let binding = frozen_read::authenticate(&tx, &request.context)
+        let binding = frozen_read::authenticate(&tx, &request.context, &scope)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let resolved =
-            evidence::resolve_graph_evidence(&tx, &request.evidence_ref, &request.context)?;
+            evidence::resolve_graph_evidence(&tx, &request.evidence_ref, &request.context, &scope)?;
         #[cfg(feature = "test-hooks")]
         if let Some(hook) = self
             .graph_evidence_before_resolve_return_hook
@@ -538,10 +545,11 @@ impl Engine {
         limit: usize,
     ) -> Result<SearchExpandResult, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            frozen_read::authenticate(connection, frozen)?
+            frozen_read::authenticate(connection, frozen, &scope)?
         };
         let (_search, _stats, expanded) = self.search_inner_with_frozen_binding_and_expansion(
             query,
@@ -1725,9 +1733,10 @@ impl Engine {
         plan: &Bm25fQueryPlan,
     ) -> Result<Vec<(u64, f64)>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        bm25f_search_inner(connection, query, plan).map_err(|_| EngineError::Storage)
+        bm25f_search_inner(connection, query, plan, &scope).map_err(|_| EngineError::Storage)
     }
 }
 
@@ -1754,8 +1763,9 @@ impl Engine {
         query: &str,
         filter: Option<SearchFilter>,
         depth: u32,
+        view: Option<ReadView>,
     ) -> Result<SearchExpandResult, EngineError> {
-        self.search_expand_with_limit(query, filter, depth, DEFAULT_SEARCH_RESULT_LIMIT)
+        self.search_expand_with_limit(query, filter, depth, DEFAULT_SEARCH_RESULT_LIMIT, view)
     }
 
     /// Hybrid search followed by graph expansion, with an explicit limit for
@@ -1766,7 +1776,9 @@ impl Engine {
         filter: Option<SearchFilter>,
         depth: u32,
         limit: usize,
+        view: Option<ReadView>,
     ) -> Result<SearchExpandResult, EngineError> {
+        let effective_view = view.unwrap_or_default();
         let limit = validate_search_result_limit(limit)?;
         let _operation = self.ensure_open()?;
         if depth > 3 {
@@ -1777,7 +1789,7 @@ impl Engine {
         // Step 1: run the hybrid search to get initial hits (no CE reranking in expand).
         // 0.8.5: depth=0 → no rerank, so α/pool_n (0.3, 0) are inert here.
         let search_result =
-            self.search_inner(query, filter, 0, false, 0.3, 0, false, ReadView::default(), limit)?;
+            self.search_inner(query, filter, 0, false, 0.3, 0, false, effective_view, limit)?;
         let degradations = search_result.degradations;
         if search_result.results.is_empty() {
             return Ok(SearchExpandResult {
@@ -1794,7 +1806,7 @@ impl Engine {
         let request = ReaderRequest::search_expand(
             search_result.results,
             depth,
-            ReadView::default(),
+            effective_view,
             None,
             None,
             response_tx,
@@ -1924,9 +1936,10 @@ impl Engine {
         edge_kinds: &[String],
     ) -> Result<Vec<String>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        crate::search::explain_graph_arm_phase2_query_for_test(connection, edge_kinds)
+        crate::search::explain_graph_arm_phase2_query_for_test(connection, edge_kinds, &scope)
             .map_err(|_| EngineError::Storage)
     }
 
@@ -1985,6 +1998,7 @@ impl Engine {
         filter: Option<&SearchFilter>,
     ) -> Result<Vec<String>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let (sql, tail_params) = crate::filter::build_vector_phase1_plan(
@@ -1993,6 +2007,7 @@ impl Engine {
             SEARCH_RERANK_LIMIT,
             &ReadView::default(),
             0,
+            &scope,
         )
         .map_err(|_| EngineError::Storage)?;
         let mut all_params = vec![

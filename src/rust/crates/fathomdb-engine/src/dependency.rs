@@ -225,6 +225,7 @@ impl DependencyProspectiveState {
     /// `writes`; later/forward references remain invalid.
     pub(crate) fn from_prepared_writes(
         connection: &Connection,
+        scope: &str,
         writes: &[PreparedWrite],
     ) -> Result<Self, EngineError> {
         let mut state = Self::default();
@@ -262,15 +263,17 @@ impl DependencyProspectiveState {
                         provenance.source_revision_id.as_ref().ok_or(EngineError::Storage)?;
                     let source = match sources.get(source_revision.as_str()) {
                         Some(source) => source.clone(),
-                        None => {
-                            load_persisted_canonical_source(connection, source_revision.as_str())?
-                                .ok_or_else(|| {
-                                dependency_validation_error(
-                                    DependencyValidationMode::Requested,
-                                    DependencyErrorReason::DependencyReferenceMissing,
-                                )
-                            })?
-                        }
+                        None => load_persisted_canonical_source(
+                            connection,
+                            scope,
+                            source_revision.as_str(),
+                        )?
+                        .ok_or_else(|| {
+                            dependency_validation_error(
+                                DependencyValidationMode::Requested,
+                                DependencyErrorReason::DependencyReferenceMissing,
+                            )
+                        })?,
                     };
                     if source_id != source.source_id
                         || provenance.source_version_id.as_str() != source.source_version_id
@@ -364,6 +367,7 @@ fn source_dependency_from_request(
 
 pub(crate) fn validate_source_dependency_registration(
     connection: &Connection,
+    scope: &str,
     request: SourceDependencyRegistrationV1,
     prospective: &DependencyProspectiveState,
 ) -> Result<ValidatedSourceDependencyRegistration, EngineError> {
@@ -384,8 +388,8 @@ pub(crate) fn validate_source_dependency_registration(
     let by_id: Option<(i64, String, i64)> = connection
         .query_row(
             "SELECT schema_version, derived_revision_id, registered_dependency_generation \
-             FROM _fathomdb_source_dependencies WHERE dependency_id=?1",
-            [dependency_id],
+             FROM _fathomdb_source_dependencies WHERE scope=?1 AND dependency_id=?2",
+            params![scope, dependency_id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()
@@ -393,8 +397,8 @@ pub(crate) fn validate_source_dependency_registration(
     let by_derived: Option<(i64, String, i64)> = connection
         .query_row(
             "SELECT schema_version, dependency_id, registered_dependency_generation \
-             FROM _fathomdb_source_dependencies WHERE derived_revision_id=?1",
-            [requested_derived],
+             FROM _fathomdb_source_dependencies WHERE scope=?1 AND derived_revision_id=?2",
+            params![scope, requested_derived],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()
@@ -417,13 +421,14 @@ pub(crate) fn validate_source_dependency_registration(
         let stored_source: String = connection
             .query_row(
                 "SELECT source_revision_id FROM _fathomdb_source_links \
-                 WHERE artifact_revision_id=?1",
-                [requested_derived],
+                 WHERE scope=?1 AND artifact_revision_id=?2",
+                params![scope, requested_derived],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
         validate_dependency_chain(
             connection,
+            scope,
             &stored_source,
             requested_derived,
             DependencyValidationMode::Persisted,
@@ -447,8 +452,8 @@ pub(crate) fn validate_source_dependency_registration(
         let stored_source: Option<String> = connection
             .query_row(
                 "SELECT source_revision_id FROM _fathomdb_source_links \
-                 WHERE artifact_revision_id=?1",
-                [requested_derived],
+                 WHERE scope=?1 AND artifact_revision_id=?2",
+                params![scope, requested_derived],
                 |row| row.get(0),
             )
             .optional()
@@ -456,6 +461,7 @@ pub(crate) fn validate_source_dependency_registration(
         let stored_source = stored_source.ok_or(EngineError::Storage)?;
         validate_dependency_chain(
             connection,
+            scope,
             &stored_source,
             requested_derived,
             DependencyValidationMode::Persisted,
@@ -469,6 +475,7 @@ pub(crate) fn validate_source_dependency_registration(
     {
         validate_dependency_chain(
             connection,
+            scope,
             requested_source,
             requested_derived,
             DependencyValidationMode::Requested,
@@ -479,6 +486,7 @@ pub(crate) fn validate_source_dependency_registration(
 
 pub(crate) fn apply_validated_source_dependency(
     connection: &Connection,
+    scope: &str,
     registration: &ValidatedSourceDependencyRegistration,
     generation: u64,
 ) -> Result<bool, EngineError> {
@@ -488,12 +496,13 @@ pub(crate) fn apply_validated_source_dependency(
     connection
         .execute(
             "INSERT INTO _fathomdb_source_dependencies(\
-               schema_version, dependency_id, derived_revision_id, registered_dependency_generation\
-             ) VALUES(1, ?1, ?2, ?3)",
+               schema_version, dependency_id, derived_revision_id, registered_dependency_generation, scope\
+             ) VALUES(1, ?1, ?2, ?3, ?4)",
             params![
                 request.dependency_id.as_str(),
                 request.derived_revision_id.as_str(),
-                i64::try_from(generation).map_err(|_| EngineError::Storage)?
+                i64::try_from(generation).map_err(|_| EngineError::Storage)?,
+                scope,
             ],
         )
         .map_err(|_| EngineError::Storage)?;
@@ -549,16 +558,17 @@ pub(crate) fn store_dependency_generation(
 
 fn canonical_row_for_revision(
     connection: &Connection,
+    scope: &str,
     artifact_class: &str,
     write_cursor: i64,
 ) -> Result<Option<(String, Option<String>)>, EngineError> {
     let sql = match artifact_class {
-        "node" => "SELECT source_id, body FROM canonical_nodes WHERE write_cursor=?1",
-        "edge" => "SELECT source_id, body FROM canonical_edges WHERE write_cursor=?1",
+        "node" => "SELECT source_id, body FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
+        "edge" => "SELECT source_id, body FROM canonical_edges WHERE scope=?1 AND write_cursor=?2",
         _ => return Err(EngineError::Storage),
     };
     connection
-        .query_row(sql, [write_cursor], |row| Ok((row.get(0)?, row.get(1)?)))
+        .query_row(sql, params![scope, write_cursor], |row| Ok((row.get(0)?, row.get(1)?)))
         .optional()
         .map_err(|_| EngineError::Storage)
 }
@@ -586,6 +596,7 @@ fn stored_canonical_source_revision_id_is_valid(value: &str) -> bool {
 #[allow(dead_code)] // Used by the Slice 25 prospective-write constructor.
 pub(crate) fn load_persisted_canonical_source(
     connection: &Connection,
+    scope: &str,
     source_revision: &str,
 ) -> Result<Option<ProspectiveCanonicalSource>, EngineError> {
     if !stored_canonical_source_revision_id_is_valid(source_revision) {
@@ -594,8 +605,8 @@ pub(crate) fn load_persisted_canonical_source(
     let owner: Option<(i64, String, String, String, i64)> = connection
         .query_row(
             "SELECT schema_version, artifact_class, artifact_role, completeness, write_cursor \
-             FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
-            [source_revision],
+             FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2",
+            params![scope, source_revision],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
         .optional()
@@ -620,8 +631,8 @@ pub(crate) fn load_persisted_canonical_source(
     }
     let canonical: Option<(String, String)> = connection
         .query_row(
-            "SELECT source_id, body FROM canonical_nodes WHERE write_cursor=?1",
-            [cursor],
+            "SELECT source_id, body FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
+            params![scope, cursor],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
@@ -629,8 +640,8 @@ pub(crate) fn load_persisted_canonical_source(
     let version: Option<(i64, String, String, String)> = connection
         .query_row(
             "SELECT schema_version, source_id, source_version_id, source_revision_id \
-             FROM _fathomdb_source_versions WHERE source_revision_id=?1",
-            [source_revision],
+             FROM _fathomdb_source_versions WHERE scope=?1 AND source_revision_id=?2",
+            params![scope, source_revision],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()
@@ -650,8 +661,8 @@ pub(crate) fn load_persisted_canonical_source(
         .query_row(
             "SELECT schema_version, source_id, source_version_id, source_revision_id, \
                     locator_kind, start_byte, end_byte, hash_algorithm, hash_digest \
-             FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
-            [source_revision],
+             FROM _fathomdb_source_links WHERE scope=?1 AND artifact_revision_id=?2",
+            params![scope, source_revision],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -734,6 +745,7 @@ pub(crate) fn load_persisted_canonical_source(
 
 pub(crate) fn validate_dependency_chain(
     connection: &Connection,
+    scope: &str,
     requested_source_revision: &str,
     derived_revision: &str,
     mode: DependencyValidationMode,
@@ -753,8 +765,8 @@ pub(crate) fn validate_dependency_chain(
     let derived_owner: Option<(i64, String, String, String)> = connection
         .query_row(
             "SELECT schema_version, artifact_class, artifact_role, completeness, write_cursor \
-             FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
-            [derived_revision],
+             FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2",
+            params![scope, derived_revision],
             |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
@@ -794,7 +806,7 @@ pub(crate) fn validate_dependency_chain(
         ));
     }
     let Some((derived_source_id, _)) =
-        canonical_row_for_revision(connection, &derived_class, derived_cursor)?
+        canonical_row_for_revision(connection, scope, &derived_class, derived_cursor)?
     else {
         return Err(dependency_validation_error(
             mode,
@@ -817,8 +829,8 @@ pub(crate) fn validate_dependency_chain(
         .query_row(
             "SELECT schema_version, source_id, source_version_id, source_revision_id, \
                     locator_kind, start_byte, end_byte, hash_algorithm, hash_digest \
-             FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
-            [derived_revision],
+             FROM _fathomdb_source_links WHERE scope=?1 AND artifact_revision_id=?2",
+            params![scope, derived_revision],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -865,8 +877,8 @@ pub(crate) fn validate_dependency_chain(
     let source_owner: Option<(i64, String, String, String, i64)> = connection
         .query_row(
             "SELECT write_cursor, artifact_class, artifact_role, completeness, schema_version \
-             FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
-            [requested_source_revision],
+             FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2",
+            params![scope, requested_source_revision],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
         .optional()
@@ -892,7 +904,7 @@ pub(crate) fn validate_dependency_chain(
         ));
     }
     let Some((canonical_source_id, canonical_body)) =
-        canonical_row_for_revision(connection, &source_class, source_cursor)?
+        canonical_row_for_revision(connection, scope, &source_class, source_cursor)?
     else {
         return Err(dependency_validation_error(
             mode,
@@ -904,8 +916,8 @@ pub(crate) fn validate_dependency_chain(
     let source_version: Option<(i64, String, String, String)> = connection
         .query_row(
             "SELECT schema_version, source_id, source_version_id, source_revision_id \
-             FROM _fathomdb_source_versions WHERE source_revision_id=?1",
-            [requested_source_revision],
+             FROM _fathomdb_source_versions WHERE scope=?1 AND source_revision_id=?2",
+            params![scope, requested_source_revision],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()
@@ -925,8 +937,8 @@ pub(crate) fn validate_dependency_chain(
         .query_row(
             "SELECT schema_version, source_id, source_version_id, source_revision_id, \
                     locator_kind, start_byte, end_byte, hash_algorithm, hash_digest \
-             FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
-            [requested_source_revision],
+             FROM _fathomdb_source_links WHERE scope=?1 AND artifact_revision_id=?2",
+            params![scope, requested_source_revision],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -1034,7 +1046,11 @@ pub(crate) fn validate_dependency_chain(
         });
     }
     if mode == DependencyValidationMode::Requested {
-        if dependency_closure::active_barrier_for_source(connection, requested_source_revision)? {
+        if dependency_closure::active_barrier_for_source(
+            connection,
+            scope,
+            requested_source_revision,
+        )? {
             return Err(DependencyError::new(
                 DependencyErrorReason::DependencyClosureActive,
                 "/sourceRevisionId",
@@ -1043,6 +1059,7 @@ pub(crate) fn validate_dependency_chain(
         }
         if !dependency_closure::source_revision_is_strictly_eligible(
             connection,
+            scope,
             requested_source_revision,
             current_epoch_seconds(),
         )? {
@@ -1092,6 +1109,8 @@ impl Engine {
         request: SourceDependencyRegistrationV1,
     ) -> Result<SourceDependencyV1, EngineError> {
         let _operation = self.ensure_open()?;
+        let write_scope =
+            self.scope_predicate().require_write_scope("register_source_dependency")?.to_string();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         erasure_queue::guard_admin(connection)?;
@@ -1103,6 +1122,7 @@ impl Engine {
         dependency_closure::guard_no_pending_physical(&tx)?;
         let validated = validate_source_dependency_registration(
             &tx,
+            &write_scope,
             request,
             &DependencyProspectiveState::default(),
         )?;
@@ -1114,7 +1134,8 @@ impl Engine {
             validated => validated,
         };
         let generation = reserve_dependency_generation(&tx)?;
-        let inserted = apply_validated_source_dependency(&tx, &validated, generation)?;
+        let inserted =
+            apply_validated_source_dependency(&tx, &write_scope, &validated, generation)?;
         if !inserted {
             return Err(EngineError::Storage);
         }
@@ -1137,32 +1158,37 @@ impl Engine {
         request: DependencySourceLookupV1,
     ) -> Result<DependencyListV1, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut statement = connection
-            .prepare(
-                "SELECT d.schema_version, d.dependency_id, d.derived_revision_id, \
-                        d.registered_dependency_generation \
-                 FROM _fathomdb_source_dependencies d \
-                 JOIN _fathomdb_source_links l \
-                   ON l.artifact_revision_id=d.derived_revision_id \
-                 WHERE l.source_revision_id=?1 \
-                 ORDER BY d.derived_revision_id, d.dependency_id LIMIT 101",
-            )
-            .map_err(|_| EngineError::Storage)?;
+        let mut binds =
+            vec![rusqlite::types::Value::Text(request.source_revision_id.as_str().to_string())];
+        let mut scope_sql = String::new();
+        scope.append_sql_values("d.scope", &mut scope_sql, &mut binds);
+        let sql = format!(
+            "SELECT d.schema_version, d.dependency_id, d.derived_revision_id, \
+                    d.registered_dependency_generation, d.scope \
+             FROM _fathomdb_source_dependencies d \
+             JOIN _fathomdb_source_links l \
+               ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE l.source_revision_id=?1 AND ({scope_sql}) \
+             ORDER BY d.derived_revision_id, d.dependency_id, d.scope LIMIT 101"
+        );
+        let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map([request.source_revision_id.as_str()], |row| {
+            .query_map(rusqlite::params_from_iter(binds.iter()), |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
                     row.get::<_, i64>(3)?,
+                    row.get::<_, String>(4)?,
                 ))
             })
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        for (schema, dependency_id, derived_revision_id, generation) in &rows {
+        for (schema, dependency_id, derived_revision_id, generation, row_scope) in &rows {
             validate_persisted_dependency_row(
                 connection,
                 *schema,
@@ -1172,6 +1198,7 @@ impl Engine {
             )?;
             validate_dependency_chain(
                 connection,
+                row_scope,
                 request.source_revision_id.as_str(),
                 derived_revision_id,
                 DependencyValidationMode::Persisted,
@@ -1185,7 +1212,7 @@ impl Engine {
             .into());
         }
         let mut items = Vec::with_capacity(rows.len());
-        for (_, dependency_id, derived_revision_id, generation) in rows {
+        for (_, dependency_id, derived_revision_id, generation, _) in rows {
             items.push(SourceDependencyV1 {
                 schema_version: 1,
                 dependency_id: DependencyId(dependency_id),
@@ -1208,22 +1235,29 @@ impl Engine {
         request: DependencyDerivedLookupV1,
     ) -> Result<Option<SourceDependencyV1>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let row: Option<(i64, String, i64, String)> = connection
-            .query_row(
-                "SELECT d.schema_version, d.dependency_id, d.registered_dependency_generation, \
-                        l.source_revision_id \
-                 FROM _fathomdb_source_dependencies d \
-                 LEFT JOIN _fathomdb_source_links l \
-                   ON l.artifact_revision_id=d.derived_revision_id \
-                 WHERE d.derived_revision_id=?1",
-                [request.derived_revision_id.as_str()],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-            )
+        let mut binds =
+            vec![rusqlite::types::Value::Text(request.derived_revision_id.as_str().to_string())];
+        let mut scope_sql = String::new();
+        scope.append_sql_values("d.scope", &mut scope_sql, &mut binds);
+        let sql = format!(
+            "SELECT d.schema_version, d.dependency_id, d.registered_dependency_generation, \
+                    l.source_revision_id, d.scope \
+             FROM _fathomdb_source_dependencies d \
+             LEFT JOIN _fathomdb_source_links l \
+               ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.derived_revision_id=?1 AND ({scope_sql}) \
+             ORDER BY d.scope LIMIT 1"
+        );
+        let row: Option<(i64, String, i64, String, String)> = connection
+            .query_row(&sql, rusqlite::params_from_iter(binds.iter()), |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+            })
             .optional()
             .map_err(|_| EngineError::Storage)?;
-        let Some((schema, dependency_id, generation, source_revision_id)) = row else {
+        let Some((schema, dependency_id, generation, source_revision_id, row_scope)) = row else {
             return Ok(None);
         };
         validate_persisted_dependency_row(
@@ -1235,6 +1269,7 @@ impl Engine {
         )?;
         validate_dependency_chain(
             connection,
+            &row_scope,
             &source_revision_id,
             request.derived_revision_id.as_str(),
             DependencyValidationMode::Persisted,

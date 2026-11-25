@@ -539,6 +539,10 @@ pub enum EngineError {
         name: String,
         delta: String,
     },
+    /// Caller attempted an operation outside its bound [`ScopePolicy`].
+    ScopeViolation {
+        detail: String,
+    },
 }
 
 /// Maps a reranker failure. The three CUDA pool kinds become their typed
@@ -722,6 +726,7 @@ impl Display for EngineError {
                 "configure_projections refused a destructive change to projection '{name}' \
                  without an explicit drop ({delta}); re-issue with drop: [\"{name}\"] to rebuild",
             ),
+            Self::ScopeViolation { detail } => write!(f, "scope violation: {detail}"),
         }
     }
 }
@@ -773,6 +778,7 @@ impl EngineError {
             Self::NotLifecycleAddressable { .. } => "NotLifecycleAddressableError",
             Self::ErasureIncomplete { .. } => "ErasureIncompleteError",
             Self::ProjectionDestructive { .. } => "ProjectionDestructiveError",
+            Self::ScopeViolation { .. } => "ScopeViolationError",
         }
     }
 }

@@ -96,6 +96,7 @@ mod tests {
                     cuda_pool_release_threshold: None,
                     query_stop_words: None,
                     physical_erasure_policy: None,
+                    scope_policy: fathomdb_engine::ScopePolicy::default(),
                 }
             );
         });
@@ -327,7 +328,9 @@ mod tests {
             };
             assert!(error.is_instance_of::<IncompatibleSchemaVersionError>(py));
             assert!(error.to_string().contains("schema version 33"));
-            assert!(error.to_string().contains("supported version 38"));
+            assert!(error
+                .to_string()
+                .contains(&format!("supported version {}", fathomdb_schema::SCHEMA_VERSION)));
         });
     }
 

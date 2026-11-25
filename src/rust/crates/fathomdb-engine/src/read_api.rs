@@ -8,7 +8,7 @@ use crate::filter::{Filter, Predicate, PREDICATE_PATH_ALLOWLIST};
 use crate::frozen_read::FrozenReadContextV1;
 use crate::pagination::{self, PageRequestV1, PageV1};
 #[cfg(feature = "test-hooks")]
-use crate::read::{canonical_page_query, OPERATIONAL_STATE_PAGE_SQL, OPERATIONAL_STATE_POINT_SQL};
+use crate::read::{canonical_page_query, operational_state_page_sql, operational_state_point_sql};
 use crate::read::{NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError};
 use crate::reader_pool::ReaderRequest;
 use crate::temporal::{current_epoch_seconds, ReadView};
@@ -17,7 +17,7 @@ use crate::wal_runtime::ManagedConnectionCategory;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::write_types::RowKind;
 use crate::Engine;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::OptionalExtension;
 use std::sync::mpsc::{self, Receiver};
 
 impl Engine {
@@ -27,17 +27,26 @@ impl Engine {
     /// [`Engine::write_node_importance`].
     pub fn node_importance(&self, write_cursor: u64) -> Result<Option<f64>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let mut binds = vec![
+            rusqlite::types::Value::Integer(
+                i64::try_from(write_cursor).map_err(|_| EngineError::Storage)?,
+            ),
+            rusqlite::types::Value::Integer(current_epoch_seconds()),
+        ];
         let eligibility =
             dependency_closure::read_eligibility_sql("canonical_nodes", false, false, false, 2);
+        let mut scope_sql = String::new();
+        scope.append_sql_values("canonical_nodes.scope", &mut scope_sql, &mut binds);
         connection
             .query_row(
                 &format!(
                     "SELECT importance FROM canonical_nodes \
-                     WHERE write_cursor = ?1{eligibility} LIMIT 1"
+                     WHERE write_cursor = ?1 AND {scope_sql}{eligibility} LIMIT 1"
                 ),
-                params![write_cursor, current_epoch_seconds()],
+                rusqlite::params_from_iter(binds.iter()),
                 |r| r.get::<_, Option<f64>>(0),
             )
             .optional()
@@ -377,17 +386,21 @@ impl Engine {
         row_kind: RowKind,
     ) -> Result<Vec<u64>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let mut binds = vec![rusqlite::types::Value::Text(row_kind.as_str().to_string())];
+        let mut scope_sql = String::new();
+        scope.append_sql_values("scope", &mut scope_sql, &mut binds);
         let mut stmt = connection
-            .prepare(
+            .prepare(&format!(
                 "SELECT write_cursor FROM canonical_nodes
-                 WHERE row_kind = ?1 AND superseded_at IS NULL
-                 ORDER BY write_cursor",
-            )
+                 WHERE {scope_sql} AND row_kind = ?1 AND superseded_at IS NULL
+                 ORDER BY write_cursor"
+            ))
             .map_err(|_| EngineError::Storage)?;
         let cursors = stmt
-            .query_map(params![row_kind.as_str()], |row| row.get::<_, u64>(0))
+            .query_map(rusqlite::params_from_iter(binds.iter()), |row| row.get::<_, u64>(0))
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<u64>>>()
             .map_err(|_| EngineError::Storage)?;
@@ -402,34 +415,37 @@ impl Engine {
         kind: &str,
     ) -> Result<Vec<(String, Vec<String>)>, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let connection = open_managed_connection(
             &self.path,
             ManagedConnectionCategory::RuntimeProbe,
             &self.managed_connections,
         )
         .map_err(|_| EngineError::Storage)?;
-        let (canonical_sql, canonical_binds) =
-            canonical_page_query(kind, &ReadView::default(), &SearchFilter::default(), 0, 100)
-                .map_err(|_| EngineError::Storage)?;
+        let (canonical_sql, canonical_binds) = canonical_page_query(
+            kind,
+            &ReadView::default(),
+            &SearchFilter::default(),
+            0,
+            100,
+            &scope,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        let mut point_binds = vec![
+            rusqlite::types::Value::Text("state".to_string()),
+            rusqlite::types::Value::Text("key".to_string()),
+        ];
+        scope.push_values(&mut point_binds);
+        let mut page_binds = vec![
+            rusqlite::types::Value::Text("state".to_string()),
+            rusqlite::types::Value::Integer(0),
+            rusqlite::types::Value::Integer(101),
+        ];
+        scope.push_values(&mut page_binds);
         let plans = [
             ("canonical_page", canonical_sql, canonical_binds),
-            (
-                "operational_point",
-                OPERATIONAL_STATE_POINT_SQL.to_string(),
-                vec![
-                    rusqlite::types::Value::Text("state".to_string()),
-                    rusqlite::types::Value::Text("key".to_string()),
-                ],
-            ),
-            (
-                "operational_page",
-                OPERATIONAL_STATE_PAGE_SQL.to_string(),
-                vec![
-                    rusqlite::types::Value::Text("state".to_string()),
-                    rusqlite::types::Value::Integer(0),
-                    rusqlite::types::Value::Integer(101),
-                ],
-            ),
+            ("operational_point", operational_state_point_sql(&scope), point_binds),
+            ("operational_page", operational_state_page_sql(&scope), page_binds),
         ];
         plans
             .into_iter()

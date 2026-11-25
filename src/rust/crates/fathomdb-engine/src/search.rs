@@ -282,6 +282,7 @@ pub(crate) trait SearchOriginCapture: Sized {
     fn finish(
         self,
         connection: &Connection,
+        scope: &crate::scope::ScopePredicate,
         cursor: u64,
         soft_fallback: Option<SoftFallback>,
         results: Vec<FusionHit>,
@@ -307,6 +308,7 @@ impl SearchOriginCapture for EvidenceCapture {
     fn finish(
         self,
         connection: &Connection,
+        scope: &crate::scope::ScopePredicate,
         cursor: u64,
         soft_fallback: Option<SoftFallback>,
         results: Vec<FusionHit>,
@@ -330,6 +332,7 @@ impl SearchOriginCapture for EvidenceCapture {
         };
         evidence::build_search_result(
             connection,
+            scope,
             &self.frozen,
             search_result,
             self.include_explanation,

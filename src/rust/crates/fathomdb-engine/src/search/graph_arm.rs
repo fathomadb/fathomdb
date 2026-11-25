@@ -87,9 +87,10 @@ fn build_graph_arm_phase2_query(
 ) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
     let now_param = view.now_param();
     let edge_existence = view.view.edge_existence_sql("e");
-    let edge_validity = edge_validity_sql_for_view("e", 2, &view.view);
-    let target_node = view.node_sql("target", 3);
+    let edge_validity = edge_validity_sql_for_view("e", 3, &view.view);
+    let target_node = view.node_sql("target", 4);
     let mut edge_params_template = vec![
+        rusqlite::types::Value::Text(String::new()),
         rusqlite::types::Value::Text(String::new()),
         rusqlite::types::Value::Integer(view.edge_now()),
     ];
@@ -121,22 +122,24 @@ fn build_graph_arm_phase2_query(
     }
     let limit_sql = if graph_options.graph_edge_predicates.is_empty() { " LIMIT 64" } else { "" };
     let sql = format!(
-        "SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor AS write_cursor, e.properties \
-         FROM canonical_edges e \
-         WHERE e.from_id = ?1 \
-           {edge_existence}{edge_validity} \
-           AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
-           {edge_kinds_sql}{edge_cpv_sql} \
-           AND EXISTS(SELECT 1 FROM canonical_nodes target WHERE target.logical_id = e.to_id {target_node}{target_filter}) \
-         UNION ALL \
-         SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor AS write_cursor, e.properties \
-         FROM canonical_edges e \
-         WHERE e.to_id = ?1 AND e.from_id != ?1 \
-           {edge_existence}{edge_validity} \
-           AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
-           {edge_kinds_sql}{edge_cpv_sql} \
-           AND EXISTS(SELECT 1 FROM canonical_nodes target WHERE target.logical_id = e.from_id {target_node}{target_filter}) \
-         ORDER BY write_cursor{limit_sql}"
+        "SELECT from_id, to_id, source_id, confidence, write_cursor, properties FROM (\
+           SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor AS write_cursor, e.properties \
+           FROM canonical_edges e \
+           WHERE e.scope = ?2 AND e.from_id = ?1 \
+             {edge_existence}{edge_validity} \
+             AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
+             {edge_kinds_sql}{edge_cpv_sql} \
+             AND EXISTS(SELECT 1 FROM canonical_nodes target WHERE target.scope = e.scope AND target.logical_id = e.to_id {target_node}{target_filter}) \
+           UNION ALL \
+           SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor AS write_cursor, e.properties \
+           FROM canonical_edges e \
+           WHERE e.scope = ?2 AND e.to_id = ?1 AND e.from_id != ?1 \
+             {edge_existence}{edge_validity} \
+             AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
+             {edge_kinds_sql}{edge_cpv_sql} \
+             AND EXISTS(SELECT 1 FROM canonical_nodes target WHERE target.scope = e.scope AND target.logical_id = e.from_id {target_node}{target_filter})\
+         ) \
+         ORDER BY write_cursor + 0{limit_sql}"
     );
     Ok((sql, edge_params_template))
 }
@@ -145,17 +148,20 @@ fn build_graph_arm_phase2_query(
 pub(crate) fn explain_graph_arm_phase2_query_for_test(
     connection: &Connection,
     edge_kinds: &[String],
+    scope: &crate::scope::ScopePredicate,
 ) -> rusqlite::Result<Vec<String>> {
     let view = ReadView { valid_as_of: Some(1_750_000_000), ..ReadView::default() }.freeze();
     let opts = GraphArmOptions { graph_edge_kinds: edge_kinds.to_vec(), ..Default::default() };
     let (sql, mut params) = build_graph_arm_phase2_query(connection, view, None, &opts, &[])?;
     params[0] = rusqlite::types::Value::Text("fixture".to_string());
+    params[1] = rusqlite::types::Value::Text(scope.read_scopes()[0].clone());
     let mut stmt = connection.prepare(&format!("EXPLAIN QUERY PLAN {sql}"))?;
     let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| row.get(3))?;
     rows.collect()
 }
 
 struct BfsCandidateSeed {
+    scope: String,
     logical_id: String,
     source_id: Option<String>,
     confidence: Option<f64>,
@@ -182,6 +188,7 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     filter: Option<&SearchFilter>,
     graph_options: &GraphArmOptions,
     explain: bool,
+    scope: &crate::scope::ScopePredicate,
     capture: &mut C,
 ) -> rusqlite::Result<BfsGraphArmOutput> {
     let now_param = view.now_param();
@@ -216,8 +223,8 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             Vec::new()
         };
 
-    let mut frontier: VecDeque<(String, u32, GraphArmSeedSource)> = VecDeque::new();
-    let mut visited: HashSet<String> = HashSet::new();
+    let mut frontier: VecDeque<((String, String), u32, GraphArmSeedSource)> = VecDeque::new();
+    let mut visited: HashSet<(String, String)> = HashSet::new();
     let mut candidates: Vec<FusionHit> = Vec::new();
     let mut edge_confidence_by_cursor: HashMap<u64, f64> = HashMap::new();
     let mut graph_origin_by_cursor: HashMap<u64, (GraphArmSeedSource, u32)> = HashMap::new();
@@ -244,13 +251,21 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             &mut active_params_template,
             &view.view,
         )?;
+        let active_scope_idx = active_params_template.len() + 1;
+        let active_scope_pos = active_params_template.len();
+        active_params_template.push(rusqlite::types::Value::Text(String::new()));
         let mut active_stmt = tx.prepare(&format!(
             "SELECT kind, body, write_cursor, source_id, properties FROM canonical_nodes \
-             WHERE logical_id = ?1{active_existence}\
+             WHERE scope = ?{active_scope_idx} AND logical_id = ?1{active_existence}\
              {active_validity}{active_eligibility}{active_filter} ORDER BY write_cursor DESC LIMIT 1"
         ))?;
 
-        let mut seen_candidates: HashSet<String> = HashSet::new();
+        let (fused_scope_sql, _) = scope.sql_clause("scope", 2);
+        let mut fused_scope_stmt = tx.prepare(&format!(
+            "SELECT scope FROM canonical_nodes WHERE write_cursor = ?1 AND {fused_scope_sql} LIMIT 1"
+        ))?;
+
+        let mut seen_candidates: HashSet<(String, String)> = HashSet::new();
         let mut candidate_seeds: Vec<BfsCandidateSeed> = Vec::new();
 
         // Seed source 0 (opt-in): `FusedTopK` canonical nodes (`logical_id IS NOT NULL`),
@@ -266,23 +281,39 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                 {
                     continue;
                 }
+                let mut fused_params =
+                    vec![rusqlite::types::Value::Integer(hit.hit.write_cursor as i64)];
+                scope.push_values(&mut fused_params);
+                let Some(seed_scope) = fused_scope_stmt
+                    .query_row(rusqlite::params_from_iter(fused_params.iter()), |r| {
+                        r.get::<_, String>(0)
+                    })
+                    .optional()?
+                else {
+                    continue;
+                };
                 let lid = &hit.hit.id.value;
-                if seen_candidates.contains(lid) {
+                if seen_candidates.contains(&(seed_scope.clone(), lid.clone())) {
                     continue;
                 }
                 let mut active_params = active_params_template.clone();
                 active_params[0] = rusqlite::types::Value::Text(lid.clone());
+                active_params[active_scope_pos] = rusqlite::types::Value::Text(seed_scope.clone());
                 let eligible = active_stmt
                     .query_row(rusqlite::params_from_iter(active_params.iter()), |r| {
                         r.get::<_, i64>(2)
                     })
                     .optional()?
                     .is_some();
-                if eligible && seen_candidates.insert(lid.clone()) {
+                if eligible && seen_candidates.insert((seed_scope.clone(), lid.clone())) {
                     stats.seeds_considered += 1;
                     stats.seeds_resolved += 1;
-                    if visited.insert(lid.clone()) {
-                        frontier.push_back((lid.clone(), 0, GraphArmSeedSource::FusedTopK));
+                    if visited.insert((seed_scope.clone(), lid.clone())) {
+                        frontier.push_back((
+                            (seed_scope, lid.clone()),
+                            0,
+                            GraphArmSeedSource::FusedTopK,
+                        ));
                     }
                     fused_seeds_admitted += 1;
                 }
@@ -332,6 +363,8 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                     &mut edge_cpv_sql,
                 );
             }
+            let mut edge_seed_scope_sql = String::new();
+            scope.append_sql_values("ce.scope", &mut edge_seed_scope_sql, &mut edge_seed_params);
             let from_existence = view.view.existence_sql("ef");
             let to_existence = view.view.existence_sql("et");
             let edge_seed_existence = view.view.edge_existence_sql("ce");
@@ -354,14 +387,15 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
             if let Ok(mut edge_seed_stmt) = tx.prepare(&format!(
                 "SELECT ce.from_id, ce.to_id, ce.source_id, ce.confidence, ce.write_cursor, \
-                        ce.properties, \
-                        EXISTS(SELECT 1 FROM canonical_nodes ef WHERE ef.logical_id=ce.from_id \
+                        ce.properties, ce.scope, \
+                        EXISTS(SELECT 1 FROM canonical_nodes ef WHERE ef.scope=ce.scope AND ef.logical_id=ce.from_id \
                             {from_existence}{from_validity}{from_dependency}{from_filter}) AS from_eligible, \
-                        EXISTS(SELECT 1 FROM canonical_nodes et WHERE et.logical_id=ce.to_id \
+                        EXISTS(SELECT 1 FROM canonical_nodes et WHERE et.scope=ce.scope AND et.logical_id=ce.to_id \
                             {to_existence}{to_validity}{to_dependency}{to_filter}) AS to_eligible \
                  FROM search_index_edges sei \
                  JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
                  WHERE search_index_edges MATCH ?1 \
+                   AND {edge_seed_scope_sql} \
                    {edge_seed_existence}{edge_validity} \
                    AND (ce.temporal_fallback IS NULL OR ce.temporal_fallback = 0) \
                    {edge_kinds_sql}{edge_cpv_sql} \
@@ -371,8 +405,8 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                     edge_seed_stmt.query(rusqlite::params_from_iter(edge_seed_params.iter()))?;
                 let mut distinct_edge_seeds = 0usize;
                 while let Some(row) = rows.next()? {
-                    let from_eligible: bool = row.get(6)?;
-                    let to_eligible: bool = row.get(7)?;
+                    let from_eligible: bool = row.get(7)?;
+                    let to_eligible: bool = row.get(8)?;
                     if !from_eligible && !to_eligible {
                         continue;
                     }
@@ -391,12 +425,14 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                     let source_id: Option<String> = row.get(2)?;
                     let confidence: Option<f64> = row.get(3)?;
                     let edge_cursor = row.get::<_, i64>(4)? as u64;
+                    let edge_scope: String = row.get(6)?;
 
                     if from_eligible
                         && distinct_edge_seeds < SEED_FTS_N
-                        && seen_candidates.insert(from_id.clone())
+                        && seen_candidates.insert((edge_scope.clone(), from_id.clone()))
                     {
                         candidate_seeds.push(BfsCandidateSeed {
+                            scope: edge_scope.clone(),
                             logical_id: from_id,
                             source_id: source_id.clone(),
                             confidence,
@@ -407,9 +443,10 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                     }
                     if to_eligible
                         && distinct_edge_seeds < SEED_FTS_N
-                        && seen_candidates.insert(to_id.clone())
+                        && seen_candidates.insert((edge_scope.clone(), to_id.clone()))
                     {
                         candidate_seeds.push(BfsCandidateSeed {
+                            scope: edge_scope,
                             logical_id: to_id,
                             source_id,
                             confidence,
@@ -449,24 +486,34 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                     &mut seed_params,
                     &view.view,
                 )?;
+                let mut seed_scope_sql = String::new();
+                scope.append_sql_values("cn.scope", &mut seed_scope_sql, &mut seed_params);
                 let mut node_seed_stmt = tx.prepare(&format!(
-                    "SELECT cn.logical_id, cn.source_id \
+                    "SELECT cn.logical_id, cn.source_id, cn.scope \
                      FROM search_index si \
                      JOIN canonical_nodes cn ON cn.write_cursor = si.write_cursor \
                      WHERE search_index MATCH ?1 \
+                       AND {seed_scope_sql} \
                        {seed_existence} AND cn.logical_id IS NOT NULL\
                        {seed_validity}{seed_eligibility}{seed_filter} \
                      ORDER BY bm25(search_index), si.write_cursor \
                      LIMIT ?2"
                 ))?;
-                let rows = node_seed_stmt
-                    .query_map(rusqlite::params_from_iter(seed_params.iter()), |row| {
-                        Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
-                    })?;
+                let rows = node_seed_stmt.query_map(
+                    rusqlite::params_from_iter(seed_params.iter()),
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, Option<String>>(1)?,
+                            row.get::<_, String>(2)?,
+                        ))
+                    },
+                )?;
                 for pair in rows {
-                    let (lid, source_id) = pair?;
-                    if seen_candidates.insert(lid.clone()) {
+                    let (lid, source_id, node_scope) = pair?;
+                    if seen_candidates.insert((node_scope.clone(), lid.clone())) {
                         candidate_seeds.push(BfsCandidateSeed {
+                            scope: node_scope,
                             logical_id: lid,
                             source_id,
                             confidence: None,
@@ -480,6 +527,7 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
 
         // Resolve + emit depth-0 seeds from EdgeFts / EntityFts.
         for BfsCandidateSeed {
+            scope: seed_scope,
             logical_id: lid,
             source_id,
             confidence: seed_confidence,
@@ -490,6 +538,7 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             stats.seeds_considered += 1;
             let mut active_params = active_params_template.clone();
             active_params[0] = rusqlite::types::Value::Text(lid.clone());
+            active_params[active_scope_pos] = rusqlite::types::Value::Text(seed_scope.clone());
             struct BfsActiveNodeRow {
                 kind: String,
                 body: String,
@@ -522,9 +571,9 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                     source_id
                 };
                 stats.seeds_resolved += 1;
-                if visited.insert(lid.clone()) {
+                if visited.insert((seed_scope.clone(), lid.clone())) {
                     let id = derive_stable_id(Some(&lid), &body);
-                    frontier.push_back((lid, 0, seed_source));
+                    frontier.push_back(((seed_scope, lid), 0, seed_source));
                     if (graph_origin.is_some() || !capture.requires_edge_origin())
                         && !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64))
                         && candidates.len() < cap
@@ -585,14 +634,17 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         &mut body_params_template,
         &view.view,
     )?;
+    let body_scope_idx = body_params_template.len() + 1;
+    let body_scope_pos = body_params_template.len();
+    body_params_template.push(rusqlite::types::Value::Text(String::new()));
     let mut body_stmt = tx.prepare(&format!(
         "SELECT kind, body, write_cursor, properties FROM canonical_nodes \
-         WHERE logical_id = ?1{body_existence}\
+         WHERE scope = ?{body_scope_idx} AND logical_id = ?1{body_existence}\
          {body_validity}{body_eligibility}{body_filter} \
          ORDER BY write_cursor DESC LIMIT 1"
     ))?;
 
-    'frontier: while let Some((lid, depth, seed_source)) = frontier.pop_front() {
+    'frontier: while let Some(((hop_scope, lid), depth, seed_source)) = frontier.pop_front() {
         if depth >= max_depth {
             continue;
         }
@@ -600,10 +652,11 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         let neighbors: Vec<(String, Option<String>, Option<f64>, u64)> = {
             let mut edge_params = edge_params_template.clone();
             edge_params[0] = rusqlite::types::Value::Text(lid.clone());
+            edge_params[1] = rusqlite::types::Value::Text(hop_scope.clone());
             let mut rows = edge_stmt.query(rusqlite::params_from_iter(edge_params.iter()))?;
             let mut out = Vec::new();
             while let Some(row) = rows.next()? {
-                // Always verify inline `graph_edge_predicates` BEFORE `visited.insert(neighbor)`
+                // Always verify inline `graph_edge_predicates` BEFORE `visited.insert((hop_scope, neighbor))`
                 // and BEFORE counting toward the 64-neighbor-per-hop cap.
                 if !graph_options.graph_edge_predicates.is_empty() {
                     let props = decode_properties_row_col(row, 5)?;
@@ -630,13 +683,14 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         };
 
         for (neighbor, edge_source_id, edge_confidence, edge_cursor) in neighbors {
-            if visited.contains(&neighbor) {
+            if visited.contains(&(hop_scope.clone(), neighbor.clone())) {
                 continue;
             }
-            visited.insert(neighbor.clone());
+            visited.insert((hop_scope.clone(), neighbor.clone()));
 
             let mut body_params = body_params_template.clone();
             body_params[0] = rusqlite::types::Value::Text(neighbor.clone());
+            body_params[body_scope_pos] = rusqlite::types::Value::Text(hop_scope.clone());
             let row: Option<(String, String, i64, Option<PropertyMap>)> = body_stmt
                 .query_row(rusqlite::params_from_iter(body_params.iter()), |row| {
                     Ok((
@@ -685,7 +739,7 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                         },
                     });
                 }
-                frontier.push_back((neighbor, depth + 1, seed_source));
+                frontier.push_back(((hop_scope.clone(), neighbor), depth + 1, seed_source));
             }
         }
     }

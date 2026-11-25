@@ -34,7 +34,7 @@ Direct code audit (`dev/plans/0.8.32/prework/slice-4.md`) and the `WP-10D` empir
 
 - **Token and policy grammar:**
   - Empty `""` denotes the default single-scope (`unscoped`) namespace for single-tenant stores.
-  - Non-empty caller scope tokens follow a strict canonical UTF-8 namespace grammar: non-empty, bounded length, zero NUL/control bytes, and zero internal delimiter `\x1e`. Wildcard `"*"` is **forbidden** on write grants (`ScopePolicy` parsing fails closed in `OpenOptions` / `EngineConfig` and `fathomdb-mcp` startup validation).
+  - Non-empty caller scope tokens follow a strict canonical UTF-8 namespace grammar: non-empty, bounded length, zero NUL/control bytes, and zero internal delimiter `\x1e`. Wildcard `"*"` is **forbidden** on all read and write scope tokens (`ScopePolicy` parsing fails closed at `Engine::open` / `EngineConfig` and `fathomdb-mcp` startup validation).
 - **Opener-bound anti-spoof (`Pin A`):**
   - Bind caller `ScopePolicy` at `Engine::open` via `OpenOptions` / `EngineConfig` across Rust (`fathomdb-engine`, `fathomdb-sdk`), Python (`fathomdb-py`, `src/python/`), and TypeScript (`fathomdb-napi`, `src/ts/`) with pre-authorized `scripts/governed-surface-pin.json` updates (`Gate 1 Decision 4 Pin A`; `core = 5` and `recovery_denylist = 5` invariant).
   - Write, actuate, transition, purge, and source-erasure operations stamp and validate `scope` strictly from the opener's bound `ScopePolicy` — never from record bodies, `PreparedWrite` payloads, or tool arguments.

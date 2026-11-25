@@ -31,6 +31,7 @@ pub(crate) fn read_projected_text_in_tx(
     filter: Option<&SearchFilter>,
     limit: usize,
     view: ReadView,
+    scope: &crate::scope::ScopePredicate,
     stop_words: &StopWordSet,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
@@ -58,11 +59,12 @@ pub(crate) fn read_projected_text_in_tx(
             filter,
             limit,
             frozen,
+            scope,
             &registry,
             attribution,
         );
     }
-    let node_predicate = frozen.node_sql("n", 3);
+    let mut node_predicate = frozen.node_sql("n", 3);
     let mut params = vec![
         rusqlite::types::Value::Text(name.to_string()),
         rusqlite::types::Value::Text(compiled.match_expression),
@@ -70,6 +72,9 @@ pub(crate) fn read_projected_text_in_tx(
     if let Some(now) = frozen.now_param() {
         params.push(rusqlite::types::Value::Integer(now));
     }
+    let mut scope_sql = String::new();
+    scope.append_sql_values("n.scope", &mut scope_sql, &mut params);
+    node_predicate.push_str(&format!(" AND {scope_sql}"));
     let filter_predicate =
         filter::append_node_eligibility_sql_view(&tx, filter, "n", &mut params, &view)?;
     #[cfg(feature = "test-hooks")]
@@ -84,6 +89,7 @@ pub(crate) fn read_projected_text_in_tx(
             &node_predicate,
             &filter_predicate,
             &params,
+            scope,
             limit,
         )? {
             let projection_cursor = load_projection_cursor(&tx)?;
@@ -203,6 +209,7 @@ fn read_historical_projected_text(
     filter: Option<&SearchFilter>,
     limit: usize,
     view: FrozenView,
+    scope: &crate::scope::ScopePredicate,
     registry: &BTreeMap<String, StoredProjection>,
     _attribution: &WalAttributionCollector,
 ) -> ProjectedTextReaderResponse {
@@ -211,12 +218,15 @@ fn read_historical_projected_text(
     // only and are dropped before the pooled reader sends success or error.
     let mut corpus = open_historical_property_corpus()?;
     let mut params = vec![rusqlite::types::Value::Integer(view.edge_now())];
+    let mut elig_scope_sql = String::new();
+    scope.append_sql_values("n.scope", &mut elig_scope_sql, &mut params);
     let eligibility =
         filter::append_node_eligibility_sql_view(tx, filter, "n", &mut params, &view.view)?;
     let predicate = view.node_sql("n", 1);
     let eligible: HashSet<u64> = {
         let mut stmt = tx.prepare(&format!(
-            "SELECT n.write_cursor FROM canonical_nodes n WHERE ?1 IS NOT NULL{predicate}{eligibility}"
+            "SELECT n.write_cursor FROM canonical_nodes n \
+             WHERE ?1 IS NOT NULL AND {elig_scope_sql}{predicate}{eligibility}"
         ))?;
         let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |r| r.get(0))?;
         rows.collect::<rusqlite::Result<_>>()?
@@ -227,12 +237,19 @@ fn read_historical_projected_text(
             "INSERT INTO history_property(attr_value,attr_name,write_cursor,eligible) VALUES(?1,?2,?3,?4)",
         )?;
         let mut baseline = HashSet::new();
-        // BM25 statistics belong to the entire persistent property corpus,
+        // BM25 statistics belong to the caller-authorized scope's persistent property corpus,
         // including other fields and rows excluded by this query's filters.
-        let mut stmt = tx.prepare(
-            "SELECT attr_value,attr_name,write_cursor FROM property_search_index ORDER BY rowid",
-        )?;
-        let rows = stmt.query_map([], |r| {
+        let mut corpus_params: Vec<rusqlite::types::Value> = Vec::new();
+        let mut corpus_scope_sql = String::new();
+        scope.append_sql_values("n.scope", &mut corpus_scope_sql, &mut corpus_params);
+        let mut stmt = tx.prepare(&format!(
+            "SELECT p.attr_value, p.attr_name, p.write_cursor
+             FROM property_search_index p
+             JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
+             WHERE {corpus_scope_sql}
+             ORDER BY p.rowid"
+        ))?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(corpus_params.iter()), |r| {
             Ok((r.get::<_, Option<String>>(0)?, r.get::<_, String>(1)?, r.get::<_, u64>(2)?))
         })?;
         for row in rows {
@@ -250,15 +267,23 @@ fn read_historical_projected_text(
             view.view.include_out_of_window,
             1,
         );
+        let mut relaxed_params = vec![rusqlite::types::Value::Integer(view.edge_now())];
+        let mut relaxed_scope_sql = String::new();
+        scope.append_sql_values("n.scope", &mut relaxed_scope_sql, &mut relaxed_params);
         let relaxed_rows: Vec<(u64, String, Option<PropertyMap>)> = {
             let mut additions = tx.prepare(&format!(
                 "SELECT n.write_cursor,n.body,n.properties FROM canonical_nodes n
-                WHERE ?1 IS NOT NULL AND (n.superseded_at IS NOT NULL OR n.state!='active')
+                WHERE ?1 IS NOT NULL AND {relaxed_scope_sql} AND (n.superseded_at IS NOT NULL OR n.state!='active')
                 {existence}{dependency} ORDER BY n.write_cursor"
             ))?;
-            let rows = additions.query_map(params![view.edge_now()], |r| {
-                Ok((r.get::<_, u64>(0)?, r.get::<_, String>(1)?, decode_properties_row_col(r, 2)?))
-            })?;
+            let rows =
+                additions.query_map(rusqlite::params_from_iter(relaxed_params.iter()), |r| {
+                    Ok((
+                        r.get::<_, u64>(0)?,
+                        r.get::<_, String>(1)?,
+                        decode_properties_row_col(r, 2)?,
+                    ))
+                })?;
             rows.collect::<rusqlite::Result<Vec<_>>>()?
         };
         for (attribute, stored) in registry.iter().filter(|(_, stored)| {
@@ -361,16 +386,29 @@ fn cohort_prefilter_mode() -> CohortPrefilterMode {
 fn smallest_cohort<'f>(
     tx: &rusqlite::Transaction<'_>,
     filter: &'f SearchFilter,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<Option<(&'f str, &'f str, i64)>, SearchReaderError> {
-    let mut statement = tx.prepare_cached(
-        "SELECT count(*) FROM (SELECT 1 FROM canonical_attributes          WHERE attr_name = ?1 AND attr_value = ?2 LIMIT ?3)",
-    )?;
+    let mut scope_sql = String::new();
+    let (clause, _) = scope.sql_clause("cn.scope", 4);
+    scope_sql.push_str(&clause);
+    let sql = format!(
+        "SELECT count(*) FROM (\
+         SELECT 1 FROM canonical_attributes ca \
+         JOIN canonical_nodes cn ON cn.write_cursor = ca.write_cursor \
+         WHERE ca.attr_name = ?1 AND ca.attr_value = ?2 AND {scope_sql} \
+         LIMIT ?3)"
+    );
+    let mut statement = tx.prepare_cached(&sql)?;
     let mut best: Option<(&str, &str, i64)> = None;
     for (name, value) in &filter.attributes {
-        let count: i64 = statement
-            .query_row(rusqlite::params![name, value, COHORT_PREFILTER_MAX_ROWS + 1], |row| {
-                row.get(0)
-            })?;
+        let mut params = vec![
+            rusqlite::types::Value::Text(name.clone()),
+            rusqlite::types::Value::Text(value.clone()),
+            rusqlite::types::Value::Integer(COHORT_PREFILTER_MAX_ROWS + 1),
+        ];
+        scope.push_values(&mut params);
+        let count: i64 =
+            statement.query_row(rusqlite::params_from_iter(params.iter()), |row| row.get(0))?;
         if best.is_none_or(|(_, _, smallest)| count < smallest) {
             best = Some((name.as_str(), value.as_str(), count));
         }
@@ -388,6 +426,7 @@ fn read_projected_cohort_stream(
     node_predicate: &str,
     filter_predicate: &str,
     params: &[rusqlite::types::Value],
+    scope: &crate::scope::ScopePredicate,
     limit: usize,
 ) -> Result<Option<Vec<SearchHit>>, SearchReaderError> {
     let mode = cohort_prefilter_mode();
@@ -397,7 +436,7 @@ fn read_projected_cohort_stream(
     if mode == CohortPrefilterMode::Off || filter.attributes.is_empty() {
         return Ok(None);
     }
-    let Some((name, value, count)) = smallest_cohort(tx, filter)? else {
+    let Some((name, value, count)) = smallest_cohort(tx, filter, scope)? else {
         return Ok(None);
     };
     if mode == CohortPrefilterMode::Auto && count > COHORT_PREFILTER_MAX_ROWS {

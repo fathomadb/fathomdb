@@ -216,7 +216,7 @@ fn s20_on_supersession_rejects_earlier_in_batch_dangling_edge() {
 }
 
 /// (f) [latency / plan gate] — the per-endpoint active probe hits
-/// `canonical_nodes_logical_active_idx` or `canonical_nodes_logical_sup_idx`
+/// `canonical_nodes_scope_logical_active_idx` or `canonical_nodes_scope_logical_sup_idx`
 /// via indexed `SEARCH` and does NOT do a `SCAN canonical_nodes`.
 #[test]
 fn s20_endpoint_probe_hits_partial_index_no_scan() {
@@ -229,11 +229,11 @@ fn s20_endpoint_probe_hits_partial_index_no_scan() {
         let mut stmt = conn
             .prepare(
                 "EXPLAIN QUERY PLAN
-                 SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active' LIMIT 1",
+                 SELECT 1 FROM canonical_nodes WHERE scope = ?1 AND logical_id = ?2 AND superseded_at IS NULL AND state = 'active' LIMIT 1",
             )
             .expect("prepare EXPLAIN");
         let rows = stmt
-            .query_map(["any"], |row| row.get::<_, String>(3))
+            .query_map(["", "any"], |row| row.get::<_, String>(3))
             .expect("query plan")
             .collect::<Result<Vec<_>, _>>()
             .expect("collect plan");
@@ -242,9 +242,9 @@ fn s20_endpoint_probe_hits_partial_index_no_scan() {
     let detail = plan.join(" | ");
 
     assert!(
-        detail.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_logical_active_idx")
-            || detail.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_logical_sup_idx"),
-        "probe must use indexed SEARCH on canonical_nodes_logical_active_idx or canonical_nodes_logical_sup_idx; plan: {detail}"
+        detail.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_scope_logical_active_idx")
+            || detail.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_scope_logical_sup_idx"),
+        "probe must use indexed SEARCH on canonical_nodes_scope_logical_active_idx or canonical_nodes_scope_logical_sup_idx; plan: {detail}"
     );
     assert!(
         !detail.contains("SCAN canonical_nodes"),

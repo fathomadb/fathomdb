@@ -144,7 +144,7 @@ pub(super) fn search_expand(
         };
     let inner = Arc::clone(&engine.inner);
     let result = call_engine(py, move || {
-        inner.search_expand_with_limit(&query, filter, depth, search_limit)
+        inner.search_expand_with_limit(&query, filter, depth, search_limit, None)
     })?;
     Ok(PySearchExpandResult::from_rust(result))
 }

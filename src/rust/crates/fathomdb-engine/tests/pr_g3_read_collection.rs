@@ -173,8 +173,8 @@ fn read_collection_clamps_limit_to_the_one_million_cap() {
 // ---------------------------------------------------------------------------
 
 /// EXPLAIN gate (mirrors the `pr_g8` plan gate): the read_collection SELECT must
-/// ride `operational_mutations_collection_id_idx` (the step-13 `(collection_name,
-/// id)` index) — **no `SCAN`, no `USE TEMP B-TREE FOR ORDER BY`, no `USING
+/// ride `operational_mutations_scope_collection_id_idx` (the step-39 `(scope,
+/// collection_name, id)` index) — **no `SCAN`, no `USE TEMP B-TREE FOR ORDER BY`, no `USING
 /// INTEGER PRIMARY KEY`**. This is the structural proxy for O(page) per-page work
 /// when a small collection lives inside a large multi-collection log.
 #[test]
@@ -203,12 +203,12 @@ fn read_collection_plan_is_index_driven_no_scan_no_temp_btree() {
                 "EXPLAIN QUERY PLAN
                  SELECT id, collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
                  FROM operational_mutations
-                 WHERE collection_name = ?1 AND id > ?2
+                 WHERE scope = ?1 AND collection_name = ?2 AND id > ?3
                  ORDER BY id
-                 LIMIT ?3",
+                 LIMIT ?4",
             )
             .expect("prepare EXPLAIN");
-        stmt.query_map(rusqlite::params!["small", 0i64, 50i64], |row| row.get::<_, String>(3))
+        stmt.query_map(rusqlite::params!["", "small", 0i64, 50i64], |row| row.get::<_, String>(3))
             .expect("query plan")
             .collect::<Result<Vec<_>, _>>()
             .expect("collect plan")
@@ -216,8 +216,8 @@ fn read_collection_plan_is_index_driven_no_scan_no_temp_btree() {
     let detail = plan.join(" | ");
 
     assert!(
-        detail.contains("operational_mutations_collection_id_idx"),
-        "read_collection must use the (collection_name, id) index; plan: {detail}"
+        detail.contains("operational_mutations_scope_collection_id_idx"),
+        "read_collection must use the (scope, collection_name, id) index; plan: {detail}"
     );
     assert!(
         !detail.contains("SCAN"),

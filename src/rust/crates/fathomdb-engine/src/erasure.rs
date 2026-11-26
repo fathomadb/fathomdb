@@ -914,13 +914,14 @@ impl Engine {
                     )
                     .map_err(|_| EngineError::Storage)?;
                 if !touching {
-                    let root = physical_erasure::capture(
-                        &tx,
-                        &[],
-                        self.next_cursor.load(Ordering::SeqCst),
-                    )?;
+                    let current_floor = self
+                        .next_cursor
+                        .load(Ordering::SeqCst)
+                        .max(crate::write_commit::load_next_cursor(&tx));
+                    let root = physical_erasure::capture(&tx, &[], current_floor)?;
                     physical_erasure::admit(&tx, root, Some(scope), "purge", lid, &[])?;
                     tx.commit().map_err(|_| EngineError::Storage)?;
+                    self.next_cursor.fetch_max(current_floor, Ordering::SeqCst);
                     return Ok(Vec::new());
                 }
                 // An absent node does not prove its independently admitted
@@ -992,32 +993,24 @@ impl Engine {
         // the complete expanded cursor set before any DELETE.
         let erased_stable_ids =
             collect_erased_stable_ids_for_cursors(&tx, &node_cursors, &edge_cursors)?;
-        let pending_cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
+        let current_floor =
+            self.next_cursor.load(Ordering::SeqCst).max(crate::write_commit::load_next_cursor(&tx));
+        let pending_cursor = current_floor.saturating_add(1);
         let enqueued =
             !erased_stable_ids.is_empty() && !telemetry::registered_sinks(&tx)?.is_empty();
 
         let mut closure_ids = Vec::new();
-        let proof_boundary =
-            if enqueued { pending_cursor } else { self.next_cursor.load(Ordering::SeqCst) };
+        let proof_boundary = if enqueued { pending_cursor } else { current_floor };
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
-        let mut erased_source_ids = BTreeSet::new();
-        for sql in [
-            "SELECT source_id FROM canonical_nodes WHERE scope=?1 AND logical_id=?2 AND source_id IS NOT NULL",
-            "SELECT source_id FROM canonical_edges WHERE scope=?1 AND (from_id=?2 OR to_id=?2) AND source_id IS NOT NULL",
-        ] {
-            let mut statement = tx.prepare(sql).map_err(|_| EngineError::Storage)?;
-            let rows = statement
-                .query_map(params![scope, lid], |row| row.get::<_, String>(0))
-                .map_err(|_| EngineError::Storage)?
-                .collect::<rusqlite::Result<Vec<_>>>()
-                .map_err(|_| EngineError::Storage)?;
-            erased_source_ids.extend(rows);
-        }
         let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
-        let receipt_refs =
-            actuation_erasure_refs_for_cursors(&tx, scope, &affected_cursors, erased_source_ids)?;
+        let receipt_refs = actuation_erasure_refs_for_cursors(
+            &tx,
+            scope,
+            &affected_cursors,
+            std::iter::empty::<String>(),
+        )?;
         let proof_scope = dependency_closure::physical_proof_scope(
             &tx,
             scope,
@@ -1112,9 +1105,7 @@ impl Engine {
         physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
-        if enqueued {
-            self.next_cursor.store(pending_cursor, Ordering::SeqCst);
-        }
+        self.next_cursor.fetch_max(proof_boundary, Ordering::SeqCst);
         self.counters.record_admin();
         physical_erasure::faultpoint("after_delete_commit")?;
         Ok(closure_ids)
@@ -1640,7 +1631,9 @@ impl Engine {
             });
         }
 
-        let proof_boundary = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
+        let current_floor =
+            self.next_cursor.load(Ordering::SeqCst).max(crate::write_commit::load_next_cursor(&tx));
+        let proof_boundary = current_floor.saturating_add(1);
 
         // 0.8.20 Slice 5b (R-20-E6) — stable ids the telemetry sink may hold for
         // these rows, collected BEFORE the DELETEs.
@@ -1776,7 +1769,7 @@ impl Engine {
             ));
         }
 
-        let mut audit_cursor = self.next_cursor.load(Ordering::SeqCst);
+        let mut audit_cursor = current_floor;
         let mut wrote_audit = false;
         if !suppress_duplicate_audit {
             let excised_at =
@@ -1813,7 +1806,9 @@ impl Engine {
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         if wrote_audit {
-            self.next_cursor.store(audit_cursor, Ordering::SeqCst);
+            self.next_cursor.fetch_max(audit_cursor, Ordering::SeqCst);
+        } else {
+            self.next_cursor.fetch_max(current_floor, Ordering::SeqCst);
         }
         physical_erasure::faultpoint("after_delete_commit")?;
         Ok((
@@ -1931,7 +1926,9 @@ impl Engine {
             "state_rows_excised": state_rows_excised,
         })
         .to_string();
-        let audit_cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
+        let current_floor =
+            self.next_cursor.load(Ordering::SeqCst).max(crate::write_commit::load_next_cursor(&tx));
+        let audit_cursor = current_floor.saturating_add(1);
         tx.execute(
             "INSERT INTO operational_mutations(
                 collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
@@ -1941,7 +1938,7 @@ impl Engine {
         .map_err(|_| EngineError::Storage)?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
-        self.next_cursor.store(audit_cursor, Ordering::SeqCst);
+        self.next_cursor.fetch_max(audit_cursor, Ordering::SeqCst);
         self.counters.record_admin();
         Ok(ExciseRecordReport {
             collection: collection.to_string(),

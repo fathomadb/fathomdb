@@ -1040,3 +1040,7 @@ required-features = ["test-hooks"]
 
 [[test]]
 name = "slice40_explain_cosine"
+
+[[test]]
+name = "slice41_purge_lineage"
+required-features = ["operator", "test-hooks"]

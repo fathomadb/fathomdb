@@ -86,6 +86,16 @@ extra tools:
    `artifact_revision_id`, caller-scope filtering, and typed `state_drift`,
    `erased`, `truncated`, or `unavailable` outcomes matching `fathomdb-sdk`.
 
+Frozen contexts in `fathomdb-mcp` use Schema 39 partitioned visibility
+validation directly rather than comparing global visibility counters or
+expiring handles on idle store reopen. Disjoint-`kind` writes,
+`append_only_log` / `latest_state` updates, and mutations (including
+transitions, purges, and source erasures) in other caller scopes leave active
+`frozen_context` handles valid across idle close/reopen cycles. When an
+affecting mutation does drift the frozen context—including edge drift during
+`graph_evidence_refs` resolution—`fathomdb-mcp` fails closed with
+`conflict/state_drift` so the caller can remint with `search` (`freeze: true`).
+
 ## Enabling per-store scoped writes
 
 To allow governed writes on a specific store, opt in explicitly with both

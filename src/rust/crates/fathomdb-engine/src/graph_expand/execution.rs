@@ -1372,8 +1372,18 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         .map_err(|_| EngineError::Storage)?;
     #[cfg(feature = "test-hooks")]
     observe_current_rss_peak(test_controls);
+    let (context, read_mode) = match &request.context {
+        GraphReadContextV1::Current { context, .. } => (context, GraphReadModeV1::Current),
+        GraphReadContextV1::Frozen { context, .. } => (&context.context, GraphReadModeV1::Frozen),
+    };
     if let Some(binding) = frozen_binding {
-        frozen_read::validate_snapshot(&tx, binding)?;
+        frozen_read::validate_snapshot(
+            &tx,
+            context,
+            binding,
+            scope,
+            frozen_read::ReadSurface::GraphOrEdge,
+        )?;
     } else {
         tx.prepare_cached(
             "SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton = 1",
@@ -1386,10 +1396,6 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         rendezvous.fire(GraphExpandRendezvousPhase::AfterPin);
     }
 
-    let (context, read_mode) = match &request.context {
-        GraphReadContextV1::Current { context, .. } => (context, GraphReadModeV1::Current),
-        GraphReadContextV1::Frozen { context, .. } => (&context.context, GraphReadModeV1::Frozen),
-    };
     validate_filter_attributes_on_snapshot(&tx, &context.eligibility).map_err(
         |error| match error {
             crate::filter::SnapshotFilterError::InvalidFilter(_) => {
@@ -1928,7 +1934,13 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         Vec::new()
     };
     if let Some(binding) = frozen_binding {
-        frozen_read::validate_snapshot(&tx, binding)?;
+        frozen_read::validate_snapshot(
+            &tx,
+            context,
+            binding,
+            scope,
+            frozen_read::ReadSurface::GraphOrEdge,
+        )?;
     }
     let explanation = request.include_explanation.then(|| GraphExpansionExplanationV1 {
         schema_version: 1,

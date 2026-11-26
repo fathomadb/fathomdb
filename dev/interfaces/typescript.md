@@ -1921,3 +1921,18 @@ members), opt-in agent search hints across `search`, `searchFrozen`, and
   `sourceId`, whereas `ResolvedEvidenceV1.sourceId` resolves the returned node
   artifact's own canonical provenance source (and
   `projectionOrigin.graphOrigin` identifies the terminal edge revision).
+- **Partitioned frozen-read additive stability (`ADR-0.8.32 #103` §1):**
+  Schema 39 `FrozenReadContextV1` tokens (`492 B` unscoped / `556 B` scoped)
+  bind surface-selective partitioned watermarks so disjoint-`kind` additive
+  writes/actuations, `append_only_log` appends, `latest_state` upserts (against
+  canonical/search/evidence/graph surfaces; `read.operationalState` still
+  drifts), disjoint-scope writes/lifecycle/erasure across close/reopen, and
+  disjoint-`(scope, kind)` background vector commits produce zero unintended
+  drift. Same-`(scope, kind)` writes, graph-surface edge writes, destructive
+  operations in `scope`, dependency/closure changes in `scope`, and global
+  structural changes fail closed (`FrozenReadError` / `EvidenceError`). In
+  `engine.resolveEvidenceMany`, drifted `Edge` / `GraphArm` slots return
+  per-slot `status === "refused"` (`evidence_unavailable`) while unaffected
+  node-only slots resolve. Concurrent additive writes to disjoint kinds or
+  scopes share FTS5 `search_index` corpus statistics, so raw `bm25()` scores are
+  not frozen (`ADR-0.8.32 #103` §1.7).

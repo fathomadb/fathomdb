@@ -123,7 +123,7 @@ fn vector_mapping_cleanup_remains_active_while_visibility_is_coalesced() {
             .unwrap(),
         0
     );
-    advance_read_visibility(&tx).unwrap();
+    crate::write_commit::advance_read_visibility(&tx).unwrap();
     guard.restore().unwrap();
     drop(guard);
     tx.commit().unwrap();

@@ -3380,7 +3380,7 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
             }
         }
         if lexical_restored {
-            crate::write_commit::advance_read_visibility(connection)?;
+            crate::write_commit::bump_global_struct(connection)?;
         }
         if let Some(cursor) = rewind {
             let below = cursor.saturating_sub(1);

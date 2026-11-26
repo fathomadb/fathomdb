@@ -1004,6 +1004,44 @@ impl Engine {
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+        let mut erased_node_kinds = BTreeSet::new();
+        for cursor in &node_cursors {
+            if let Some(kind) = tx
+                .prepare_cached(
+                    "SELECT kind FROM canonical_nodes WHERE scope = ?1 AND write_cursor = ?2",
+                )
+                .and_then(|mut s| {
+                    s.query_row(params![scope, cursor], |r| r.get::<_, String>(0)).optional()
+                })
+                .map_err(|_| EngineError::Storage)?
+            {
+                erased_node_kinds.insert(kind);
+            }
+        }
+        let mut erased_edge_kinds = BTreeSet::new();
+        for cursor in &edge_cursors {
+            if let Some(kind) = tx
+                .prepare_cached(
+                    "SELECT kind FROM canonical_edges WHERE scope = ?1 AND write_cursor = ?2",
+                )
+                .and_then(|mut s| {
+                    s.query_row(params![scope, cursor], |r| r.get::<_, String>(0)).optional()
+                })
+                .map_err(|_| EngineError::Storage)?
+            {
+                erased_edge_kinds.insert(kind);
+            }
+        }
+        let coalesce_visibility = crate::write_commit::canonical_batch_has_no_custom_triggers(&tx)
+            .map_err(|_| EngineError::Storage)?;
+        let mut trigger_guard = if coalesce_visibility {
+            Some(
+                crate::write_commit::VisibilityCoalescingGuard::arm(&tx)
+                    .map_err(|_| EngineError::Storage)?,
+            )
+        } else {
+            None
+        };
         let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
         let receipt_refs = actuation_erasure_refs_for_cursors(
             &tx,
@@ -1104,6 +1142,29 @@ impl Engine {
         physical_erasure::admit(&tx, root_debt, Some(scope), "purge", lid, &closure_ids)?;
         physical_erasure::faultpoint("before_delete_commit")?;
 
+        if coalesce_visibility {
+            let mut visibility_delta = crate::write_commit::VisibilityDelta::default();
+            visibility_delta.record_destructive(scope);
+            visibility_delta.record_add(scope, "scope_dependency", 0);
+            visibility_delta.record_add(scope, "node_all", 0);
+            visibility_delta.record_add(scope, "edge_any", 0);
+            visibility_delta.record_add(scope, "vector_ready_all", 0);
+            for kind in &erased_node_kinds {
+                visibility_delta.record_add(scope, format!("node:{kind}"), 0);
+                visibility_delta.record_add(scope, format!("vector_ready:{kind}"), 0);
+            }
+            for kind in &erased_edge_kinds {
+                visibility_delta.record_add(scope, format!("edge:{kind}"), 0);
+            }
+            if !erased_edge_kinds.is_empty() {
+                visibility_delta.record_add(scope, "vector_ready:edge_fact", 0);
+            }
+            visibility_delta.apply(&tx).map_err(|_| EngineError::Storage)?;
+        }
+        if let Some(guard) = trigger_guard.as_mut() {
+            guard.restore().map_err(|_| EngineError::Storage)?;
+        }
+        drop(trigger_guard);
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.next_cursor.fetch_max(proof_boundary, Ordering::SeqCst);
         self.counters.record_admin();
@@ -1561,6 +1622,8 @@ impl Engine {
             source_revisions: Vec<String>,
             affected_dependencies: usize,
             affected_cursors: Vec<i64>,
+            erased_node_kinds: BTreeSet<String>,
+            erased_edge_kinds: BTreeSet<String>,
             receipt_refs: BTreeSet<(String, String)>,
             proof_scope: dependency_closure::PhysicalProofScope,
         }
@@ -1569,28 +1632,38 @@ impl Engine {
         let mut all_node_cursors = Vec::new();
         let mut all_edge_cursors = Vec::new();
         for scope in scopes_to_process {
-            let node_cursors: Vec<i64> = {
+            let node_rows: Vec<(i64, String)> = {
                 let mut stmt = tx
                     .prepare(
-                        "SELECT write_cursor FROM canonical_nodes WHERE scope = ?1 AND source_id = ?2",
+                        "SELECT write_cursor, kind FROM canonical_nodes WHERE scope = ?1 AND source_id = ?2",
                     )
                     .map_err(|_| EngineError::Storage)?;
                 let rows = stmt
-                    .query_map(params![&scope, source_id], |row| row.get::<_, i64>(0))
+                    .query_map(params![&scope, source_id], |row| {
+                        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                    })
                     .map_err(|_| EngineError::Storage)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
             };
-            let edge_cursors: Vec<i64> = {
+            let node_cursors: Vec<i64> = node_rows.iter().map(|(c, _)| *c).collect();
+            let erased_node_kinds: BTreeSet<String> =
+                node_rows.into_iter().map(|(_, k)| k).collect();
+            let edge_rows: Vec<(i64, String)> = {
                 let mut stmt = tx
                     .prepare(
-                        "SELECT write_cursor FROM canonical_edges WHERE scope = ?1 AND source_id = ?2",
+                        "SELECT write_cursor, kind FROM canonical_edges WHERE scope = ?1 AND source_id = ?2",
                     )
                     .map_err(|_| EngineError::Storage)?;
                 let rows = stmt
-                    .query_map(params![&scope, source_id], |row| row.get::<_, i64>(0))
+                    .query_map(params![&scope, source_id], |row| {
+                        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                    })
                     .map_err(|_| EngineError::Storage)?;
                 rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
             };
+            let edge_cursors: Vec<i64> = edge_rows.iter().map(|(c, _)| *c).collect();
+            let erased_edge_kinds: BTreeSet<String> =
+                edge_rows.into_iter().map(|(_, k)| k).collect();
             let source_revisions = node_cursors
                 .iter()
                 .map(|cursor| dependency_closure::source_revision_for_cursor(&tx, &scope, *cursor))
@@ -1626,6 +1699,8 @@ impl Engine {
                 source_revisions,
                 affected_dependencies,
                 affected_cursors,
+                erased_node_kinds,
+                erased_edge_kinds,
                 receipt_refs,
                 proof_scope,
             });
@@ -1643,6 +1718,18 @@ impl Engine {
         let affected_cursors: Vec<i64> =
             all_node_cursors.iter().chain(all_edge_cursors.iter()).copied().collect();
         let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
+
+        let coalesce_visibility = crate::write_commit::canonical_batch_has_no_custom_triggers(&tx)
+            .map_err(|_| EngineError::Storage)?;
+        let mut trigger_guard = if coalesce_visibility {
+            Some(
+                crate::write_commit::VisibilityCoalescingGuard::arm(&tx)
+                    .map_err(|_| EngineError::Storage)?,
+            )
+        } else {
+            None
+        };
+        let total_changes_after_arm = tx.total_changes();
 
         let mut closure_ids = Vec::new();
         let mut scope_closures_to_measure = Vec::with_capacity(scope_plans.len());
@@ -1751,10 +1838,15 @@ impl Engine {
         let audit_scope = audit_scope_owned.as_str();
         let suppress_duplicate_audit = completed_prior && nodes_excised == 0 && edges_excised == 0;
         if suppress_duplicate_audit
-            && tx.total_changes() == total_changes_before
+            && tx.total_changes() == total_changes_after_arm
             && closure_ids.is_empty()
             && erased_stable_ids.is_empty()
         {
+            let _ = total_changes_before;
+            if let Some(guard) = trigger_guard.as_mut() {
+                guard.restore().map_err(|_| EngineError::Storage)?;
+            }
+            drop(trigger_guard);
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok((
                 ExciseReport {
@@ -1804,6 +1896,31 @@ impl Engine {
         physical_erasure::admit(&tx, root_debt, target_scope, verb, source_id, &closure_ids)?;
         physical_erasure::faultpoint("before_delete_commit")?;
 
+        if coalesce_visibility {
+            let mut visibility_delta = crate::write_commit::VisibilityDelta::default();
+            for plan in &scope_plans {
+                visibility_delta.record_destructive(&plan.scope);
+                visibility_delta.record_add(&plan.scope, "scope_dependency", 0);
+                visibility_delta.record_add(&plan.scope, "node_all", 0);
+                visibility_delta.record_add(&plan.scope, "edge_any", 0);
+                visibility_delta.record_add(&plan.scope, "vector_ready_all", 0);
+                for kind in &plan.erased_node_kinds {
+                    visibility_delta.record_add(&plan.scope, format!("node:{kind}"), 0);
+                    visibility_delta.record_add(&plan.scope, format!("vector_ready:{kind}"), 0);
+                }
+                for kind in &plan.erased_edge_kinds {
+                    visibility_delta.record_add(&plan.scope, format!("edge:{kind}"), 0);
+                }
+                if !plan.erased_edge_kinds.is_empty() {
+                    visibility_delta.record_add(&plan.scope, "vector_ready:edge_fact", 0);
+                }
+            }
+            visibility_delta.apply(&tx).map_err(|_| EngineError::Storage)?;
+        }
+        if let Some(guard) = trigger_guard.as_mut() {
+            guard.restore().map_err(|_| EngineError::Storage)?;
+        }
+        drop(trigger_guard);
         tx.commit().map_err(|_| EngineError::Storage)?;
         if wrote_audit {
             self.next_cursor.fetch_max(audit_cursor, Ordering::SeqCst);

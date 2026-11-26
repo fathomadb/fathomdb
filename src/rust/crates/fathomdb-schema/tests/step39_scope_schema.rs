@@ -111,7 +111,7 @@ fn step39_table_manifest_completeness_and_shadow_helpers() {
     for entry in TABLE_MANIFEST {
         assert!(names.insert(entry.name), "duplicate TABLE_MANIFEST entry: {}", entry.name);
     }
-    assert_eq!(TABLE_MANIFEST.len(), 35, "30 regular + 5 virtual Schema-39 tables");
+    assert_eq!(TABLE_MANIFEST.len(), 36, "31 regular + 5 virtual Schema-39 tables");
 
     let expected_canonical: Vec<&str> =
         TABLE_MANIFEST.iter().filter(|e| e.is_canonical).map(|e| e.name).collect();

@@ -606,25 +606,19 @@ fn commit_batch_transaction(
     // `BEGIN IMMEDIATE` can itself return `SQLITE_BUSY` — but WITH the busy
     // handler consulted, i.e. absorbed by the existing 5 s default instead of
     // surfaced (pinned by `tc57_mechanism_control_write_first_is_retryable`).
-    let canonical_batch = batch.iter().all(|write| {
-        matches!(
-            write,
-            PreparedWrite::Node { .. }
-                | PreparedWrite::Edge { .. }
-                | PreparedWrite::ProvenancedNode(_)
-                | PreparedWrite::ProvenancedEdge(_)
-        )
-    });
+    let coalesceable_batch =
+        batch.iter().all(|write| !matches!(write, PreparedWrite::AdminSchema { .. }));
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     crate::frozen_read::require_clean_visibility(&tx)?;
-    // Slice 71B: the standard canonical mutation closure contains only the
-    // visibility triggers. Coalesce them in this transaction, perform the same
-    // checked nonce-bearing invalidation once after all mutations succeed, then
-    // clear coalescing before commit. An unexpected main or TEMP
-    // trigger selects the unchanged row-trigger path so application extensions
-    // still observe every row.
-    if canonical_batch && canonical_batch_has_no_custom_triggers(&tx)? {
+    // Slice 71B / Slice 41 (ADR #103): coalesce visibility triggers across any
+    // non-AdminSchema batch (canonical, OpStore AppendOnlyLog/LatestState, and
+    // mixed batches), upserting only the affected `(scope, partition_kind)`
+    // watermarks once after all mutations succeed, then clearing coalescing
+    // before commit. An unexpected main or TEMP trigger falls back to the
+    // uncoalesced row-trigger path so application extensions observe every row.
+    if coalesceable_batch && canonical_batch_has_no_custom_triggers(&tx)? {
         let mut trigger_guard = VisibilityCoalescingGuard::arm(&tx)?;
+        let mut visibility_delta = VisibilityDelta::default();
         let attempted = apply_batch_in_transaction(
             &tx,
             scope,
@@ -635,6 +629,7 @@ fn commit_batch_transaction(
             vector_kinds_to_enrol,
             dependency_closure::SoftClosureMode::Complete,
             endpoint_validation,
+            Some(&mut visibility_delta),
         )
         .and_then(|result| {
             if !batch.is_empty() {
@@ -644,7 +639,7 @@ fn commit_batch_transaction(
                     crate::temporal::current_epoch_ms(),
                 )?;
             }
-            advance_read_visibility(&tx)?;
+            visibility_delta.apply(&tx)?;
             Ok(result)
         });
         let restored = trigger_guard.restore();
@@ -669,6 +664,7 @@ fn commit_batch_transaction(
         vector_kinds_to_enrol,
         dependency_closure::SoftClosureMode::Complete,
         endpoint_validation,
+        None,
     )?;
     if !batch.is_empty() {
         crate::temporal::record_batch_commit_timestamp(
@@ -697,6 +693,96 @@ pub(super) fn take_write_commit_abort_marker_for_test(
     Ok(armed)
 }
 
+#[derive(Default)]
+pub(crate) struct VisibilityDelta {
+    pub(crate) additive: std::collections::BTreeMap<(String, String), u64>,
+    pub(crate) destructive_scopes: std::collections::BTreeSet<String>,
+    pub(crate) global_struct: bool,
+    pub(crate) any_visibility_change: bool,
+}
+
+impl VisibilityDelta {
+    pub(crate) fn record_add(
+        &mut self,
+        scope: &str,
+        partition_kind: impl Into<String>,
+        cursor: u64,
+    ) {
+        self.any_visibility_change = true;
+        let key = (scope.to_string(), partition_kind.into());
+        self.additive
+            .entry(key)
+            .and_modify(|existing| *existing = (*existing).max(cursor))
+            .or_insert(cursor);
+    }
+
+    pub(crate) fn record_destructive(&mut self, scope: &str) {
+        self.any_visibility_change = true;
+        self.destructive_scopes.insert(scope.to_string());
+    }
+
+    pub(crate) fn record_global_struct(&mut self) {
+        self.any_visibility_change = true;
+        self.global_struct = true;
+    }
+
+    pub(crate) fn apply(&self, tx: &Connection) -> rusqlite::Result<()> {
+        if !self.any_visibility_change
+            && self.additive.is_empty()
+            && self.destructive_scopes.is_empty()
+            && !self.global_struct
+        {
+            return Ok(());
+        }
+        for ((scope, partition_kind), max_cursor) in &self.additive {
+            let max_cursor_i64 = i64::try_from(*max_cursor).unwrap_or(i64::MAX);
+            let changed = tx
+                .prepare_cached(
+                    "INSERT INTO _fathomdb_scope_visibility_watermarks(
+                        scope, partition_kind, add_generation, max_cursor, destructive_generation, state_nonce
+                     ) VALUES(?1, ?2, 1, ?3, 0, lower(hex(randomblob(32))))
+                     ON CONFLICT(scope, partition_kind) DO UPDATE SET
+                        add_generation = add_generation + 1,
+                        max_cursor = MAX(max_cursor, excluded.max_cursor),
+                        state_nonce = lower(hex(randomblob(32)))
+                     WHERE add_generation < 9223372036854775807",
+                )?
+                .execute(params![scope, partition_kind, max_cursor_i64])?;
+            if changed != 1 {
+                return Err(rusqlite::Error::SqliteFailure(
+                    rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT_TRIGGER),
+                    Some("read visibility generation exhausted".to_string()),
+                ));
+            }
+        }
+        for scope in &self.destructive_scopes {
+            let changed = tx
+                .prepare_cached(
+                    "INSERT INTO _fathomdb_scope_visibility_watermarks(
+                        scope, partition_kind, add_generation, max_cursor, destructive_generation, state_nonce
+                     ) VALUES(?1, 'scope_destructive', 0, 0, 1, lower(hex(randomblob(32))))
+                     ON CONFLICT(scope, partition_kind) DO UPDATE SET
+                        destructive_generation = destructive_generation + 1,
+                        state_nonce = lower(hex(randomblob(32)))
+                     WHERE destructive_generation < 9223372036854775807",
+                )?
+                .execute([scope])?;
+            if changed != 1 {
+                return Err(rusqlite::Error::SqliteFailure(
+                    rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT_TRIGGER),
+                    Some("read visibility generation exhausted".to_string()),
+                ));
+            }
+        }
+        if self.global_struct {
+            bump_global_struct(tx)?;
+        } else {
+            advance_read_visibility(tx)?;
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn advance_read_visibility(connection: &Connection) -> rusqlite::Result<()> {
     let changed = connection
         .prepare_cached(
@@ -704,6 +790,30 @@ pub(crate) fn advance_read_visibility(connection: &Connection) -> rusqlite::Resu
          SET generation=generation+1,
              state_nonce=lower(hex(randomblob(32))),coalescing=0
          WHERE singleton=1 AND generation<9223372036854775807
+           AND typeof(coalescing)='integer' AND coalescing IN(0,1)",
+        )?
+        .execute([])?;
+    if changed != 1 {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT_TRIGGER),
+            Some("read visibility generation exhausted".to_string()),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn bump_global_struct(connection: &Connection) -> rusqlite::Result<()> {
+    let changed = connection
+        .prepare_cached(
+            "UPDATE _fathomdb_read_visibility_state
+         SET generation=generation+1,
+             state_nonce=lower(hex(randomblob(32))),
+             global_struct_gen=global_struct_gen+1,
+             global_struct_nonce=lower(hex(randomblob(32))),
+             coalescing=0
+         WHERE singleton=1
+           AND generation<9223372036854775807
+           AND global_struct_gen<9223372036854775807
            AND typeof(coalescing)='integer' AND coalescing IN(0,1)",
         )?
         .execute([])?;
@@ -733,6 +843,7 @@ pub(crate) fn apply_batch_in_transaction(
     vector_kinds_to_enrol: &[String],
     closure_mode: dependency_closure::SoftClosureMode,
     endpoint_validation: CommitEndpointValidationMode,
+    mut visibility_delta: Option<&mut VisibilityDelta>,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     let scoped_physical = physical_erasure::guard_plain_write(tx, scope, batch)?;
     let queued_erasure = erasure_queue::guard_plain(tx, scope, batch)?;
@@ -745,6 +856,11 @@ pub(crate) fn apply_batch_in_transaction(
     }
     let unstranded =
         if vector_kinds_to_enrol.is_empty() { false } else { reenqueue_stranded_vector_rows(tx)? };
+    if !vector_kinds_to_enrol.is_empty() || unstranded {
+        if let Some(delta) = visibility_delta.as_deref_mut() {
+            delta.record_global_struct();
+        }
+    }
     let has_canonical_writes = batch.iter().any(|write| {
         matches!(
             write,
@@ -785,6 +901,21 @@ pub(crate) fn apply_batch_in_transaction(
             ) => {
                 if let Some(logical_id) = logical_id {
                     let prior_g0 = prior_node_cursors_by_logical_id(tx, scope, logical_id)?;
+                    let mut prior_kinds = Vec::new();
+                    if visibility_delta.is_some() && !prior_g0.is_empty() {
+                        for sc in &prior_g0 {
+                            if let Some(pk) = tx
+                                .prepare_cached(
+                                    "SELECT kind FROM canonical_nodes WHERE scope = ?1 AND write_cursor = ?2",
+                                )?
+                                .query_row(params![scope, sc], |row| row.get::<_, String>(0))
+                                .optional()?
+                            {
+                                prior_kinds.push(pk);
+                            }
+                        }
+                    }
+                    let mut had_soft_closure = false;
                     for prior_cursor in &prior_g0 {
                         if let Some(source_revision) =
                             dependency_closure::source_revision_for_cursor(
@@ -801,6 +932,7 @@ pub(crate) fn apply_batch_in_transaction(
                                 cursor,
                                 closure_mode,
                             )? {
+                                had_soft_closure = true;
                                 closure_ids.push(id);
                             }
                         }
@@ -811,6 +943,19 @@ pub(crate) fn apply_batch_in_transaction(
                              WHERE scope = ?2 AND logical_id = ?3 AND superseded_at IS NULL",
                         )?
                         .execute(params![cursor, scope, logical_id])?;
+                        if let Some(delta) = visibility_delta.as_deref_mut() {
+                            delta.record_destructive(scope);
+                            for pk in prior_kinds {
+                                if pk != *kind {
+                                    delta.record_add(scope, format!("node:{pk}"), cursor);
+                                }
+                            }
+                            if had_soft_closure {
+                                delta.record_add(scope, "scope_dependency", 0);
+                                delta.record_add(scope, "edge_any", 0);
+                                delta.record_add(scope, "vector_ready_all", 0);
+                            }
+                        }
                     }
                     for sc in &prior_g0 {
                         vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
@@ -844,6 +989,10 @@ pub(crate) fn apply_batch_in_transaction(
                     properties.as_ref(),
                     projection_registry.as_ref(),
                 )?;
+                if let Some(delta) = visibility_delta.as_deref_mut() {
+                    delta.record_add(scope, format!("node:{kind}"), cursor);
+                    delta.record_add(scope, "node_all", cursor);
+                }
             }
             (
                 PreparedWrite::Edge {
@@ -862,9 +1011,25 @@ pub(crate) fn apply_batch_in_transaction(
                 },
                 WritePlan::Edge,
             ) => {
+                let mut edge_superseded = false;
+                let mut prior_edge_kinds = Vec::new();
                 if let Some(logical_id) = logical_id {
                     let prior_g0 = prior_edge_cursors_by_logical_id(tx, scope, logical_id)?;
                     if !prior_g0.is_empty() {
+                        edge_superseded = true;
+                        if visibility_delta.is_some() {
+                            for sc in &prior_g0 {
+                                if let Some(pk) = tx
+                                    .prepare_cached(
+                                        "SELECT kind FROM canonical_edges WHERE scope = ?1 AND write_cursor = ?2",
+                                    )?
+                                    .query_row(params![scope, sc], |row| row.get::<_, String>(0))
+                                    .optional()?
+                                {
+                                    prior_edge_kinds.push(pk);
+                                }
+                            }
+                        }
                         tx.prepare_cached(
                             "UPDATE canonical_edges SET superseded_at = ?1
                              WHERE scope = ?2 AND logical_id = ?3 AND superseded_at IS NULL",
@@ -883,6 +1048,7 @@ pub(crate) fn apply_batch_in_transaction(
                 if body.is_some() {
                     let prior_g11 = prior_edge_cursors_by_triple(tx, scope, from, to, kind)?;
                     if !prior_g11.is_empty() {
+                        edge_superseded = true;
                         tx.prepare_cached(
                             "UPDATE canonical_edges SET superseded_at = ?1
                              WHERE scope = ?2 AND from_id = ?3 AND to_id = ?4 AND kind = ?5 AND superseded_at IS NULL",
@@ -926,7 +1092,7 @@ pub(crate) fn apply_batch_in_transaction(
                     encoded_properties,
                     scope,
                 ])?;
-                project_canonical_edge_row(
+                let (_enqueued_vec, enrolled_vk) = project_canonical_edge_row(
                     tx,
                     cursor,
                     kind,
@@ -936,6 +1102,21 @@ pub(crate) fn apply_batch_in_transaction(
                     true,
                     projection_registry.as_ref(),
                 )?;
+                if let Some(delta) = visibility_delta.as_deref_mut() {
+                    delta.record_add(scope, format!("edge:{kind}"), cursor);
+                    delta.record_add(scope, "edge_any", cursor);
+                    if edge_superseded {
+                        delta.record_destructive(scope);
+                        for pk in prior_edge_kinds {
+                            if pk != *kind {
+                                delta.record_add(scope, format!("edge:{pk}"), cursor);
+                            }
+                        }
+                    }
+                    if enrolled_vk {
+                        delta.record_global_struct();
+                    }
+                }
             }
             (
                 PreparedWrite::AdminSchema { name, kind, schema_json, retention_json },
@@ -963,6 +1144,9 @@ pub(crate) fn apply_batch_in_transaction(
                     "up_to_date",
                     ProjectionTerminalOwnerKind::NonCanonical,
                 )?;
+                if let Some(delta) = visibility_delta.as_deref_mut() {
+                    delta.record_global_struct();
+                }
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
@@ -980,6 +1164,9 @@ pub(crate) fn apply_batch_in_transaction(
                     "up_to_date",
                     ProjectionTerminalOwnerKind::NonCanonical,
                 )?;
+                if let Some(delta) = visibility_delta.as_deref_mut() {
+                    delta.record_add(scope, format!("op_log:{collection}"), cursor);
+                }
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
@@ -1001,6 +1188,9 @@ pub(crate) fn apply_batch_in_transaction(
                     "up_to_date",
                     ProjectionTerminalOwnerKind::NonCanonical,
                 )?;
+                if let Some(delta) = visibility_delta.as_deref_mut() {
+                    delta.record_add(scope, "op_state", cursor);
+                }
             }
             _ => return Err(rusqlite::Error::InvalidQuery.into()),
         }

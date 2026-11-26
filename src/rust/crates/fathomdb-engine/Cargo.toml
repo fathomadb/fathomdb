@@ -1051,3 +1051,7 @@ required-features = ["test-hooks"]
 
 [[test]]
 name = "slice41_evidence_property_predicates"
+
+[[test]]
+name = "slice41_frozen_read_stability"
+required-features = ["operator", "test-hooks"]

@@ -29,6 +29,9 @@ const REGISTRY_DOMAIN: &[u8] = b"fathomdb.projection-registry-binding.v1\0";
 const SERVING_DOMAIN_V1: &[u8] = b"fathomdb.projection-serving-binding.v1\0";
 const SERVING_DOMAIN_V2: &[u8] = b"fathomdb.projection-serving-binding.v2\0";
 const SERVING_DOMAIN_V3: &[u8] = b"fathomdb.projection-serving-binding.v3\0";
+const SERVING_DOMAIN_V4: &[u8] = b"fathomdb.projection-serving-binding.v4\0";
+const WATERMARK_TAG_DOMAIN_V1: &[u8] = b"fathomdb.visibility-watermark-tag.v1\0";
+const SURFACE_TAGS_MAGIC: [u8; 2] = [0x53, 0x39];
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
 
@@ -118,6 +121,26 @@ impl Display for FrozenReadError {
 
 impl std::error::Error for FrozenReadError {}
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ReadSurface<'a> {
+    Preflight,
+    SearchNoGraph,
+    GraphOrEdge,
+    EvidenceNode,
+    EvidenceGraph,
+    CanonicalPage { path_kind: &'a str },
+    OperationalState,
+    TraceDependency,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct SurfaceTags {
+    pub(crate) op_state_tag: u64,
+    pub(crate) node_all_tag: u64,
+    pub(crate) projection_readiness_tag: u64,
+    pub(crate) edge_kind_tag: u64,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct FrozenReadBinding {
     database_id: String,
@@ -130,6 +153,7 @@ pub(crate) struct FrozenReadBinding {
     serving_digest: [u8; 32],
     context_digest: [u8; 32],
     scope_digest: Option<[u8; 32]>,
+    surface_tags: Option<SurfaceTags>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -231,10 +255,12 @@ fn mint_inner(
     let binding_started = Instant::now();
     let mut binding = binding_for_snapshot(
         &tx,
+        &resolved,
         effective_valid_at,
         digest(CONTEXT_DOMAIN, &context_bytes),
-        scope.frozen_digest(),
+        scope,
     )?;
+    let monotonic_generation = load_visibility_generation(&tx)?;
     #[cfg(feature = "test-hooks")]
     let binding_ns = binding_started.elapsed().as_nanos();
     #[cfg(not(feature = "test-hooks"))]
@@ -261,7 +287,7 @@ fn mint_inner(
             context: resolved,
             token,
         },
-        binding.read_visibility_generation,
+        monotonic_generation,
         [context_validation_ns, snapshot_validation_ns, binding_ns, token_codec_ns],
     ))
 }
@@ -327,19 +353,203 @@ pub(crate) fn authenticate(
 
 pub(crate) fn validate_snapshot(
     connection: &Connection,
+    context: &ReadContextV1,
     expected: &FrozenReadBinding,
+    scope: &crate::scope::ScopePredicate,
+    surface: ReadSurface<'_>,
 ) -> Result<u64, FrozenReadError> {
-    let actual = binding_for_snapshot(
-        connection,
-        expected.effective_valid_at,
-        expected.context_digest,
-        expected.scope_digest,
-    )
-    .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
-    if actual != *expected {
+    let schema_version: u32 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
+    if schema_version < 39 {
+        let actual = binding_for_snapshot(
+            connection,
+            context,
+            expected.effective_valid_at,
+            expected.context_digest,
+            scope,
+        )
+        .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
+        if actual != *expected {
+            return Err(FrozenReadError::new(FrozenReadErrorReason::StateDrifted, "/token"));
+        }
+        return load_visibility_generation(connection)
+            .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"));
+    }
+
+    require_clean_visibility(connection)
+        .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
+    let Some(expected_tags) = expected.surface_tags else {
+        return Err(FrozenReadError::new(FrozenReadErrorReason::StateDrifted, "/token"));
+    };
+    let read_scopes = sorted_read_scopes(scope);
+    let actual_db_id = read_open_state(connection, DATABASE_ID_KEY)
+        .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
+    if actual_db_id != expected.database_id || scope.frozen_digest() != expected.scope_digest {
         return Err(FrozenReadError::new(FrozenReadErrorReason::StateDrifted, "/token"));
     }
-    Ok(actual.read_visibility_generation)
+    let actual_registry = projection_registry_digest(connection)
+        .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
+    if actual_registry != expected.registry_digest {
+        return Err(FrozenReadError::new(FrozenReadErrorReason::StateDrifted, "/token"));
+    }
+    let actual_serving = serving_digest_v4(connection, &read_scopes)
+        .map_err(|_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token"))?;
+    if actual_serving != expected.serving_digest {
+        return Err(FrozenReadError::new(FrozenReadErrorReason::StateDrifted, "/token"));
+    }
+
+    let kind_is_none = context.eligibility.kind.is_none();
+    let drifted = || FrozenReadError::new(FrozenReadErrorReason::StateDrifted, "/token");
+    let unavailable = |_| FrozenReadError::new(FrozenReadErrorReason::StateUnavailable, "/token");
+
+    match surface {
+        ReadSurface::OperationalState => {
+            let op_state_tag =
+                compute_partition_tag(connection, &read_scopes, "op_state", "op_state")
+                    .map_err(unavailable)?;
+            if op_state_tag != expected_tags.op_state_tag {
+                return Err(drifted());
+            }
+        }
+        ReadSurface::CanonicalPage { path_kind: _ } => {
+            let (boundary, node_tag) = compute_node_partition(
+                connection,
+                &read_scopes,
+                context.eligibility.kind.as_deref(),
+            )
+            .map_err(unavailable)?;
+            if boundary != expected.canonical_write_boundary
+                || node_tag != expected.read_visibility_generation
+            {
+                return Err(drifted());
+            }
+        }
+        ReadSurface::Preflight | ReadSurface::SearchNoGraph | ReadSurface::EvidenceNode => {
+            let (boundary, node_tag) = compute_node_partition(
+                connection,
+                &read_scopes,
+                context.eligibility.kind.as_deref(),
+            )
+            .map_err(unavailable)?;
+            if boundary != expected.canonical_write_boundary
+                || node_tag != expected.read_visibility_generation
+            {
+                return Err(drifted());
+            }
+            let vec_pk = vector_ready_partition_kind(context.eligibility.kind.as_deref());
+            let vec_tag = compute_partition_tag(connection, &read_scopes, &vec_pk, "vector_ready")
+                .map_err(unavailable)?;
+            if vec_tag != expected_tags.projection_readiness_tag {
+                return Err(drifted());
+            }
+            let edge_pk = edge_kind_partition_kind(context.eligibility.kind.as_deref());
+            let edge_tag = compute_partition_tag(connection, &read_scopes, &edge_pk, "edge_kind")
+                .map_err(unavailable)?;
+            if edge_tag != expected_tags.edge_kind_tag {
+                return Err(drifted());
+            }
+            let dep_tag = compute_partition_tag(
+                connection,
+                &read_scopes,
+                "scope_dependency",
+                "scope_dependency",
+            )
+            .map_err(unavailable)?;
+            if dep_tag != expected.dependency_generation {
+                return Err(drifted());
+            }
+            if kind_is_none {
+                let edge_any_tag =
+                    compute_partition_tag(connection, &read_scopes, "edge_any", "edge_any")
+                        .map_err(unavailable)?;
+                if edge_any_tag != expected.projection_cursor {
+                    return Err(drifted());
+                }
+                let node_all_tag =
+                    compute_partition_tag(connection, &read_scopes, "node_all", "node_all")
+                        .map_err(unavailable)?;
+                if node_all_tag != expected_tags.node_all_tag {
+                    return Err(drifted());
+                }
+            }
+        }
+        ReadSurface::GraphOrEdge | ReadSurface::EvidenceGraph => {
+            let (boundary, node_tag) = compute_node_partition(
+                connection,
+                &read_scopes,
+                context.eligibility.kind.as_deref(),
+            )
+            .map_err(unavailable)?;
+            if boundary != expected.canonical_write_boundary
+                || node_tag != expected.read_visibility_generation
+            {
+                return Err(drifted());
+            }
+            let vec_pk = vector_ready_partition_kind(context.eligibility.kind.as_deref());
+            let vec_tag = compute_partition_tag(connection, &read_scopes, &vec_pk, "vector_ready")
+                .map_err(unavailable)?;
+            if vec_tag != expected_tags.projection_readiness_tag {
+                return Err(drifted());
+            }
+            let edge_pk = edge_kind_partition_kind(context.eligibility.kind.as_deref());
+            let edge_tag = compute_partition_tag(connection, &read_scopes, &edge_pk, "edge_kind")
+                .map_err(unavailable)?;
+            if edge_tag != expected_tags.edge_kind_tag {
+                return Err(drifted());
+            }
+            let dep_tag = compute_partition_tag(
+                connection,
+                &read_scopes,
+                "scope_dependency",
+                "scope_dependency",
+            )
+            .map_err(unavailable)?;
+            if dep_tag != expected.dependency_generation {
+                return Err(drifted());
+            }
+            let edge_any_tag =
+                compute_partition_tag(connection, &read_scopes, "edge_any", "edge_any")
+                    .map_err(unavailable)?;
+            if edge_any_tag != expected.projection_cursor {
+                return Err(drifted());
+            }
+            if kind_is_none {
+                let node_all_tag =
+                    compute_partition_tag(connection, &read_scopes, "node_all", "node_all")
+                        .map_err(unavailable)?;
+                if node_all_tag != expected_tags.node_all_tag {
+                    return Err(drifted());
+                }
+            }
+        }
+        ReadSurface::TraceDependency => {
+            let node_all_tag =
+                compute_partition_tag(connection, &read_scopes, "node_all", "node_all")
+                    .map_err(unavailable)?;
+            if node_all_tag != expected_tags.node_all_tag {
+                return Err(drifted());
+            }
+            let edge_any_tag =
+                compute_partition_tag(connection, &read_scopes, "edge_any", "edge_any")
+                    .map_err(unavailable)?;
+            if edge_any_tag != expected.projection_cursor {
+                return Err(drifted());
+            }
+            let dep_tag = compute_partition_tag(
+                connection,
+                &read_scopes,
+                "scope_dependency",
+                "scope_dependency",
+            )
+            .map_err(unavailable)?;
+            if dep_tag != expected.dependency_generation {
+                return Err(drifted());
+            }
+        }
+    }
+
+    load_visibility_generation(connection).map_err(unavailable)
 }
 
 pub(crate) fn load_visibility_generation(connection: &Connection) -> Result<u64, EngineError> {
@@ -421,6 +631,30 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
             return Err("invalid frozen-read branch-sensitive state".to_string());
         }
     }
+    if schema_version >= 39 {
+        let (gs_gen, gs_nonce) =
+            load_global_struct_state(connection).map_err(|error| error.to_string())?;
+        let _ = gs_gen;
+        if !is_lower_hex(&gs_nonce, 64) {
+            return Err("invalid frozen-read global structural state".to_string());
+        }
+        let has_watermarks: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='_fathomdb_scope_visibility_watermarks')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|error| error.to_string())?;
+        if !has_watermarks {
+            return Err("missing _fathomdb_scope_visibility_watermarks table".to_string());
+        }
+        connection
+            .prepare(
+                "SELECT scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce \
+                 FROM _fathomdb_scope_visibility_watermarks LIMIT 0",
+            )
+            .map_err(|error| format!("invalid _fathomdb_scope_visibility_watermarks layout: {error}"))?;
+    }
     let mut trigger_table_count = 0usize;
     for entry in fathomdb_schema::TABLE_MANIFEST.iter().filter(|entry| {
         entry.visibility_trigger_prefix.is_some()
@@ -428,7 +662,6 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     }) {
         trigger_table_count += 1;
         let short = entry.visibility_trigger_prefix.expect("checked some");
-        let table = entry.name;
         for (suffix, operation) in [("ai", "INSERT"), ("au", "UPDATE"), ("ad", "DELETE")] {
             let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
             let sql = connection
@@ -440,23 +673,11 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
                 .optional()
                 .map_err(|error| error.to_string())?
                 .ok_or_else(|| format!("missing frozen-read visibility trigger {name}"))?;
-            let branch_state =
-                if schema_version >= 33 { ",state_nonce=lower(hex(randomblob(32)))" } else { "" };
-            let gate = if schema_version >= 37 {
-                " WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1)"
-            } else {
-                ""
-            };
-            let admission = if schema_version >= 37 {
-                "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0) THEN RAISE(ABORT,'read visibility coalescing state unavailable') END; "
-            } else {
-                ""
-            };
-            let expected = format!(
-                "CREATE TRIGGER {name} AFTER {operation} ON {table}{gate} BEGIN {admission}UPDATE \
-                 _fathomdb_read_visibility_state SET generation=CASE WHEN \
-                 generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation \
-                 exhausted') ELSE generation+1 END{branch_state} WHERE singleton=1; END"
+            let expected = fathomdb_schema::expected_visibility_trigger_sql(
+                entry,
+                suffix,
+                operation,
+                schema_version,
             );
             if normalize_sql(&sql) != normalize_sql(&expected) {
                 return Err(format!("frozen-read visibility trigger {name} differs from manifest"));
@@ -556,36 +777,257 @@ fn normalize_sql(sql: &str) -> String {
     sql.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+fn load_global_struct_state(connection: &Connection) -> Result<(u64, String), EngineError> {
+    let (gen_i64, nonce): (i64, String) = connection
+        .prepare_cached(
+            "SELECT global_struct_gen, global_struct_nonce \
+             FROM _fathomdb_read_visibility_state WHERE singleton=1",
+        )
+        .and_then(|mut stmt| stmt.query_row([], |row| Ok((row.get(0)?, row.get(1)?))))
+        .map_err(|_| EngineError::Storage)?;
+    let gen_u64 = u64::try_from(gen_i64).map_err(|_| EngineError::Storage)?;
+    Ok((gen_u64, nonce))
+}
+
+fn sorted_read_scopes(scope: &crate::scope::ScopePredicate) -> Vec<&str> {
+    let mut scopes: Vec<&str> = scope.read_scopes().iter().map(String::as_str).collect();
+    scopes.sort_unstable();
+    scopes.dedup();
+    scopes
+}
+
+fn node_partition_kind(kind: Option<&str>) -> String {
+    match kind {
+        Some(k) => format!("node:{k}"),
+        None => "node_all".to_string(),
+    }
+}
+
+fn vector_ready_partition_kind(kind: Option<&str>) -> String {
+    match kind {
+        Some(k) => format!("vector_ready:{k}"),
+        None => "vector_ready_all".to_string(),
+    }
+}
+
+fn edge_kind_partition_kind(kind: Option<&str>) -> String {
+    match kind {
+        Some(k) => format!("edge:{k}"),
+        None => "edge_any".to_string(),
+    }
+}
+
+fn query_watermark(
+    connection: &Connection,
+    scope: &str,
+    partition_kind: &str,
+) -> Result<(u64, u64, u64, String), EngineError> {
+    let row: Option<(i64, i64, i64, String)> = connection
+        .prepare_cached(
+            "SELECT add_generation, max_cursor, destructive_generation, state_nonce \
+             FROM _fathomdb_scope_visibility_watermarks \
+             WHERE scope = ?1 AND partition_kind = ?2",
+        )
+        .and_then(|mut stmt| {
+            stmt.query_row(rusqlite::params![scope, partition_kind], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+            })
+            .optional()
+        })
+        .map_err(|_| EngineError::Storage)?;
+    match row {
+        Some((add_g, max_c, dest_g, nonce)) => Ok((
+            u64::try_from(add_g).map_err(|_| EngineError::Storage)?,
+            u64::try_from(max_c).map_err(|_| EngineError::Storage)?,
+            u64::try_from(dest_g).map_err(|_| EngineError::Storage)?,
+            nonce,
+        )),
+        None => Ok((0, 0, 0, String::new())),
+    }
+}
+
+struct ScopeWatermarkRow {
+    scope: String,
+    partition_kind: String,
+    add_generation: u64,
+    max_cursor: u64,
+    destructive_generation: u64,
+    state_nonce: String,
+}
+
+fn load_partition_rows(
+    connection: &Connection,
+    read_scopes: &[&str],
+    partition_kind: &str,
+) -> Result<Vec<ScopeWatermarkRow>, EngineError> {
+    let mut out = Vec::with_capacity(read_scopes.len());
+    for &s in read_scopes {
+        let (add_generation, max_cursor, destructive_generation, state_nonce) =
+            query_watermark(connection, s, partition_kind)?;
+        out.push(ScopeWatermarkRow {
+            scope: s.to_string(),
+            partition_kind: partition_kind.to_string(),
+            add_generation,
+            max_cursor,
+            destructive_generation,
+            state_nonce,
+        });
+    }
+    Ok(out)
+}
+
+fn fold_owned_partition_rows(domain_label: &str, rows: &[ScopeWatermarkRow]) -> u64 {
+    let mut bytes = Vec::from(WATERMARK_TAG_DOMAIN_V1);
+    encode_string(&mut bytes, domain_label);
+    for row in rows {
+        encode_string(&mut bytes, &row.scope);
+        encode_string(&mut bytes, &row.partition_kind);
+        encode_u64(&mut bytes, row.add_generation);
+        encode_u64(&mut bytes, row.max_cursor);
+        encode_u64(&mut bytes, row.destructive_generation);
+        encode_string(&mut bytes, &row.state_nonce);
+    }
+    let hash: [u8; 32] = Sha256::digest(bytes).into();
+    u64::from_be_bytes(hash[0..8].try_into().expect("sha256 is 32 bytes"))
+}
+
+fn compute_partition_tag(
+    connection: &Connection,
+    read_scopes: &[&str],
+    partition_kind: &str,
+    domain_label: &str,
+) -> Result<u64, EngineError> {
+    let rows = load_partition_rows(connection, read_scopes, partition_kind)?;
+    Ok(fold_owned_partition_rows(domain_label, &rows))
+}
+
+fn compute_node_partition(
+    connection: &Connection,
+    read_scopes: &[&str],
+    kind: Option<&str>,
+) -> Result<(u64, u64), EngineError> {
+    let pk = node_partition_kind(kind);
+    let rows = load_partition_rows(connection, read_scopes, &pk)?;
+    let max_cursor = rows.iter().map(|r| r.max_cursor).max().unwrap_or(0);
+    let tag = fold_owned_partition_rows("node", &rows);
+    Ok((max_cursor, tag))
+}
+
+fn serving_encoding_v4(
+    connection: &Connection,
+    read_scopes: &[&str],
+) -> Result<Vec<u8>, EngineError> {
+    let mut bytes = Vec::from(SERVING_DOMAIN_V4);
+    let (gs_gen, gs_nonce) = load_global_struct_state(connection)?;
+    encode_u64(&mut bytes, gs_gen);
+    encode_string(&mut bytes, &gs_nonce);
+    let generation = crate::projection_generation::current_generation(connection)?;
+    encode_string(&mut bytes, generation.id.as_str());
+    encode_string(&mut bytes, &generation.digest);
+    encode_u64(&mut bytes, generation.boundary);
+    encode_string(&mut bytes, "serving");
+    encode_string(&mut bytes, generation.origin.as_str());
+    for &s in read_scopes {
+        let (add_g, max_c, dest_g, nonce) = query_watermark(connection, s, "scope_destructive")?;
+        encode_string(&mut bytes, s);
+        encode_string(&mut bytes, "scope_destructive");
+        encode_u64(&mut bytes, add_g);
+        encode_u64(&mut bytes, max_c);
+        encode_u64(&mut bytes, dest_g);
+        encode_string(&mut bytes, &nonce);
+    }
+    Ok(bytes)
+}
+
+fn serving_digest_v4(
+    connection: &Connection,
+    read_scopes: &[&str],
+) -> Result<[u8; 32], EngineError> {
+    Ok(Sha256::digest(serving_encoding_v4(connection, read_scopes)?).into())
+}
+
 fn binding_for_snapshot(
     connection: &Connection,
+    context: &ReadContextV1,
     effective_valid_at: i64,
     context_digest: [u8; 32],
-    scope_digest: Option<[u8; 32]>,
+    scope: &crate::scope::ScopePredicate,
 ) -> Result<FrozenReadBinding, EngineError> {
+    let schema_version: u32 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
     #[cfg(any(test, feature = "migration-test-hooks"))]
     {
         // Retained normative token fixtures predate coalescing. This private
         // fixture route is absent from ordinary builds and public admission.
-        let fixture_format: u32 = connection
-            .pragma_query_value(None, "user_version", |row| row.get(0))
-            .map_err(|_| EngineError::Storage)?;
-        if !(31..37).contains(&fixture_format) {
+        if !(31..37).contains(&schema_version) {
             require_clean_visibility(connection)?;
         }
     }
     #[cfg(not(any(test, feature = "migration-test-hooks")))]
     require_clean_visibility(connection)?;
+
+    if schema_version < 39 {
+        return Ok(FrozenReadBinding {
+            database_id: read_open_state(connection, DATABASE_ID_KEY)?,
+            effective_valid_at,
+            canonical_write_boundary: load_next_cursor(connection),
+            read_visibility_generation: load_visibility_generation(connection)?,
+            dependency_generation: load_dependency_generation(connection)?,
+            projection_cursor: load_projection_cursor(connection)
+                .map_err(|_| EngineError::Storage)?,
+            registry_digest: projection_registry_digest(connection)?,
+            serving_digest: projection_serving_digest(connection)?,
+            context_digest,
+            scope_digest: scope.frozen_digest(),
+            surface_tags: None,
+        });
+    }
+
+    let read_scopes = sorted_read_scopes(scope);
+    let kind = context.eligibility.kind.as_deref();
+    let node_pk = node_partition_kind(kind);
+    let node_rows = load_partition_rows(connection, &read_scopes, &node_pk)?;
+    let canonical_write_boundary = node_rows.iter().map(|r| r.max_cursor).max().unwrap_or(0);
+    let read_visibility_generation = fold_owned_partition_rows("node", &node_rows);
+    let node_all_tag = if kind.is_none() {
+        fold_owned_partition_rows("node_all", &node_rows)
+    } else {
+        compute_partition_tag(connection, &read_scopes, "node_all", "node_all")?
+    };
+
+    let dep_tag =
+        compute_partition_tag(connection, &read_scopes, "scope_dependency", "scope_dependency")?;
+    let edge_any_rows = load_partition_rows(connection, &read_scopes, "edge_any")?;
+    let edge_any_tag = fold_owned_partition_rows("edge_any", &edge_any_rows);
+    let edge_kind_tag = if kind.is_none() {
+        fold_owned_partition_rows("edge_kind", &edge_any_rows)
+    } else {
+        let edge_pk = edge_kind_partition_kind(kind);
+        compute_partition_tag(connection, &read_scopes, &edge_pk, "edge_kind")?
+    };
+    let op_state_tag = compute_partition_tag(connection, &read_scopes, "op_state", "op_state")?;
+    let vec_pk = vector_ready_partition_kind(kind);
+    let projection_readiness_tag =
+        compute_partition_tag(connection, &read_scopes, &vec_pk, "vector_ready")?;
+
     Ok(FrozenReadBinding {
         database_id: read_open_state(connection, DATABASE_ID_KEY)?,
         effective_valid_at,
-        canonical_write_boundary: load_next_cursor(connection),
-        read_visibility_generation: load_visibility_generation(connection)?,
-        dependency_generation: load_dependency_generation(connection)?,
-        projection_cursor: load_projection_cursor(connection).map_err(|_| EngineError::Storage)?,
+        canonical_write_boundary,
+        read_visibility_generation,
+        dependency_generation: dep_tag,
+        projection_cursor: edge_any_tag,
         registry_digest: projection_registry_digest(connection)?,
-        serving_digest: projection_serving_digest(connection)?,
+        serving_digest: serving_digest_v4(connection, &read_scopes)?,
         context_digest,
-        scope_digest,
+        scope_digest: scope.frozen_digest(),
+        surface_tags: Some(SurfaceTags {
+            op_state_tag,
+            node_all_tag,
+            projection_readiness_tag,
+            edge_kind_tag,
+        }),
     })
 }
 
@@ -691,6 +1133,9 @@ fn projection_serving_encoding(connection: &Connection) -> Result<Vec<u8>, Engin
     let schema_version: u32 = connection
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .map_err(|_| EngineError::Storage)?;
+    if schema_version >= 39 {
+        return serving_encoding_v4(connection, &[""]);
+    }
     let mut bytes = if schema_version >= 33 {
         Vec::from(SERVING_DOMAIN_V3)
     } else if schema_version >= 32 {
@@ -822,6 +1267,13 @@ fn encode_binding(binding: &FrozenReadBinding) -> Vec<u8> {
     if let Some(scope_digest) = binding.scope_digest {
         bytes.extend_from_slice(&scope_digest);
     }
+    if let Some(tags) = binding.surface_tags {
+        bytes.extend_from_slice(&SURFACE_TAGS_MAGIC);
+        encode_u64(&mut bytes, tags.op_state_tag);
+        encode_u64(&mut bytes, tags.node_all_tag);
+        encode_u64(&mut bytes, tags.projection_readiness_tag);
+        encode_u64(&mut bytes, tags.edge_kind_tag);
+    }
     bytes
 }
 
@@ -844,12 +1296,36 @@ fn decode_binding(bytes: &[u8]) -> Result<FrozenReadBinding, EngineError> {
     let registry_digest = cursor.array32()?;
     let serving_digest = cursor.array32()?;
     let context_digest = cursor.array32()?;
-    let scope_digest = if cursor.offset == bytes.len() {
-        None
-    } else if bytes.len().saturating_sub(cursor.offset) == 32 {
-        Some(cursor.array32()?)
-    } else {
-        return Err(FrozenReadError::new(FrozenReadErrorReason::TokenMalformed, "/token").into());
+    let rem = bytes.len().saturating_sub(cursor.offset);
+    let (scope_digest, surface_tags) = match rem {
+        0 => (None, None),
+        32 => (Some(cursor.array32()?), None),
+        34 => {
+            if cursor.take(2)? != SURFACE_TAGS_MAGIC {
+                return Err(token_malformed());
+            }
+            let tags = SurfaceTags {
+                op_state_tag: cursor.u64()?,
+                node_all_tag: cursor.u64()?,
+                projection_readiness_tag: cursor.u64()?,
+                edge_kind_tag: cursor.u64()?,
+            };
+            (None, Some(tags))
+        }
+        66 => {
+            let sd = cursor.array32()?;
+            if cursor.take(2)? != SURFACE_TAGS_MAGIC {
+                return Err(token_malformed());
+            }
+            let tags = SurfaceTags {
+                op_state_tag: cursor.u64()?,
+                node_all_tag: cursor.u64()?,
+                projection_readiness_tag: cursor.u64()?,
+                edge_kind_tag: cursor.u64()?,
+            };
+            (Some(sd), Some(tags))
+        }
+        _ => return Err(token_malformed()),
     };
     let binding = FrozenReadBinding {
         database_id,
@@ -862,6 +1338,7 @@ fn decode_binding(bytes: &[u8]) -> Result<FrozenReadBinding, EngineError> {
         serving_digest,
         context_digest,
         scope_digest,
+        surface_tags,
     };
     if cursor.offset != bytes.len() || encode_binding(&binding) != bytes {
         return Err(FrozenReadError::new(FrozenReadErrorReason::TokenMalformed, "/token").into());
@@ -1083,7 +1560,7 @@ impl Engine {
         let binding = authenticate(connection, context, &scope)?;
         let token_authentication_ns = started.elapsed().as_nanos();
         let started = Instant::now();
-        validate_snapshot(connection, &binding)?;
+        validate_snapshot(connection, &context.context, &binding, &scope, ReadSurface::Preflight)?;
         let snapshot_binding_ns = started.elapsed().as_nanos();
         Ok(Slice45FrozenStageTiming {
             cursor_authentication_ns,
@@ -1124,8 +1601,8 @@ mod tests {
         authenticate, decode_binding, digest, encode_binding, encode_context, hex_decode,
         hex_encode, load_visibility_generation, mint, projection_registry_digest,
         projection_serving_digest, projection_serving_encoding, validate_snapshot,
-        FrozenReadBinding, FrozenReadErrorReason, ReadContextV1, ReadView, SearchFilter,
-        CONTEXT_DOMAIN,
+        FrozenReadBinding, FrozenReadErrorReason, ReadContextV1, ReadSurface, ReadView,
+        SearchFilter, SurfaceTags, CONTEXT_DOMAIN,
     };
 
     proptest! {
@@ -1141,6 +1618,13 @@ mod tests {
             serving_digest in any::<[u8; 32]>(),
             context_digest in any::<[u8; 32]>(),
             scope_digest in any::<Option<[u8; 32]>>(),
+            surface_tags in prop::option::of((any::<u64>(), any::<u64>(), any::<u64>(), any::<u64>()))
+                .prop_map(|opt| opt.map(|(op_state_tag, node_all_tag, projection_readiness_tag, edge_kind_tag)| SurfaceTags {
+                    op_state_tag,
+                    node_all_tag,
+                    projection_readiness_tag,
+                    edge_kind_tag,
+                })),
         ) {
             let expected = FrozenReadBinding {
                 database_id,
@@ -1153,11 +1637,23 @@ mod tests {
                 serving_digest,
                 context_digest,
                 scope_digest,
+                surface_tags,
             };
             let encoded = encode_binding(&expected);
             let decoded = decode_binding(&encoded).unwrap();
             prop_assert_eq!(&decoded, &expected);
             prop_assert_eq!(encode_binding(&decoded), encoded);
+            // Corrupting the 0x53 0x39 magic bytes must fail closed with TokenMalformed.
+            if surface_tags.is_some() {
+                let mut corrupted = encode_binding(&expected);
+                let magic_pos = corrupted.len() - 34;
+                corrupted[magic_pos] ^= 0xFF;
+                prop_assert!(matches!(
+                    decode_binding(&corrupted),
+                    Err(crate::EngineError::FrozenRead(fe))
+                        if fe.reason == FrozenReadErrorReason::TokenMalformed
+                ));
+            }
         }
 
         #[test]
@@ -1391,7 +1887,7 @@ mod tests {
 
         let binding = authenticate(&connection, &frozen, &unscoped).unwrap();
         assert!(matches!(
-            validate_snapshot(&connection, &binding),
+            validate_snapshot(&connection, &frozen.context, &binding, &unscoped, ReadSurface::Preflight),
             Err(error) if error.reason == FrozenReadErrorReason::StateDrifted
         ));
     }
@@ -1433,11 +1929,18 @@ mod tests {
         let unscoped = crate::scope::ScopePredicate::unscoped();
         let (left_frozen, _) = mint(&mut left, &context, &unscoped).unwrap();
         let left_binding = authenticate(&left, &left_frozen, &unscoped).unwrap();
-        validate_snapshot(&left, &left_binding).unwrap();
+        validate_snapshot(
+            &left,
+            &left_frozen.context,
+            &left_binding,
+            &unscoped,
+            ReadSurface::Preflight,
+        )
+        .unwrap();
 
         let copied_binding = authenticate(&right, &left_frozen, &unscoped).unwrap();
         assert!(matches!(
-            validate_snapshot(&right, &copied_binding),
+            validate_snapshot(&right, &left_frozen.context, &copied_binding, &unscoped, ReadSurface::Preflight),
             Err(error) if error.reason == FrozenReadErrorReason::StateDrifted
         ));
     }

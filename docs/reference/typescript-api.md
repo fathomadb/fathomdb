@@ -1045,10 +1045,16 @@ engine-enforced isolation via `ScopePolicy`:
 
 Pass via `EngineOpenOptions.engineConfig.scopePolicy` or top-level
 `EngineOpenOptions.scopePolicy` (never both). `FrozenReadContextV1` binds the
-handle's policy digest (cross-policy reuse rejects with `FrozenReadError`);
-cross-scope edge endpoints reject with `WriteValidationError` and cross-scope
-evidence tokens reject with `EvidenceError` (`"evidence_unavailable"`) per D-01
-nondisclosure.
+handle's policy digest (cross-policy reuse rejects with `FrozenReadError`) and
+Schema 39 partitioned visibility watermarks (disjoint-`kind` additive writes,
+`append_only_log` appends, `latest_state` upserts against non-operational-state
+surfaces, disjoint-scope writes/lifecycle/erasure across reopen, and
+disjoint-`(scope, kind)` background vector commits produce zero drift; in
+`resolveEvidenceMany`, drifted `Edge`/`GraphArm` slots return per-slot
+`refused` while unaffected node-only slots resolve; raw FTS5 `bm25()` scores
+are not frozen across concurrent additive writes). Cross-scope edge endpoints
+reject with `WriteValidationError` and cross-scope evidence tokens reject with
+`EvidenceError` (`"evidence_unavailable"`) per D-01 nondisclosure.
 
 ## See also
 

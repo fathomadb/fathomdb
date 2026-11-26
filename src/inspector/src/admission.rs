@@ -155,7 +155,8 @@ fn manifest_columns(table: &str) -> &'static str {
         "_fathomdb_actuation_receipt_source_refs" => "operation_id,ref_kind,ref_value,scope",
         "_fathomdb_migrations" => "step_id,applied_at_ms",
         "_fathomdb_schema_meta" => "key,value",
-        "_fathomdb_read_visibility_state" => "singleton,generation,state_nonce,coalescing",
+        "_fathomdb_read_visibility_state" => "singleton,generation,state_nonce,coalescing,global_struct_gen,global_struct_nonce",
+        "_fathomdb_scope_visibility_watermarks" => "scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce",
         "_fathomdb_open_state" => "key,value",
         "_fathomdb_projection_generations" => "schema_version,generation_id,declaration_sha256,transition_boundary,role,origin,retired_boundary",
         "_fathomdb_projection_generation_current" => "singleton,generation_id",
@@ -223,7 +224,7 @@ fn validate_layout(c: &Connection) -> Result<(), &'static str> {
             return Err("mean_recovery_required");
         }
     }
-    let visibility: i64 = c.query_row("SELECT count(*) FROM _fathomdb_read_visibility_state WHERE singleton=1 AND generation>=0 AND length(state_nonce)=64 AND typeof(coalescing)='integer' AND coalescing=0", [], |r| r.get(0)).map_err(|_| "invalid_visibility")?;
+    let visibility: i64 = c.query_row("SELECT count(*) FROM _fathomdb_read_visibility_state WHERE singleton=1 AND generation>=0 AND length(state_nonce)=64 AND typeof(coalescing)='integer' AND coalescing=0 AND global_struct_gen>=0 AND length(global_struct_nonce)=64 AND global_struct_nonce NOT GLOB '*[^0-9a-f]*'", [], |r| r.get(0)).map_err(|_| "invalid_visibility")?;
     if visibility != 1 {
         return Err("invalid_visibility");
     }

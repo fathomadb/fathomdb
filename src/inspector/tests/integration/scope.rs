@@ -20,7 +20,7 @@ use std::sync::Arc;
 #[test]
 fn table_manifest_drives_schema_39_admission_for_every_manifest_table() {
     assert_eq!(fathomdb_schema::SCHEMA_VERSION, 39);
-    assert_eq!(fathomdb_schema::TABLE_MANIFEST.len(), 35);
+    assert_eq!(fathomdb_schema::TABLE_MANIFEST.len(), 36);
     let dir = tempfile::tempdir().unwrap();
     let base = database(dir.path());
     assert!(preflight(&base).is_ok());
@@ -34,6 +34,7 @@ fn table_manifest_drives_schema_39_admission_for_every_manifest_table() {
         "_fathomdb_actuation_receipt_source_refs",
         "_fathomdb_embed_probe",
         "_fathomdb_migrations",
+        "_fathomdb_scope_visibility_watermarks",
         "search_index_v2",
         "property_search_index",
         "vector_default",
@@ -56,6 +57,25 @@ fn table_manifest_drives_schema_39_admission_for_every_manifest_table() {
             preflight(&target).unwrap_err(),
             "malformed_layout",
             "dropping TABLE_MANIFEST table {table} must fail admission closed"
+        );
+    }
+
+    // Malformed global_struct_nonce (wrong length or uppercase hex) must fail admission closed.
+    for bad_nonce in ["short", &"A".repeat(64)] {
+        let target = dir.path().join(format!("bad-nonce-{}.sqlite", bad_nonce.len()));
+        fs::copy(&base, &target).unwrap();
+        fs::write(format!("{}.lock", target.display()), b"lock").unwrap();
+        let c = rusqlite::Connection::open(&target).unwrap();
+        c.execute(
+            "UPDATE _fathomdb_read_visibility_state SET global_struct_nonce=?1 WHERE singleton=1",
+            [bad_nonce],
+        )
+        .unwrap();
+        drop(c);
+        assert_eq!(
+            preflight(&target).unwrap_err(),
+            "invalid_visibility",
+            "malformed global_struct_nonce must fail admission closed"
         );
     }
 }

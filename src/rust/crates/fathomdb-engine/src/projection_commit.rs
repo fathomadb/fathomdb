@@ -299,6 +299,7 @@ pub(crate) fn commit_projection_outcomes(
         } else {
             None
         };
+        let mut visibility_delta = crate::write_commit::VisibilityDelta::default();
         let mut staged_events: Vec<EmbedderEvent> = Vec::new();
         let mut trigger_guard = if coalesce_visibility {
             Some(VisibilityCoalescingGuard::arm(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?)
@@ -427,6 +428,7 @@ pub(crate) fn commit_projection_outcomes(
                             &tx,
                             *cursor as i64,
                         )?;
+                    let committed_scope = scope.clone();
                     if actual_vector_attr_columns(&tx)?.is_empty() {
                         tx.execute(
                             "INSERT INTO vector_default(
@@ -480,6 +482,12 @@ pub(crate) fn commit_projection_outcomes(
                     if let Some(counts) = observation_counts.as_mut() {
                         counts.staged_success += 1;
                     }
+                    visibility_delta.record_add(
+                        &committed_scope,
+                        format!("vector_ready:{kind}"),
+                        *cursor,
+                    );
+                    visibility_delta.record_add(&committed_scope, "vector_ready_all", *cursor);
                     visibility_changed = true;
 
                     // EU-5f — this row crossed the threshold: pin the mean and
@@ -491,6 +499,7 @@ pub(crate) fn commit_projection_outcomes(
                             "UPDATE _fathomdb_embedder_profiles SET mean_vec = ?1 WHERE profile = 'default'",
                             params![encode_vector_blob(&mean)],
                         )?;
+                        visibility_delta.record_global_struct();
                         let rows: Vec<(i64, Vec<u8>)> = {
                             let mut statement = tx.prepare(
                                 "SELECT rowid, embedding FROM vector_default ORDER BY rowid",
@@ -526,16 +535,16 @@ pub(crate) fn commit_projection_outcomes(
                         }
                         continue;
                     }
-                    if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
-                        .map_err(|_| rusqlite::Error::InvalidQuery)?
-                        .is_none()
-                    {
+                    let Some(failed_kind) =
+                        projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
+                            .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    else {
                         #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
                         if let Some(counts) = observation_counts.as_mut() {
                             counts.member_skips += 1;
                         }
                         continue;
-                    }
+                    };
                     if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
                         #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
                         if let Some(counts) = observation_counts.as_mut() {
@@ -546,6 +555,13 @@ pub(crate) fn commit_projection_outcomes(
                     if !projection_physical_tuple_is_empty(&tx, *cursor)? {
                         return Err(projection_tuple_corruption());
                     }
+                    let row_scope: String = tx
+                        .query_row(
+                            "SELECT COALESCE((SELECT scope FROM canonical_nodes WHERE write_cursor = ?1 UNION ALL SELECT scope FROM canonical_edges WHERE write_cursor = ?1 LIMIT 1), '')",
+                            [cursor],
+                            |row| row.get(0),
+                        )
+                        .unwrap_or_default();
                     let existing: u64 = tx.query_row(
                         "SELECT COUNT(*) FROM operational_mutations
                          WHERE collection_name = 'projection_failures'
@@ -554,13 +570,6 @@ pub(crate) fn commit_projection_outcomes(
                         |row| row.get(0),
                     )?;
                     if existing == 0 {
-                        let row_scope: String = tx
-                            .query_row(
-                                "SELECT COALESCE((SELECT scope FROM canonical_nodes WHERE write_cursor = ?1 UNION ALL SELECT scope FROM canonical_edges WHERE write_cursor = ?1 LIMIT 1), '')",
-                                [cursor],
-                                |row| row.get(0),
-                            )
-                            .unwrap_or_default();
                         let payload = format!(
                             r#"{{"write_cursor":{cursor},"failure_code":"{failure_code}","recorded_at":0}}"#
                         );
@@ -581,6 +590,12 @@ pub(crate) fn commit_projection_outcomes(
                     if let Some(counts) = observation_counts.as_mut() {
                         counts.staged_failure += 1;
                     }
+                    visibility_delta.record_add(
+                        &row_scope,
+                        format!("vector_ready:{failed_kind}"),
+                        *cursor,
+                    );
+                    visibility_delta.record_add(&row_scope, "vector_ready_all", *cursor);
                     visibility_changed = true;
                 }
                 // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — record NOTHING.
@@ -632,7 +647,7 @@ pub(crate) fn commit_projection_outcomes(
             _ => {}
         }
         if coalesce_visibility && visibility_changed {
-            advance_read_visibility(&tx)?;
+            visibility_delta.apply(&tx)?;
         }
         if let Some(trigger_guard) = trigger_guard.as_mut() {
             trigger_guard.restore().map_err(|_| rusqlite::Error::InvalidQuery)?;

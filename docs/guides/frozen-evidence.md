@@ -75,8 +75,13 @@ for item in items:
 Duplicate references preserve exact request order and arity. Invalid, tampered,
 empty, oversized, wrong-context, erased, or superseded references return a
 per-slot `refused` outcome (`reason="evidence_unavailable"`,
-`field_path="/evidenceRefs/{i}"`) without failing valid slots; stale or drifted
-frozen contexts fail the whole call with `EvidenceError("evidence_unavailable")`.
+`field_path="/evidenceRefs/{i}"`) without failing valid slots. When a same-scope
+edge write happens after freeze, node-only slots remain unaffected and resolve
+while post-decode `Edge` or `GraphArm` slots whose edge partition drifted fail
+closed per-slot with `evidence_unavailable`. Whole-context drift (such as a
+same-`(scope, kind)` write, destructive mutation in `scope`, or global
+structural change) fails the whole call with
+`EvidenceError("evidence_unavailable")`.
 Out-of-bounds lengths (`0` or `> 50`) fail before database access with
 `InvalidArgumentError`. Opt-in search hints (`hints=True` / `hints: true`) are
 also supported on `search`, `search_frozen`, and `EvidenceSearchRequestV1`,
@@ -192,13 +197,47 @@ returns no sidecar and does not capture telemetry on these frozen paths.
 
 A frozen context has no elapsed-time expiry promise. It can be reused after a
 clean restart while its bound database state remains available and unchanged.
-Mutation may instead cause a frozen-read state-drift refusal. Evidence
-resolution can return `evidence_unavailable` when the bound artifact is no
-longer available or authorized.
 
-For either outcome, restart the whole attempt: mint a new frozen context, rerun
-`search_with_evidence`, and resolve only references returned by that new search.
-Do not fall back to non-frozen search or re-search a hit's body.
+### Partitioned additive stability (Schema 39)
+
+Schema 39 partitions frozen-read visibility watermarks by `(scope, partition_kind)`
+so concurrent additive activity outside a frozen context's read surface does not
+force spurious retries:
+
+- **Stable (zero drift):**
+  - Additive writes or actuations to a disjoint node `kind` when the frozen
+    context specifies `eligibility.kind`.
+  - Appends to `append_only_log` operational collections (`operational_mutations`)
+    against every frozen surface, including `read.operational_state`.
+  - Upserts to `latest_state` operational collections (`operational_state`)
+    against canonical, search, evidence, graph, and trace surfaces (including
+    unfiltered `SearchFilter()`), while still drifting `read.operational_state`.
+  - Additive writes, lifecycle transitions, purges, and source erasures in a
+    disjoint caller `scope` (including across close and reopen).
+  - Background vector projection commits for a disjoint `(scope, kind)`.
+- **Fail-closed drift (`StateDrifted` / `evidence_unavailable`):**
+  - Any write to the same `(scope, kind)` (or any node write in `scope` when
+    `eligibility.kind` is omitted).
+  - Same-scope edge writes against graph surfaces (`graph.expand`,
+    `search_expand_frozen`, `resolve_graph_evidence`, `use_graph_arm=True`,
+    `trace_dependency`) or matching-`kind` edge writes; in
+    `resolve_evidence_many`, affected `Edge` / `GraphArm` slots refuse per-slot
+    while unaffected node-only slots still resolve.
+  - Any destructive mutation (`transition`, `purge`, `erase_source`,
+    `excise_source`) on any kind in the same `scope`, any dependency or closure
+    mutation in `scope`, or any global structural change (projection
+    registration/enrolment, embedder `mean_vec` pin, or uncoalesced SQL on
+    serving tables).
+- **FTS5 BM25 corpus statistics:** Additive writes to disjoint kinds or scopes
+  share the underlying FTS5 `search_index` table. While frozen-context
+  membership, eligibility, and resolved canonical evidence bytes remain strictly
+  frozen across those additive writes, raw FTS5 `bm25()` scores and relative
+  score tie-breaks can shift slightly as corpus document frequency updates.
+
+When a mutation does cause a frozen-read state-drift refusal or
+`evidence_unavailable`, restart the whole attempt: mint a new frozen context,
+rerun `search_with_evidence`, and resolve only references returned by that new
+search. Do not fall back to non-frozen search or re-search a hit's body.
 
 ## Current scope
 

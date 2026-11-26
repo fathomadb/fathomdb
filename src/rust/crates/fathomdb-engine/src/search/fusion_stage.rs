@@ -226,18 +226,21 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let observed_epoch = status_cache.snapshot_epoch().map_err(SearchReaderError::Evidence)?;
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
+        let runtime = frozen_query_runtime.as_ref().ok_or_else(|| {
+            SearchReaderError::FrozenRead(FrozenReadError {
+                reason: FrozenReadErrorReason::StateUnavailable,
+                field_path: "/token".to_string(),
+            })
+        })?;
+        let surface = if use_graph_arm || expand_depth.is_some() {
+            frozen_read::ReadSurface::GraphOrEdge
+        } else {
+            frozen_read::ReadSurface::SearchNoGraph
+        };
         let generation =
-            frozen_read::validate_snapshot(&tx, expected).map_err(SearchReaderError::FrozenRead)?;
-        let observed = frozen_query_runtime
-            .as_ref()
-            .ok_or_else(|| {
-                SearchReaderError::FrozenRead(FrozenReadError {
-                    reason: FrozenReadErrorReason::StateUnavailable,
-                    field_path: "/token".to_string(),
-                })
-            })?
-            .observed_generation
-            .fetch_max(generation, Ordering::AcqRel);
+            frozen_read::validate_snapshot(&tx, &runtime.context, expected, scope, surface)
+                .map_err(SearchReaderError::FrozenRead)?;
+        let observed = runtime.observed_generation.fetch_max(generation, Ordering::AcqRel);
         if generation < observed {
             return Err(SearchReaderError::FrozenRead(FrozenReadError {
                 reason: FrozenReadErrorReason::StateUnavailable,

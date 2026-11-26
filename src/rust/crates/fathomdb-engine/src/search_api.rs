@@ -41,7 +41,13 @@ impl Engine {
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let binding = frozen_read::authenticate(connection, frozen, &scope)?;
-        frozen_read::validate_snapshot(connection, &binding)?;
+        frozen_read::validate_snapshot(
+            connection,
+            &frozen.context,
+            &binding,
+            &scope,
+            frozen_read::ReadSurface::Preflight,
+        )?;
         Ok(())
     }
 
@@ -281,6 +287,7 @@ impl Engine {
                 Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
                 Arc::clone(&self.read_visibility_generation),
+                request.context.context.clone(),
             ),
         )
         .with_graph_options(Some(request.graph_arm_options()));
@@ -355,13 +362,33 @@ impl Engine {
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
         let binding = frozen_read::authenticate(&tx, &request.context, &scope)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        frozen_read::validate_snapshot(&tx, &binding)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        let result = evidence::resolve(&tx, request, &scope)?;
+        frozen_read::validate_snapshot(
+            &tx,
+            &request.context.context,
+            &binding,
+            &scope,
+            frozen_read::ReadSurface::EvidenceNode,
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let result = evidence::resolve(&tx, request, &binding, &scope)?;
         #[cfg(any(test, feature = "test-hooks"))]
         self.evidence_before_resolve_return_hook.fire();
-        frozen_read::validate_snapshot(&tx, &binding)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let post_surface =
+            if matches!(result.artifact_lifecycle, EvidenceArtifactLifecycleV1::Edge { .. })
+                || result.projection_origin.representative_arm == EvidenceArmV1::GraphArm
+            {
+                frozen_read::ReadSurface::EvidenceGraph
+            } else {
+                frozen_read::ReadSurface::EvidenceNode
+            };
+        frozen_read::validate_snapshot(
+            &tx,
+            &request.context.context,
+            &binding,
+            &scope,
+            post_surface,
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(result)
     }
@@ -432,12 +459,31 @@ impl Engine {
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
         let binding = frozen_read::authenticate(&tx, context, &scope)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        frozen_read::validate_snapshot(&tx, &binding)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        let items = evidence::resolve_many_raw(&tx, raw_refs, context, &scope)?;
+        frozen_read::validate_snapshot(
+            &tx,
+            &context.context,
+            &binding,
+            &scope,
+            frozen_read::ReadSurface::EvidenceNode,
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let items = evidence::resolve_many_raw(&tx, raw_refs, context, &binding, &scope)?;
         #[cfg(any(test, feature = "test-hooks"))]
         self.evidence_before_resolve_return_hook.fire();
-        frozen_read::validate_snapshot(&tx, &binding)
+        let has_resolved_edge_or_graph = items.iter().any(|item| {
+            matches!(
+                item,
+                EvidenceResolveManyItemV1::Resolved(ev)
+                    if matches!(ev.artifact_lifecycle, EvidenceArtifactLifecycleV1::Edge { .. })
+                        || ev.projection_origin.representative_arm == EvidenceArmV1::GraphArm
+            )
+        });
+        let post_surface = if has_resolved_edge_or_graph {
+            frozen_read::ReadSurface::EvidenceGraph
+        } else {
+            frozen_read::ReadSurface::EvidenceNode
+        };
+        frozen_read::validate_snapshot(&tx, &context.context, &binding, &scope, post_surface)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(items)
@@ -465,8 +511,14 @@ impl Engine {
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
         let binding = frozen_read::authenticate(&tx, &request.context, &scope)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        frozen_read::validate_snapshot(&tx, &binding)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(
+            &tx,
+            &request.context.context,
+            &binding,
+            &scope,
+            frozen_read::ReadSurface::EvidenceGraph,
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let resolved =
             evidence::resolve_graph_evidence(&tx, &request.evidence_ref, &request.context, &scope)?;
         #[cfg(feature = "test-hooks")]
@@ -478,8 +530,14 @@ impl Engine {
         {
             hook();
         }
-        frozen_read::validate_snapshot(&tx, &binding)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(
+            &tx,
+            &request.context.context,
+            &binding,
+            &scope,
+            frozen_read::ReadSurface::EvidenceGraph,
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let artifact = match resolved.artifact_class {
             EvidenceArtifactClassV1::Node => GraphEvidenceArtifactV1::Node {
                 logical_id: resolved.logical_id.ok_or_else(EvidenceErrorV1::unavailable)?,
@@ -803,6 +861,11 @@ impl Engine {
                 Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
                 Arc::clone(&self.read_visibility_generation),
+                ReadContextV1 {
+                    schema_version: crate::frozen_read::FROZEN_READ_SCHEMA_VERSION,
+                    view,
+                    eligibility: filter.clone().unwrap_or_default(),
+                },
             ))
         });
         // The public result limit is independent of the test-only vector
@@ -1810,6 +1873,7 @@ impl Engine {
             effective_view,
             None,
             None,
+            None,
             response_tx,
         );
         if self.reader_pool.dispatch(request).is_err() {
@@ -1833,11 +1897,11 @@ impl Engine {
 use crate::embedding::search_query_vector;
 use crate::errors::EngineError;
 use crate::evidence::{
-    self, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
-    EvidenceErrorV1, EvidenceRefV1, EvidenceResolveManyItemV1, EvidenceResolveManyRequestV1,
-    EvidenceResolveRequestV1, EvidenceSearchRequestV1, EvidenceSearchResultV1,
-    GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1, ResolvedEvidenceV1,
-    ResolvedGraphEvidenceV1, EVIDENCE_RESOLVE_MANY_MAX,
+    self, EvidenceArmV1, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1,
+    EvidenceErrorReasonV1, EvidenceErrorV1, EvidenceRefV1, EvidenceResolveManyItemV1,
+    EvidenceResolveManyRequestV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
+    EvidenceSearchResultV1, GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1,
+    ResolvedEvidenceV1, ResolvedGraphEvidenceV1, EVIDENCE_RESOLVE_MANY_MAX,
 };
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::filter::{

@@ -592,10 +592,20 @@ A continuation call takes only `store`, `continuation`, `max_tokens`,
   omit the field.
 - Unfrozen continuation handles from another store, another epoch, or evicted
   LRU entries fail as `invalid_request/stale_handle`.
-- When a live `EP-01` `frozen_context` handle detects that the store visibility
-  state changed since the context was frozen, the call fails as
-  `conflict/state_drift` (remedy: re-run `search` with `freeze: true` to obtain
-  a fresh `frozen_context`).
+- **Frozen contexts (`frozen_context`, `ADR-0.8.32 #103`):** `fathomdb-mcp`
+  delegates frozen-context drift authority exclusively to the engine's Schema 39
+  partitioned watermark validation rather than comparing global `EP-01`
+  `visibility_state` generations or rejecting reused handles across idle store
+  close/reopen (`epoch` bumps). Disjoint-`kind` writes/actuations,
+  `append_only_log` appends, `latest_state` upserts, and cross-scope writes,
+  transitions, purges, and source erasures in other caller scopes preserve
+  active `frozen_context` handles across idle close/reopen cycles. When the
+  engine reports partitioned drift on `search`, `fetch`, or `expand` (confirmed
+  via `fathomdb-sdk` frozen-read error codes and read probes, including
+  whole-call `conflict/state_drift` escalation when `graph_evidence_refs`
+  resolution drifts), the call fails closed with `conflict/state_drift`
+  (remedy: re-run `search` with `freeze: true` to obtain a fresh
+  `frozen_context`).
 
 ## 6. Errors
 

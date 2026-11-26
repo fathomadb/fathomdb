@@ -27,7 +27,7 @@ pub(crate) fn restore_registered_derived_projections(
     body: &str,
     row_kind: &str,
     properties: Option<&crate::PropertyMap>,
-) -> Result<bool, EngineError> {
+) -> Result<(bool, bool), EngineError> {
     let registered: bool = tx
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions r \
@@ -38,7 +38,7 @@ pub(crate) fn restore_registered_derived_projections(
         )
         .map_err(|_| EngineError::Storage)?;
     if !registered {
-        return Ok(false);
+        return Ok((false, false));
     }
     let legacy_fts: Vec<(String, String)> = tx
         .prepare("SELECT body,kind FROM search_index WHERE write_cursor=?1")
@@ -95,7 +95,7 @@ pub(crate) fn restore_registered_derived_projections(
         || !matches!(row_kind, "leaf" | "coverage")
         || !kind_is_vector_committable_on(tx, kind)
     {
-        return Ok(false);
+        return Ok((false, false));
     }
     crate::vector_spans::validate(tx, Some(cursor as u64))?;
     let terminal: Option<String> = tx
@@ -127,7 +127,7 @@ pub(crate) fn restore_registered_derived_projections(
             source_type == expected_source_type.as_ref() && physical_kind == kind
         })
     {
-        return Ok(false);
+        return Ok((false, false));
     }
     if !matches!(terminal.as_deref(), None | Some("up_to_date"))
         || sidecar.is_some()
@@ -135,12 +135,14 @@ pub(crate) fn restore_registered_derived_projections(
     {
         return Err(projection_generation::corruption_error());
     }
-    tx.execute(
-        "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind,profile,created_at) \
-         VALUES(?1,'default',0)",
-        [kind],
-    )
-    .map_err(|_| EngineError::Storage)?;
+    let enrolled_vk = tx
+        .execute(
+            "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind,profile,created_at) \
+             VALUES(?1,'default',0)",
+            [kind],
+        )
+        .map_err(|_| EngineError::Storage)?
+        > 0;
     tx.execute("DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=?1", [cursor])
         .map_err(|_| EngineError::Storage)?;
     tx.execute(
@@ -154,7 +156,7 @@ pub(crate) fn restore_registered_derived_projections(
     if load_projection_cursor(tx).map_err(|_| EngineError::Storage)? >= cursor {
         store_projection_cursor(tx, cursor.saturating_sub(1)).map_err(|_| EngineError::Storage)?;
     }
-    Ok(true)
+    Ok((true, enrolled_vk))
 }
 pub(crate) struct CanonicalNodeRow {
     pub(crate) cursor: u64,
@@ -478,7 +480,7 @@ pub(crate) fn project_canonical_node_row(
 /// `vector_default` (partition correctness); that kind is auto-registered in
 /// `_fathomdb_vector_kinds` (idempotent).
 ///
-/// Returns `true` iff async vector work was enqueued.
+/// Returns `(enqueued_vector, enrolled_vector_kind)`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn project_canonical_edge_row(
     tx: &Connection,
@@ -489,7 +491,7 @@ pub(crate) fn project_canonical_edge_row(
     properties: Option<&crate::PropertyMap>,
     edge_active: bool,
     registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
-) -> rusqlite::Result<bool> {
+) -> rusqlite::Result<(bool, bool)> {
     if pass.writes_fts() {
         physical_erasure::mark_dirty(tx)?;
         if let Some(edge_body) = body {
@@ -509,15 +511,18 @@ pub(crate) fn project_canonical_edge_row(
         )?;
     }
     let enqueue_vector = body.is_some();
+    let mut enrolled_vk = false;
     if pass.writes_vector_state() {
         if enqueue_vector {
             let now_unix =
                 SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
-            tx.prepare_cached(
-                "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind, profile, created_at)
-                 VALUES('edge_fact', 'default', ?1)",
-            )?
-            .execute(params![now_unix])?;
+            enrolled_vk = tx
+                .prepare_cached(
+                    "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind, profile, created_at)
+                     VALUES('edge_fact', 'default', ?1)",
+                )?
+                .execute(params![now_unix])?
+                > 0;
             tx.prepare_cached(
                 "INSERT INTO _fathomdb_projection_state(
                      kind, last_enqueued_cursor, updated_at
@@ -537,5 +542,5 @@ pub(crate) fn project_canonical_edge_row(
             )?;
         }
     }
-    Ok(enqueue_vector)
+    Ok((enqueue_vector, enrolled_vk))
 }

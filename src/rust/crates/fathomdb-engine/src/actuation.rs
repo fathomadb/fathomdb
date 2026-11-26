@@ -1713,6 +1713,7 @@ fn simulate_request(
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
+                        None,
                     ) {
                         Ok(_) => {
                             next_cursor = next_cursor.saturating_add(1);
@@ -1763,6 +1764,7 @@ fn simulate_request(
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
+                        None,
                     ) {
                         Ok(_) => {
                             next_cursor = next_cursor.saturating_add(1);
@@ -1816,8 +1818,8 @@ fn simulate_request(
                         index,
                         dependency_closure::SoftClosureMode::Proving,
                     ) {
-                        Ok((revision, _, _)) => {
-                            affected.insert(revision);
+                        Ok(outcome) => {
+                            affected.insert(outcome.revision);
                             if affected.len() > MAX_AFFECTED_REVISIONS {
                                 return Ok(Some(Refusal {
                                     reason: ActuationRefusalReasonV1::WriteRefused,
@@ -1862,6 +1864,7 @@ fn simulate_request(
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
+                        None,
                     ) {
                         Ok(_) => {
                             next_cursor = next_cursor.saturating_add(1);
@@ -2023,13 +2026,22 @@ fn missing_dependency_field(
     Ok(if derived_exists { "sourceRevisionId" } else { "derivedRevisionId" })
 }
 
+struct LifecycleApplyOutcome {
+    revision: String,
+    kind: String,
+    write_cursor: u64,
+    closure_id: Option<ClosureOperationId>,
+    reopened: bool,
+    enrolled_vk: bool,
+}
+
 fn apply_lifecycle(
     connection: &Connection,
     scope: &str,
     operation: &LifecycleActuationV1,
     index: usize,
     closure_mode: dependency_closure::SoftClosureMode,
-) -> Result<(String, Option<ClosureOperationId>, bool), RefusalOrInfrastructure> {
+) -> Result<LifecycleApplyOutcome, RefusalOrInfrastructure> {
     let current = current_revision_for_logical(connection, scope, &operation.logical_id)
         .map_err(RefusalOrInfrastructure::Infrastructure)?;
     let Some((revision, from_state, role)) = current else {
@@ -2053,16 +2065,24 @@ fn apply_lifecycle(
             path: Some(format!("/operations/{index}/toState")),
         }));
     }
-    let (write_cursor, body, props): (i64, String, Option<crate::PropertyMap>) = connection
+    let (write_cursor, kind, row_kind, body, props): (
+        i64,
+        String,
+        String,
+        String,
+        Option<crate::PropertyMap>,
+    ) = connection
         .query_row(
-            "SELECT write_cursor,body,properties FROM canonical_nodes \
+            "SELECT write_cursor,kind,row_kind,body,properties FROM canonical_nodes \
              WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL",
             params![scope, &operation.logical_id],
             |row| {
                 Ok((
                     row.get(0)?,
                     row.get(1)?,
-                    crate::properties::decode_properties_row_col(row, 2)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    crate::properties::decode_properties_row_col(row, 4)?,
                 ))
             },
         )
@@ -2110,14 +2130,7 @@ fn apply_lifecycle(
         refresh_vector_attr_values_for_row(connection, write_cursor, &body, props.as_ref())
             .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     }
-    let reopened = if operation.to_state == LifecycleState::Active {
-        let (kind, row_kind): (String, String) = connection
-            .query_row(
-                "SELECT kind,row_kind FROM canonical_nodes WHERE scope=?1 AND write_cursor=?2",
-                params![scope, write_cursor],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
+    let (reopened, enrolled_vk) = if operation.to_state == LifecycleState::Active {
         super::restore_registered_derived_projections(
             connection,
             write_cursor,
@@ -2128,9 +2141,16 @@ fn apply_lifecycle(
         )
         .map_err(RefusalOrInfrastructure::Infrastructure)?
     } else {
-        false
+        (false, false)
     };
-    Ok((revision, closure_id, reopened))
+    Ok(LifecycleApplyOutcome {
+        revision,
+        kind,
+        write_cursor: u64::try_from(write_cursor).unwrap_or(0),
+        closure_id,
+        reopened,
+        enrolled_vk,
+    })
 }
 
 enum RefusalOrInfrastructure {
@@ -2416,6 +2436,18 @@ impl Engine {
         let vector_kinds_to_enrol =
             self.batch_vector_kinds_needing_enrolment(&tx, &batch_writes)?;
 
+        let coalesce_visibility = crate::write_commit::canonical_batch_has_no_custom_triggers(&tx)
+            .map_err(|_| EngineError::Storage)?;
+        let mut trigger_guard = if coalesce_visibility {
+            Some(
+                crate::write_commit::VisibilityCoalescingGuard::arm(&tx)
+                    .map_err(|_| EngineError::Storage)?,
+            )
+        } else {
+            None
+        };
+        let mut visibility_delta = crate::write_commit::VisibilityDelta::default();
+
         tx.execute_batch("SAVEPOINT fathomdb_actuation_domain")
             .map_err(|_| EngineError::Storage)?;
         let mut next_cursor = base_cursor;
@@ -2473,6 +2505,7 @@ impl Engine {
                             enrol,
                             dependency_closure::SoftClosureMode::Proving,
                             CommitEndpointValidationMode::DeferredToActuationSimulation,
+                            coalesce_visibility.then_some(&mut visibility_delta),
                         ) {
                             Ok((_, repaired, closure_ids)) => {
                                 unstranded |= repaired;
@@ -2543,6 +2576,7 @@ impl Engine {
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
+                        coalesce_visibility.then_some(&mut visibility_delta),
                     ) {
                         Ok((_, repaired, closure_ids)) => {
                             unstranded |= repaired;
@@ -2639,6 +2673,9 @@ impl Engine {
                             // back with the actuation-domain savepoint.
                             store_dependency_generation(&tx, generation)
                                 .map_err(RefusalOrInfrastructure::Infrastructure)?;
+                            if coalesce_visibility {
+                                visibility_delta.record_add(scope, "scope_dependency", 0);
+                            }
                             Ok(())
                         }
                     }
@@ -2651,12 +2688,45 @@ impl Engine {
                         index,
                         dependency_closure::SoftClosureMode::Proving,
                     ) {
-                        Ok((revision, closure_id, reopened)) => {
-                            unstranded |= reopened;
-                            if affected_set.insert(revision.clone()) {
-                                affected.push(revision);
+                        Ok(outcome) => {
+                            unstranded |= outcome.reopened;
+                            if coalesce_visibility {
+                                visibility_delta.record_destructive(scope);
+                                visibility_delta.record_add(
+                                    scope,
+                                    format!("node:{}", outcome.kind),
+                                    outcome.write_cursor,
+                                );
+                                visibility_delta.record_add(
+                                    scope,
+                                    "node_all",
+                                    outcome.write_cursor,
+                                );
+                                if outcome.closure_id.is_some() {
+                                    visibility_delta.record_add(scope, "scope_dependency", 0);
+                                    visibility_delta.record_add(scope, "edge_any", 0);
+                                    visibility_delta.record_add(scope, "vector_ready_all", 0);
+                                }
+                                if outcome.reopened {
+                                    visibility_delta.record_add(
+                                        scope,
+                                        format!("vector_ready:{}", outcome.kind),
+                                        outcome.write_cursor,
+                                    );
+                                    visibility_delta.record_add(
+                                        scope,
+                                        "vector_ready_all",
+                                        outcome.write_cursor,
+                                    );
+                                }
+                                if outcome.enrolled_vk {
+                                    visibility_delta.record_global_struct();
+                                }
                             }
-                            if let Some(closure_id) = closure_id {
+                            if affected_set.insert(outcome.revision.clone()) {
+                                affected.push(outcome.revision);
+                            }
+                            if let Some(closure_id) = outcome.closure_id {
                                 closure_operation_ids.push(closure_id);
                             }
                             Ok(())
@@ -2692,6 +2762,7 @@ impl Engine {
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
+                        coalesce_visibility.then_some(&mut visibility_delta),
                     ) {
                         Ok((_, repaired, closure_ids)) => {
                             unstranded |= repaired;
@@ -2742,6 +2813,10 @@ impl Engine {
                 "ROLLBACK TO fathomdb_actuation_domain; RELEASE fathomdb_actuation_domain",
             )
             .map_err(|_| EngineError::Storage)?;
+            if let Some(guard) = trigger_guard.as_mut() {
+                guard.restore().map_err(|_| EngineError::Storage)?;
+            }
+            drop(trigger_guard);
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
             store_receipt(&tx, scope, &receipt, request.operations.len())?;
             store_source_refs(
@@ -2815,6 +2890,13 @@ impl Engine {
         if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
             return Err(EngineError::Storage);
         }
+        if coalesce_visibility {
+            visibility_delta.apply(&tx).map_err(|_| EngineError::Storage)?;
+        }
+        if let Some(guard) = trigger_guard.as_mut() {
+            guard.restore().map_err(|_| EngineError::Storage)?;
+        }
+        drop(trigger_guard);
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.next_cursor.store(next_cursor, Ordering::SeqCst);
         for closure_id in &closure_operation_ids {

@@ -273,19 +273,46 @@ impl Engine {
             }
         }
 
+        let coalesce_visibility = crate::write_commit::canonical_batch_has_no_custom_triggers(&tx)
+            .map_err(|_| EngineError::Storage)?;
+        let mut trigger_guard = if coalesce_visibility {
+            Some(
+                crate::write_commit::VisibilityCoalescingGuard::arm(&tx)
+                    .map_err(|_| EngineError::Storage)?,
+            )
+        } else {
+            None
+        };
+        let mut visibility_delta = crate::write_commit::VisibilityDelta::default();
+        if coalesce_visibility {
+            visibility_delta.record_destructive(&write_scope);
+            if let Some((_, cursor, kind, _, _, _)) = &current {
+                let cursor_u64 = u64::try_from(*cursor).unwrap_or(0);
+                visibility_delta.record_add(&write_scope, format!("node:{kind}"), cursor_u64);
+                visibility_delta.record_add(&write_scope, "node_all", cursor_u64);
+            }
+        }
+
         if matches!(to_state, LifecycleState::Deleted) {
             if let Some((_, cursor, _, _, _, _)) = &current {
                 if let Some(source_revision) =
                     dependency_closure::source_revision_for_cursor(&tx, &write_scope, *cursor)?
                 {
-                    dependency_closure::admit_soft_closure(
+                    if dependency_closure::admit_soft_closure(
                         &tx,
                         &write_scope,
                         &source_revision,
                         ClosureCauseV1::SoftDeleted,
                         self.next_cursor.load(Ordering::SeqCst),
                         dependency_closure::SoftClosureMode::Complete,
-                    )?;
+                    )?
+                    .is_some()
+                        && coalesce_visibility
+                    {
+                        visibility_delta.record_add(&write_scope, "scope_dependency", 0);
+                        visibility_delta.record_add(&write_scope, "edge_any", 0);
+                        visibility_delta.record_add(&write_scope, "vector_ready_all", 0);
+                    }
                 }
             }
         }
@@ -323,7 +350,7 @@ impl Engine {
                     .map_err(|_| EngineError::Storage)?;
             }
         }
-        let reopened = if matches!(to_state, LifecycleState::Active) {
+        let (reopened, enrolled_vk) = if matches!(to_state, LifecycleState::Active) {
             match &current {
                 Some((_, cursor, kind, body, row_kind, props)) => {
                     restore_registered_derived_projections(
@@ -335,11 +362,32 @@ impl Engine {
                         props.as_ref(),
                     )?
                 }
-                None => false,
+                None => (false, false),
             }
         } else {
-            false
+            (false, false)
         };
+        if coalesce_visibility {
+            if reopened {
+                if let Some((_, cursor, kind, _, _, _)) = &current {
+                    let cursor_u64 = u64::try_from(*cursor).unwrap_or(0);
+                    visibility_delta.record_add(
+                        &write_scope,
+                        format!("vector_ready:{kind}"),
+                        cursor_u64,
+                    );
+                    visibility_delta.record_add(&write_scope, "vector_ready_all", cursor_u64);
+                }
+            }
+            if enrolled_vk {
+                visibility_delta.record_global_struct();
+            }
+            visibility_delta.apply(&tx).map_err(|_| EngineError::Storage)?;
+        }
+        if let Some(guard) = trigger_guard.as_mut() {
+            guard.restore().map_err(|_| EngineError::Storage)?;
+        }
+        drop(trigger_guard);
         tx.commit().map_err(|_| EngineError::Storage)?;
         if reopened {
             self.projection_runtime.notify_new_work();

@@ -273,6 +273,7 @@ pub(crate) fn build_search_result(
 pub(crate) fn resolve(
     connection: &Connection,
     request: &EvidenceResolveRequestV1,
+    expected_binding: &frozen_read::FrozenReadBinding,
     scope: &crate::scope::ScopePredicate,
 ) -> Result<ResolvedEvidenceV1, EngineError> {
     if request.schema_version != SCHEMA_VERSION {
@@ -293,6 +294,7 @@ pub(crate) fn resolve(
         &context_commitment,
         request.evidence_ref.as_str(),
         &request.context,
+        expected_binding,
         scope,
     )
 }
@@ -301,6 +303,7 @@ pub(crate) fn resolve_many_raw(
     connection: &Connection,
     raw_refs: &[&str],
     context: &FrozenReadContextV1,
+    expected_binding: &frozen_read::FrozenReadBinding,
     scope: &crate::scope::ScopePredicate,
 ) -> Result<Vec<EvidenceResolveManyItemV1>, EngineError> {
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
@@ -327,6 +330,7 @@ pub(crate) fn resolve_many_raw(
                     &context_commitment,
                     raw_ref,
                     context,
+                    expected_binding,
                     scope,
                 ) {
                     Ok(resolved) => Ok(resolved),
@@ -360,6 +364,7 @@ pub(crate) fn resolve_many_raw(
     Ok(out)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_single_ref(
     connection: &Connection,
     key: &[u8],
@@ -367,6 +372,7 @@ fn resolve_single_ref(
     context_commitment: &[u8; 32],
     raw_ref: &str,
     context: &FrozenReadContextV1,
+    expected_binding: &frozen_read::FrozenReadBinding,
     scope: &crate::scope::ScopePredicate,
 ) -> Result<ResolvedEvidenceV1, EngineError> {
     let payload = decode_token(key, raw_ref)?;
@@ -375,6 +381,18 @@ fn resolve_single_ref(
         || payload.effective_valid_at != context.effective_valid_at
     {
         return Err(EvidenceErrorV1::unavailable().into());
+    }
+    if payload.artifact_class == EvidenceArtifactClassV1::Edge
+        || payload.arm == EvidenceArmV1::GraphArm
+    {
+        frozen_read::validate_snapshot(
+            connection,
+            &context.context,
+            expected_binding,
+            scope,
+            frozen_read::ReadSurface::EvidenceGraph,
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
     }
     let stored = load_stored(
         connection,

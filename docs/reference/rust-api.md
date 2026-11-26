@@ -183,9 +183,18 @@ is built-in default or none, with no caller-provider injection.
   `Engine::search_expand_with_limit` take trailing `view: Option<ReadView>`.
 - **Schema 39 & `EngineError::ScopeViolation`:** `SCHEMA_VERSION = 39` adds
   composite `(scope, ...)` keys/indexes, 8-column `vec0` (`scope TEXT`), scoped
-  triggers, and declarative `fathomdb_schema::TABLE_MANIFEST`. Unauthorized
-  writes on read-only handles return `EngineError::ScopeViolation`, while
-  cross-scope endpoint/evidence lookups preserve D-01 nondisclosure.
+  triggers, partitioned frozen-read visibility watermarks
+  (`_fathomdb_scope_visibility_watermarks` + `global_struct_gen`/`global_struct_nonce`),
+  and declarative `fathomdb_schema::TABLE_MANIFEST`. Disjoint-`kind` additive
+  writes/actuations, `AppendOnlyLog` appends, `LatestState` upserts (against
+  non-`OperationalState` surfaces), disjoint-scope writes/lifecycle/erasure, and
+  disjoint-`(scope, kind)` background vector commits produce zero unintended
+  drift on `FrozenReadContextV1` (raw FTS5 `bm25()` scores remain corpus-wide
+  and are not frozen across disjoint additive writes; in
+  `Engine::resolve_evidence_many`, drifted `Edge`/`GraphArm` slots refuse
+  per-slot while unaffected node-only slots resolve). Unauthorized writes on
+  read-only handles return `EngineError::ScopeViolation`, while cross-scope
+  endpoint/evidence lookups preserve D-01 nondisclosure.
 - **Opt-in bulk write mode (`EndpointValidationMode`, `WriteOptions`, `Engine::write_with_options`):**
   Default `Engine::write` and `Engine::actuate` remain strictly endpoint-validated
   (`WriteReceipt.dangling_edge_endpoints == 0` on every commit). Re-exported

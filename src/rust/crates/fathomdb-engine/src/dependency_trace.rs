@@ -975,7 +975,13 @@ pub(crate) fn execute(
     }
     let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
     let binding = frozen_read::authenticate(&tx, &request.context, scope)?;
-    frozen_read::validate_snapshot(&tx, &binding)?;
+    frozen_read::validate_snapshot(
+        &tx,
+        &request.context.context,
+        &binding,
+        scope,
+        frozen_read::ReadSurface::TraceDependency,
+    )?;
     let effective = request.context.effective_valid_at;
     let mut matched_roots: Vec<(String, DependencyTraceNodeV1)> = Vec::new();
     for candidate_scope in scope.read_scopes() {

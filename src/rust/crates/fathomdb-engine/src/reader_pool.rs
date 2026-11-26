@@ -299,6 +299,7 @@ pub(crate) enum ReaderRequest {
         view: ReadView,
         filter: Option<Box<SearchFilter>>,
         frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+        frozen_context: Option<Box<frozen_read::ReadContextV1>>,
         respond: SyncSender<Result<SearchExpandResult, graph_expand::SearchExpandHandlerError>>,
     },
     /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL for
@@ -592,6 +593,7 @@ impl ReaderRequest {
         view: ReadView,
         filter: Option<SearchFilter>,
         frozen_binding: Option<frozen_read::FrozenReadBinding>,
+        frozen_context: Option<frozen_read::ReadContextV1>,
         respond: SyncSender<Result<SearchExpandResult, graph_expand::SearchExpandHandlerError>>,
     ) -> Self {
         Self::SearchExpand {
@@ -600,6 +602,7 @@ impl ReaderRequest {
             view,
             filter: filter.map(Box::new),
             frozen_binding: frozen_binding.map(Box::new),
+            frozen_context: frozen_context.map(Box::new),
             respond,
         }
     }
@@ -1068,6 +1071,7 @@ fn reader_worker_loop(
                 view,
                 filter,
                 frozen_binding,
+                frozen_context,
                 respond,
             } => {
                 let result = search_expand_in_tx(
@@ -1078,6 +1082,7 @@ fn reader_worker_loop(
                     filter.as_deref(),
                     &scope,
                     frozen_binding.as_deref(),
+                    frozen_context.as_deref(),
                     &wal_attribution,
                     worker_idx,
                 );

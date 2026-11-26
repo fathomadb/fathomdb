@@ -856,3 +856,15 @@ exact three namespaces `admin`, `graph`, and `read` unchanged) and re-exports
   the traversed edge's legacy `source_id`, while `ResolvedEvidenceV1.source_id`
   resolves the returned node artifact's own canonical provenance source (with
   the terminal edge revision recorded on `EvidenceProjectionOriginV1.graph_origin`).
+- **Partitioned frozen-read additive stability (`ADR-0.8.32 #103` §1):**
+  Schema 39 `FrozenReadContextV1` tokens (`492 B` unscoped / `556 B` scoped)
+  validate surface-selective partitioned watermarks so disjoint-`kind` additive
+  `write`/`actuate`, `AppendOnlyLog` appends, `LatestState` upserts (against
+  canonical/search/evidence/graph surfaces), disjoint-scope writes/lifecycle/erasure,
+  and disjoint-`(scope, kind)` background vector commits do not drift frozen
+  contexts. Same-`(scope, kind)` writes, graph-affecting edge writes, destructive
+  mutations in `scope`, dependency/closure changes in `scope`, and global
+  structural changes fail closed; `Engine::resolve_evidence_many` refuses drifted
+  `Edge` / `GraphArm` slots per-slot (`EvidenceUnavailable`) while resolving
+  unaffected node-only slots. Raw FTS5 `bm25()` scores may still shift across
+  concurrent additive writes to disjoint kinds or scopes (`ADR-0.8.32 #103` §1.7).

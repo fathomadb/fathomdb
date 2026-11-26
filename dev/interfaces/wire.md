@@ -402,7 +402,7 @@ erased, transitioned, or closure-barrier-blocked artifacts to
   reject with `ScopeViolationError` (`FDB_SCOPE_VIOLATION`, adding the 47th
   shared leaf error class; `48` total classes).
 - **Single-source `TABLE_MANIFEST`:** `fathomdb_schema::TABLE_MANIFEST`
-  (`35` entries: `30` regular + `5` virtual tables classified by
+  (`36` entries: `31` regular + `5` virtual tables classified by
   `TableExportClass`), `FTS5_SHADOW_SUFFIXES`, `VEC0_NAMED_SHADOW_SUFFIXES`,
   `VEC0_NUMBERED_SHADOW_PREFIXES`, and `BUILTIN_NON_VISIBILITY_TRIGGERS` form
   the authoritative table/shadow/trigger manifest.
@@ -433,3 +433,41 @@ erased, transitioned, or closure-barrier-blocked artifacts to
   `sourceId`, while `ResolvedEvidenceV1.sourceId` resolves the returned node
   artifact's own canonical provenance source and
   `projectionOrigin.graphOrigin` identifies the terminal edge revision.
+
+## Partitioned frozen-read additive stability wire (0.8.32 Slice 41, `ADR-0.8.32 #103`)
+
+- **Schema 39 watermark state:** `_fathomdb_read_visibility_state` adds
+  `global_struct_gen` (`INTEGER NOT NULL DEFAULT 0`, `0..=i64::MAX`) and
+  `global_struct_nonce` (64-character lowercase hex). `_fathomdb_scope_visibility_watermarks`
+  (`PRIMARY KEY(scope, partition_kind) WITHOUT ROWID`) records per-`(scope, partition_kind)`
+  monotonic `add_generation`, `max_cursor`, `destructive_generation`, and
+  64-hex `state_nonce` across `node:<kind>`, `node_all`, `edge:<kind>`,
+  `edge_any`, `vector_ready:<kind>`, `vector_ready_all`, `op_state`,
+  `scope_destructive`, and `scope_dependency`. All 60 visibility triggers across
+  the 20 trigger-bearing tables remain active for uncoalesced (`coalescing = 0`)
+  writes (with paired `(OLD.*, NEW.*)` updates on `AFTER UPDATE`).
+- **`0x53 0x39` trailing `SurfaceTags` in `FrozenReadContextV1`:** Schema 39
+  tokens append an authenticated 34-byte suffix (`[0x53, 0x39]` magic followed
+  by four 8-byte truncated SHA-256 surface tags: `op_state_tag`, `node_all_tag`,
+  `projection_readiness_tag`, and `edge_kind_tag`), binding universal serving
+  state (`SERVING_DOMAIN_V4`: `global_struct`, `scope_destructive`, and
+  partitioned node/dependency watermarks) in the primary `state_digest`. Wire
+  lengths are `492 B` (unscoped) and `556 B` (scoped), well under the `1,024 B`
+  budget. Schema `< 39` wire fixtures remain bit-identical.
+- **Additive stability vs. fail-closed boundaries:** Disjoint-`kind` additive
+  writes/actuations, `AppendOnlyLog` (`operational_mutations`) appends,
+  `LatestState` (`operational_state`) upserts (against canonical/search/evidence/graph
+  surfaces), cross-scope writes/lifecycle/erasure in disjoint caller scopes, and
+  background vector projection commits for disjoint `(scope, kind)` do not drift
+  frozen contexts. Same-`(scope, kind)` writes, matching-`kind` edge writes,
+  same-scope edge writes on graph surfaces, destructive operations in `scope`,
+  dependency/closure mutations in `scope`, and global structural changes fail
+  closed (`FDB_FROZEN_READ` / `FDB_EVIDENCE`). In `resolve_evidence_many`,
+  post-decode `Edge`/`GraphArm` slots whose edge partition drifted yield
+  per-slot `refused` (`evidence_unavailable`) while unaffected node-only slots
+  resolve.
+- **FTS5 BM25 corpus statistics (`ADR-0.8.32 #103` §1.7):** Additive writes to
+  disjoint `kind`s or disjoint `scope`s share the underlying FTS5 `search_index`
+  table, so raw FTS5 `bm25()` scores and relative tie-break ordering may shift
+  under concurrent additive ingestion even when a frozen context remains valid
+  (membership, eligibility, and canonical evidence bytes remain strictly frozen).

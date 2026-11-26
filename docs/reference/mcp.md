@@ -106,7 +106,7 @@ quoting record bodies, secrets, or raw SQL):
 | --- | --- |
 | `invalid_request` | `unknown_store`, `bad_store_name`, `unknown_argument`, `bad_argument`, `unsupported_ref`, `stale_handle`, `wrong_store`, `bound_exceeded`, `refs_not_in_response`, `writes_disabled`, `kind_not_allowed`, `forbidden_operation`, `scope_violation` |
 | `not_found` | `not_found` (also used nondisclosingly for cross-scope read/continuation references) |
-| `conflict` | `stale_write_boundary` (optional content-free `observed_write_boundary`), `operation_id_conflict` |
+| `conflict` | `stale_write_boundary` (optional content-free `observed_write_boundary`), `operation_id_conflict`, `state_drift` (Schema 39 partitioned frozen-context drift, surviving disjoint-kind/cross-scope writes and idle store reopen), `lifecycle_conflict` |
 | `not_ready` | `opening`, `reopening`, `draining`, `embedder_not_ready`, `vector_disabled` |
 | `unavailable` | `open_failed`, `database_locked`, `corrupt`, `migration_refused`, `missing_file` |
 | `timeout` | `deadline`, `cancelled` |

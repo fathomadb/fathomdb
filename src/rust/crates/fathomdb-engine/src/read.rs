@@ -501,7 +501,13 @@ pub(crate) fn read_canonical_page_in_tx(
         frozen,
         page,
     )?;
-    frozen_read::validate_snapshot(&tx, &binding)?;
+    frozen_read::validate_snapshot(
+        &tx,
+        &frozen.context,
+        &binding,
+        scope,
+        frozen_read::ReadSurface::CanonicalPage { path_kind: kind },
+    )?;
     #[cfg(any(test, feature = "test-hooks"))]
     frozen_after_validation_hook::fire(attribution);
     validate_filter_attributes_on_snapshot(&tx, &frozen.context.eligibility)
@@ -687,7 +693,13 @@ pub(crate) fn read_operational_state_in_tx(
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(frozen) = frozen {
         let binding = frozen_read::authenticate(&tx, frozen, scope)?;
-        frozen_read::validate_snapshot(&tx, &binding)?;
+        frozen_read::validate_snapshot(
+            &tx,
+            &frozen.context,
+            &binding,
+            scope,
+            frozen_read::ReadSurface::OperationalState,
+        )?;
         #[cfg(any(test, feature = "test-hooks"))]
         frozen_after_validation_hook::fire(attribution);
         validate_operational_context(frozen)?;
@@ -737,7 +749,13 @@ pub(crate) fn read_operational_state_page_in_tx(
         frozen,
         page,
     )?;
-    frozen_read::validate_snapshot(&tx, &binding)?;
+    frozen_read::validate_snapshot(
+        &tx,
+        &frozen.context,
+        &binding,
+        scope,
+        frozen_read::ReadSurface::OperationalState,
+    )?;
     #[cfg(any(test, feature = "test-hooks"))]
     frozen_after_validation_hook::fire(attribution);
     validate_operational_context(frozen)?;

@@ -191,7 +191,7 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
             "INSERT INTO search_index_edges(",
             "lexical_restored = true",
             "if lexical_restored",
-            "write_commit::advance_read_visibility(connection)",
+            "write_commit::bump_global_struct(connection)",
             "COMMIT",
             "ROLLBACK",
         ],

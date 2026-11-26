@@ -471,9 +471,8 @@ pub use wal_attribution::ReleaseWalAttributionProbe;
 pub(crate) use write::storage_write_shape;
 pub use write::{EndpointValidationMode, PreparedWrite, WriteOptions, WriteReceipt};
 pub(crate) use write_commit::{
-    advance_read_visibility, apply_batch_in_transaction, canonical_body_hash,
-    checked_locator_columns, commit_batch, CommitBatchError, CommitEndpointValidationMode,
-    VisibilityCoalescingGuard,
+    apply_batch_in_transaction, canonical_body_hash, checked_locator_columns, commit_batch,
+    CommitBatchError, CommitEndpointValidationMode, VisibilityCoalescingGuard,
 };
 pub use write_types::RowKind;
 pub(crate) use write_validation::{

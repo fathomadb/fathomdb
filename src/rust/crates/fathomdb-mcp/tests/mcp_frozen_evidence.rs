@@ -472,3 +472,274 @@ async fn orient_exposes_live_ep01_state_and_per_class_projection_namespace() {
 
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ac32_frozen_stab_03_mcp_disjoint_kind_op_log_cross_scope_reopen_and_graph_drift() {
+    let fixture = Fixture::new();
+    let db = fixture.path("stab.sqlite");
+    seed_provenanced_store(&db);
+
+    // Register an AppendOnlyLog collection for operational_mutations stability check.
+    {
+        let eng = Engine::open(
+            &db,
+            OpenOptions::default().with_scope_policy(ScopePolicy::single("alpha")),
+        )
+        .unwrap();
+        eng.write(&[fathomdb_sdk::PreparedWrite::AdminSchema {
+            name: "mcp_audit".into(),
+            kind: "append_only_log".into(),
+            schema_json: r#"{"type":"object"}"#.into(),
+            retention_json: "{}".into(),
+        }])
+        .unwrap();
+        eng.close().unwrap();
+    }
+
+    let pinned_as_of = 1_900_000_000_i64;
+    let harness = Harness::start(fixture.config(json!({
+        "stores": {
+            "alpha_store": {"path": "stab.sqlite", "allow_writes": true, "scope": "alpha"}
+        },
+        "idle_timeout_secs": 1
+    })))
+    .await;
+
+    // 1. Mint a kind="note" frozen context in alpha_store via MCP search(freeze=true).
+    let s1 = harness
+        .ok(
+            "search",
+            json!({
+                "store": "alpha_store",
+                "query": "river",
+                "kind": "note",
+                "as_of": pinned_as_of,
+                "limit": 10,
+                "freeze": true
+            }),
+        )
+        .await;
+    let epoch_before = s1["epoch"].as_u64().expect("epoch");
+    let frozen_handle = s1["frozen_context"].as_str().expect("frozen_context").to_string();
+    let src_hit =
+        s1["results"].as_array().unwrap().iter().find(|h| h["ref"] == "l:alpha:src").unwrap();
+    let ev_ref = src_hit["evidence_ref"].as_str().unwrap().to_string();
+
+    // Expand under same frozen_handle to capture a graph_evidence_ref before mutations.
+    let exp1 = harness
+        .ok(
+            "expand",
+            json!({
+                "store": "alpha_store",
+                "refs": ["l:alpha:src"],
+                "frozen_context": &frozen_handle,
+                "include_evidence_refs": true
+            }),
+        )
+        .await;
+    let graph_ev_ref = exp1["targets"][0]["graph_evidence_ref"].as_str().unwrap().to_string();
+
+    // 2. Disjoint-kind actuation ("AppTurn") inside alpha_store MUST NOT drift kind="note"!
+    harness
+        .ok(
+            "actuate",
+            json!({
+                "store": "alpha_store",
+                "operation_id": "op-mcp-disjoint-turn",
+                "operations": [{
+                    "op": "put_canonical_node",
+                    "kind": "AppTurn",
+                    "body": "disjoint turn written via MCP",
+                    "source_id": "src:alpha-turns",
+                    "logical_id": "alpha:turn:1",
+                    "artifact_revision_id": "rev-alpha-turn-1",
+                    "source_version_id": "sv-alpha-turn-1"
+                }]
+            }),
+        )
+        .await;
+
+    // Reusing frozen_handle across search, fetch, and expand MUST succeed with 0 drift!
+    let s_after_disjoint = harness
+        .ok(
+            "search",
+            json!({
+                "store": "alpha_store",
+                "query": "river",
+                "kind": "note",
+                "frozen_context": &frozen_handle,
+                "limit": 10
+            }),
+        )
+        .await;
+    assert_eq!(s_after_disjoint["results"].as_array().unwrap().len(), 2);
+
+    let f_after_disjoint = harness
+        .ok(
+            "fetch",
+            json!({
+                "store": "alpha_store",
+                "frozen_context": &frozen_handle,
+                "evidence_refs": [&ev_ref],
+                "graph_evidence_refs": [&graph_ev_ref]
+            }),
+        )
+        .await;
+    assert!(f_after_disjoint["items"][0]["record"].is_object());
+    assert!(f_after_disjoint["items"][1]["record"].is_object());
+
+    // 3. Let alpha_store idle-expire & close (1s idle timeout, 1s sweep interval), then run:
+    //    - operational_mutations AppendOnlyLog append in alpha,
+    //    - cross-scope "beta" additive write, transition, purge, and erase_source!
+    let eng_a = {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match Engine::open(
+                &db,
+                OpenOptions::default().with_scope_policy(ScopePolicy::single("alpha")),
+            ) {
+                Ok(eng) => break eng,
+                Err(_) if std::time::Instant::now() < deadline => {
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                Err(err) => panic!("expected alpha_store idle close within 5s, got {err:?}"),
+            }
+        }
+    };
+    {
+        eng_a
+            .write(&[fathomdb_sdk::PreparedWrite::OpStore {
+                collection: "mcp_audit".into(),
+                record_key: "evt-1".into(),
+                schema_id: None,
+                body: r#"{"ok":true}"#.into(),
+            }])
+            .unwrap();
+        eng_a.close().unwrap();
+    }
+    {
+        let eng_b = Engine::open(
+            &db,
+            OpenOptions::default().with_scope_policy(ScopePolicy::single("beta")),
+        )
+        .unwrap();
+        eng_b
+            .write(&[
+                fathomdb_sdk::PreparedWrite::Node {
+                    kind: "note".into(),
+                    body: "beta additive note".into(),
+                    source_id: SourceId::new("src:beta-del").unwrap(),
+                    logical_id: Some("beta:del".into()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    properties: None,
+                },
+                fathomdb_sdk::PreparedWrite::Node {
+                    kind: "note".into(),
+                    body: "beta erasable note".into(),
+                    source_id: SourceId::new("src:beta-erase").unwrap(),
+                    logical_id: Some("beta:erase".into()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    properties: None,
+                },
+            ])
+            .unwrap();
+        eng_b
+            .transition("beta:del", fathomdb_sdk::LifecycleState::Deleted, Some("cleanup"))
+            .unwrap();
+        eng_b.purge("beta:del").unwrap();
+        eng_b.erase_source("src:beta-erase").unwrap();
+        eng_b.close().unwrap();
+    }
+
+    // 4. Reopen alpha_store via MCP (epoch incremented!): reused frozen_handle MUST survive
+    //    across idle close/reopen AND cross-scope destructive ops AND op_log appends!
+    let f_after_reopen = harness
+        .ok(
+            "fetch",
+            json!({
+                "store": "alpha_store",
+                "frozen_context": &frozen_handle,
+                "evidence_refs": [&ev_ref],
+                "graph_evidence_refs": [&graph_ev_ref]
+            }),
+        )
+        .await;
+    assert!(
+        f_after_reopen["epoch"].as_u64().unwrap() > epoch_before,
+        "expected store reopen epoch bump after idle timeout"
+    );
+    assert!(f_after_reopen["items"][0]["record"].is_object());
+    assert!(f_after_reopen["items"][1]["record"].is_object());
+
+    // 5. Same-scope disjoint-kind edge write in alpha_store:
+    //    - node-only `fetch(evidence_refs)` with kind="note" STILL succeeds!
+    //    - `fetch(graph_evidence_refs)` MUST escalate to whole-call `conflict/state_drift`!
+    //    - `expand(frozen_context)` MUST return `conflict/state_drift`!
+    harness
+        .ok(
+            "actuate",
+            json!({
+                "store": "alpha_store",
+                "operation_id": "op-mcp-alpha-edge-drift",
+                "operations": [{
+                    "op": "put_derived_edge",
+                    "kind": "supports",
+                    "from": "alpha:src",
+                    "to": "alpha:dst",
+                    "source_id": "src:alpha",
+                    "logical_id": "alpha:edge:2",
+                    "artifact_revision_id": "rev-alpha-edge-2",
+                    "source_version_id": "sv-alpha-1",
+                    "source_revision_id": "rev-alpha-src",
+                    "canonical_source_hash": sha256_hex("exact UTF-8 evidence body: river crossing é😀\nline two".as_bytes())
+                }]
+            }),
+        )
+        .await;
+
+    let f_node_still_ok = harness
+        .ok(
+            "fetch",
+            json!({
+                "store": "alpha_store",
+                "frozen_context": &frozen_handle,
+                "evidence_refs": [&ev_ref]
+            }),
+        )
+        .await;
+    assert!(f_node_still_ok["items"][0]["record"].is_object());
+
+    let g_drift = harness
+        .err(
+            "fetch",
+            json!({
+                "store": "alpha_store",
+                "frozen_context": &frozen_handle,
+                "graph_evidence_refs": [&graph_ev_ref]
+            }),
+        )
+        .await;
+    assert_eq!(g_drift["class"], "conflict");
+    assert_eq!(g_drift["code"], "state_drift");
+
+    let exp_drift = harness
+        .err(
+            "expand",
+            json!({
+                "store": "alpha_store",
+                "refs": ["l:alpha:src"],
+                "frozen_context": &frozen_handle
+            }),
+        )
+        .await;
+    assert_eq!(exp_drift["class"], "conflict");
+    assert_eq!(exp_drift["code"], "state_drift");
+
+    harness.shutdown().await;
+}

@@ -1250,11 +1250,6 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             ToolError::not_found()
         });
     }
-    if let Some((_, ref entry)) = reused_frozen {
-        if entry.epoch != guard.epoch {
-            return Err(ToolError::state_drift());
-        }
-    }
     let telemetry = guard.info.telemetry;
     let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
     let view = ReadView {
@@ -1289,12 +1284,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             let visibility = read::visibility_state(engine)?;
             if freeze_req || existing_frozen.is_some() {
                 let frozen_ctx = match existing_frozen {
-                    Some(entry) => {
-                        if visibility != entry.minted_state {
-                            return Ok(SearchExecOutcome::Drifted);
-                        }
-                        entry.context
-                    }
+                    Some(entry) => entry.context,
                     None => {
                         let rc =
                             ReadContextV1::new(view, search_filter(&request).unwrap_or_default())?;
@@ -1308,14 +1298,16 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                         .with_explain(explain);
                 let mut ev_res = match engine.search_with_evidence(&ev_req) {
                     Ok(res) => res,
-                    Err(err)
-                        if matches!(
-                            err.kind(),
-                            fathomdb_sdk::ErrorKind::Evidence | fathomdb_sdk::ErrorKind::FrozenRead
-                        ) =>
-                    {
-                        let after = read::visibility_state(engine)?;
-                        if after != visibility {
+                    Err(err) if is_state_drifted(&err) => {
+                        return Ok(SearchExecOutcome::Drifted);
+                    }
+                    Err(err) if err.kind() == fathomdb_sdk::ErrorKind::Evidence => {
+                        if probe_frozen_search_drift(
+                            engine,
+                            &ev_req.query,
+                            &frozen_ctx,
+                            ev_req.use_graph_arm,
+                        ) {
                             return Ok(SearchExecOutcome::Drifted);
                         }
                         return Err(err);
@@ -1389,11 +1381,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 &store,
                 &answered.policy.scope_key,
                 handle.clone(),
-                FrozenEntry {
-                    epoch: answered.epoch,
-                    context: frozen_ctx,
-                    minted_state: visibility.clone(),
-                },
+                FrozenEntry { context: frozen_ctx },
             );
             (Some(handle), Some(entries))
         }
@@ -1605,10 +1593,6 @@ async fn fetch_evidence(ctx: &Ctx<'_>, store: &str, args: FetchArgs, max_tokens:
     let validity_instant = entry.context.effective_valid_at;
 
     let guard = ctx.acquire(store, ctx.deadline()).await?;
-    if guard.epoch != entry.epoch {
-        return Err(ToolError::state_drift());
-    }
-    let minted_state = entry.minted_state;
     let frozen_ctx = entry.context;
     let (answered, exec) = bridge::call(
         guard,
@@ -1617,10 +1601,6 @@ async fn fetch_evidence(ctx: &Ctx<'_>, store: &str, args: FetchArgs, max_tokens:
         ctx.progress.as_ref(),
         &ctx.shared.hooks,
         move |engine| {
-            let visibility = read::visibility_state(engine)?;
-            if visibility != minted_state {
-                return Ok(FetchEvidenceExec::Drifted);
-            }
             let mut out: Vec<ResolvedFetchSlot> = Vec::with_capacity(total);
 
             if !ev_refs.is_empty() {
@@ -1645,15 +1625,13 @@ async fn fetch_evidence(ctx: &Ctx<'_>, store: &str, args: FetchArgs, max_tokens:
                     };
                     let items = match engine.resolve_evidence_many(&req) {
                         Ok(items) => items,
-                        Err(err)
-                            if matches!(
-                                err.kind(),
-                                fathomdb_sdk::ErrorKind::Evidence
-                                    | fathomdb_sdk::ErrorKind::FrozenRead
-                            ) =>
-                        {
-                            let after = read::visibility_state(engine)?;
-                            if after != minted_state {
+                        Err(err) if is_state_drifted(&err) => {
+                            return Ok(FetchEvidenceExec::Drifted);
+                        }
+                        Err(err) if err.kind() == fathomdb_sdk::ErrorKind::Evidence => {
+                            if probe_frozen_search_drift(engine, "probe", &frozen_ctx, false)
+                                || probe_frozen_search_drift(engine, "probe", &frozen_ctx, true)
+                            {
                                 return Ok(FetchEvidenceExec::Drifted);
                             }
                             return Err(err);
@@ -1761,14 +1739,11 @@ async fn fetch_evidence(ctx: &Ctx<'_>, store: &str, args: FetchArgs, max_tokens:
                             error: None,
                         });
                     }
-                    Err(err)
-                        if matches!(
-                            err.kind(),
-                            fathomdb_sdk::ErrorKind::Evidence | fathomdb_sdk::ErrorKind::FrozenRead
-                        ) =>
-                    {
-                        let after = read::visibility_state(engine)?;
-                        if after != minted_state {
+                    Err(err) if is_state_drifted(&err) => {
+                        return Ok(FetchEvidenceExec::Drifted);
+                    }
+                    Err(err) if err.kind() == fathomdb_sdk::ErrorKind::Evidence => {
+                        if probe_frozen_search_drift(engine, "probe", &frozen_ctx, true) {
                             return Ok(FetchEvidenceExec::Drifted);
                         }
                         out.push(ResolvedFetchSlot {
@@ -2126,11 +2101,6 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let target_kinds = args.target_kinds.unwrap_or_default();
 
     let guard = ctx.acquire(&store, ctx.deadline()).await?;
-    if let Some((_, ref entry)) = reused_frozen {
-        if entry.epoch != guard.epoch {
-            return Err(ToolError::state_drift());
-        }
-    }
     let existing_frozen = reused_frozen.as_ref().map(|(_, entry)| entry.clone());
     let (answered, exec) = bridge::call(
         guard,
@@ -2139,19 +2109,21 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         ctx.progress.as_ref(),
         &ctx.shared.hooks,
         move |engine| {
-            let visibility = read::visibility_state(engine)?;
-            let (read_context, minted_frozen) = match existing_frozen {
-                Some(entry) => {
-                    if visibility != entry.minted_state {
-                        return Ok(ExpandExec::Drifted);
-                    }
-                    (GraphReadContextV1::Frozen { schema_version: 1, context: entry.context }, None)
-                }
+            let (read_context, minted_frozen, active_frozen_ctx) = match existing_frozen {
+                Some(entry) => (
+                    GraphReadContextV1::Frozen {
+                        schema_version: 1,
+                        context: entry.context.clone(),
+                    },
+                    None,
+                    Some(entry.context),
+                ),
                 None if include_evidence => {
                     let rc = ReadContextV1::new(view, SearchFilter::default())?;
                     let frozen = engine.freeze_read_context(&rc)?;
                     (
                         GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+                        Some(frozen.clone()),
                         Some(frozen),
                     )
                 }
@@ -2160,6 +2132,7 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                         schema_version: 1,
                         context: ReadContextV1::new(view, SearchFilter::default())?,
                     },
+                    None,
                     None,
                 ),
             };
@@ -2177,14 +2150,14 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             .with_evidence(include_evidence);
             let result = match graph::expand(engine, &request) {
                 Ok(result) => result,
-                Err(err)
-                    if matches!(
-                        err.kind(),
-                        fathomdb_sdk::ErrorKind::FrozenRead | fathomdb_sdk::ErrorKind::Evidence
-                    ) =>
-                {
-                    let after = read::visibility_state(engine)?;
-                    if after != visibility {
+                Err(err) if is_state_drifted(&err) => {
+                    return Ok(ExpandExec::Drifted);
+                }
+                Err(err) if err.kind() == fathomdb_sdk::ErrorKind::Evidence => {
+                    if active_frozen_ctx
+                        .as_ref()
+                        .is_some_and(|fc| probe_frozen_expand_drift(engine, fc))
+                    {
                         return Ok(ExpandExec::Drifted);
                     }
                     return Err(err);
@@ -2218,7 +2191,7 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 &store,
                 &answered.policy.scope_key,
                 handle.clone(),
-                FrozenEntry { epoch: answered.epoch, context: frozen, minted_state: visibility },
+                FrozenEntry { context: frozen },
             );
             Some(handle)
         }
@@ -2497,6 +2470,37 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
         reason: None,
     };
     Ok(finish(&output, render_feedback(&output), max_tokens, false).0)
+}
+
+fn is_state_drifted(err: &fathomdb_sdk::Error) -> bool {
+    matches!(
+        err,
+        fathomdb_sdk::Error::Engine(fathomdb_sdk::EngineError::FrozenRead(fe))
+            if fe.reason == fathomdb_sdk::FrozenReadErrorReason::StateDrifted
+    )
+}
+
+fn probe_frozen_search_drift(
+    engine: &fathomdb_sdk::Engine,
+    query: &str,
+    frozen_ctx: &fathomdb_sdk::FrozenReadContextV1,
+    use_graph_arm: bool,
+) -> bool {
+    let mut opts = fathomdb_sdk::FrozenSearchOptions::default();
+    opts.use_graph_arm = use_graph_arm;
+    opts.limit = 1;
+    matches!(engine.search_frozen(query, frozen_ctx, opts), Err(ref err) if is_state_drifted(err))
+}
+
+fn probe_frozen_expand_drift(
+    engine: &fathomdb_sdk::Engine,
+    frozen_ctx: &fathomdb_sdk::FrozenReadContextV1,
+) -> bool {
+    let opts = fathomdb_sdk::SearchExpandOptions { search_limit: 1, view: None };
+    matches!(
+        engine.search_expand_frozen("probe", frozen_ctx, 0, opts),
+        Err(ref err) if is_state_drifted(err)
+    )
 }
 
 #[cfg(test)]

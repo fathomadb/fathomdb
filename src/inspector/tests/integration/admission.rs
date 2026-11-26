@@ -66,7 +66,10 @@ fn schema_39_admission_rejects_missing_schema_39_tables_and_columns() {
         ("drop-node-props", "ALTER TABLE canonical_nodes DROP COLUMN properties;"),
         (
             "drop-node-scope",
-            "DROP INDEX canonical_nodes_scope_source_id_idx;\
+            "DROP TRIGGER _fathomdb_read_visibility_cn_ai;\
+             DROP TRIGGER _fathomdb_read_visibility_cn_au;\
+             DROP TRIGGER _fathomdb_read_visibility_cn_ad;\
+             DROP INDEX canonical_nodes_scope_source_id_idx;\
              DROP INDEX canonical_nodes_scope_logical_active_idx;\
              DROP INDEX canonical_nodes_scope_kind_idx;\
              DROP INDEX canonical_nodes_scope_state_active_idx;\
@@ -79,7 +82,10 @@ fn schema_39_admission_rejects_missing_schema_39_tables_and_columns() {
         ("drop-edge-props", "ALTER TABLE canonical_edges DROP COLUMN properties;"),
         (
             "drop-edge-scope",
-            "DROP INDEX canonical_edges_scope_source_id_idx;\
+            "DROP TRIGGER _fathomdb_read_visibility_ce_ai;\
+             DROP TRIGGER _fathomdb_read_visibility_ce_au;\
+             DROP TRIGGER _fathomdb_read_visibility_ce_ad;\
+             DROP INDEX canonical_edges_scope_source_id_idx;\
              DROP INDEX canonical_edges_scope_logical_active_idx;\
              DROP INDEX canonical_edges_scope_from_id_idx;\
              DROP INDEX canonical_edges_scope_to_id_idx;\
@@ -89,6 +95,10 @@ fn schema_39_admission_rejects_missing_schema_39_tables_and_columns() {
              DROP INDEX canonical_edges_scope_from_sup_kind_idx;\
              DROP INDEX canonical_edges_scope_to_sup_kind_idx;\
              ALTER TABLE canonical_edges DROP COLUMN scope;",
+        ),
+        (
+            "drop-scope-watermarks",
+            "DROP TABLE _fathomdb_scope_visibility_watermarks;",
         ),
         (
             "drop-mut-scope",

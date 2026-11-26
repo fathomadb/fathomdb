@@ -66,6 +66,23 @@ pub enum TableExportClass {
     InternalRuntime,
 }
 
+/// Visibility trigger classification for Schema 39+ partitioned frozen reads (`ADR #103`).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum VisibilityTriggerClass {
+    /// Class 1A: `canonical_nodes` (`scope`, `kind`, `write_cursor`).
+    ScopedCanonicalNode,
+    /// Class 1B: `canonical_edges` (`scope`, `kind`, `write_cursor`).
+    ScopedCanonicalEdge,
+    /// Class 1C: provenance tables (`_fathomdb_artifact_revisions`, `_fathomdb_source_versions`, `_fathomdb_source_links`).
+    ScopedProvenance,
+    /// Class 1D: dependency tables (`_fathomdb_source_dependencies`, `_fathomdb_dependency_closures`).
+    ScopedDependency,
+    /// Class 1E: `operational_state` (`scope`, `write_cursor`, never bumps `scope_destructive`).
+    ScopedOperationalState,
+    /// Class 2 (row-owned) & Class 3 (global metadata): raw SQL bumps `global_struct`.
+    GlobalStruct,
+}
+
 /// Single-source metadata declaration for every Schema-39 named table.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TableManifestEntry {
@@ -73,6 +90,7 @@ pub struct TableManifestEntry {
     pub is_canonical: bool,
     pub visibility_trigger_prefix: Option<&'static str>,
     pub visibility_trigger_min_version: Option<u32>,
+    pub visibility_trigger_class: Option<VisibilityTriggerClass>,
     pub row_owned_cursor_column: Option<&'static str>,
     pub has_non_projection_write_cursor: bool,
     pub export_class: TableExportClass,
@@ -134,8 +152,8 @@ pub fn is_vec0_shadow_table(name: &str) -> bool {
     false
 }
 
-/// Single authoritative Schema-39 manifest covering all 35 named tables
-/// (30 regular tables + 5 FTS5/vec0 virtual tables).
+/// Single authoritative Schema-39 manifest covering all 36 named tables
+/// (31 regular tables + 5 FTS5/vec0 virtual tables).
 ///
 /// Canonical tables appear first in stable display order for [`CANONICAL_TABLES`],
 /// and visibility-trigger entries preserve the schema-version progression
@@ -147,6 +165,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: true,
         visibility_trigger_prefix: Some("cn"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedCanonicalNode),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: true,
         export_class: TableExportClass::DurableAuthority,
@@ -159,6 +178,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: true,
         visibility_trigger_prefix: Some("ce"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedCanonicalEdge),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: true,
         export_class: TableExportClass::DurableAuthority,
@@ -171,6 +191,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: true,
         visibility_trigger_prefix: Some("oc"),
         visibility_trigger_min_version: Some(33),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DurableAuthority,
@@ -183,6 +204,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: true,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: true,
         export_class: TableExportClass::DurableAuthority,
@@ -195,6 +217,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: true,
         visibility_trigger_prefix: Some("os"),
         visibility_trigger_min_version: Some(33),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedOperationalState),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: true,
         export_class: TableExportClass::DurableAuthority,
@@ -208,6 +231,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("ar"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedProvenance),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: true,
         export_class: TableExportClass::DurableAuthority,
@@ -220,6 +244,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("sv"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedProvenance),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DurableAuthority,
@@ -232,6 +257,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("sl"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedProvenance),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DurableAuthority,
@@ -244,6 +270,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("sd"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedDependency),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DurableAuthority,
@@ -256,6 +283,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("pr"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DurableAuthority,
@@ -268,6 +296,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("vk"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DurableAuthority,
@@ -280,6 +309,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: true,
         export_class: TableExportClass::DurableAuthority,
@@ -293,6 +323,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInAudit,
@@ -305,6 +336,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInAudit,
@@ -317,6 +349,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("dc"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::ScopedDependency),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInAudit,
@@ -330,6 +363,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: Some("rowid"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInVector,
@@ -342,6 +376,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("vr"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInVector,
@@ -354,6 +389,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("vs"),
         visibility_trigger_min_version: Some(35),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInVector,
@@ -366,6 +402,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("ep"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInVector,
@@ -378,6 +415,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::OptInVector,
@@ -391,6 +429,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("ca"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DerivedProjection,
@@ -403,6 +442,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("cpv"),
         visibility_trigger_min_version: Some(38),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DerivedProjection,
@@ -415,6 +455,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DerivedProjection,
@@ -427,6 +468,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DerivedProjection,
@@ -439,6 +481,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DerivedProjection,
@@ -451,6 +494,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::DerivedProjection,
@@ -464,6 +508,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("ps"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -476,6 +521,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("pt"),
         visibility_trigger_min_version: Some(31),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: Some("write_cursor"),
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -488,6 +534,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("pg"),
         visibility_trigger_min_version: Some(32),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -500,6 +547,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: Some("pc"),
         visibility_trigger_min_version: Some(32),
+        visibility_trigger_class: Some(VisibilityTriggerClass::GlobalStruct),
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -512,6 +560,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -524,6 +573,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -536,6 +586,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -548,6 +599,7 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -560,6 +612,20 @@ pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
         is_canonical: false,
         visibility_trigger_prefix: None,
         visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_scope_visibility_watermarks",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        visibility_trigger_class: None,
         row_owned_cursor_column: None,
         has_non_projection_write_cursor: false,
         export_class: TableExportClass::InternalRuntime,
@@ -686,6 +752,438 @@ macro_rules! visibility_coalescing_trigger_sql {
             " UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n"
         )
     };
+}
+
+macro_rules! s39_upsert_add {
+    ($scope:literal, $pk:literal, $cursor:literal) => {
+        concat!(
+            " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) VALUES(",
+            $scope, ",", $pk, ",1,MAX(0,", $cursor, "),0,lower(hex(randomblob(32))))",
+            " ON CONFLICT(scope,partition_kind) DO UPDATE SET",
+            " add_generation=CASE WHEN add_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE add_generation+1 END,",
+            "max_cursor=MAX(max_cursor,excluded.max_cursor),",
+            "state_nonce=lower(hex(randomblob(32)));"
+        )
+    };
+}
+
+macro_rules! s39_upsert_dest {
+    ($scope:literal, $pk:literal) => {
+        concat!(
+            " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) VALUES(",
+            $scope, ",", $pk, ",0,0,1,lower(hex(randomblob(32))))",
+            " ON CONFLICT(scope,partition_kind) DO UPDATE SET",
+            " destructive_generation=CASE WHEN destructive_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE destructive_generation+1 END,",
+            "state_nonce=lower(hex(randomblob(32)));"
+        )
+    };
+}
+
+macro_rules! s39_trigger_wrap {
+    ($short:literal, $suffix:literal, $operation:literal, $table:literal, $body:expr) => {
+        concat!(
+            "DROP TRIGGER IF EXISTS _fathomdb_read_visibility_", $short, "_", $suffix, ";\n",
+            "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_", $suffix,
+            " AFTER ", $operation, " ON ", $table,
+            " WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1)",
+            " BEGIN SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0) THEN RAISE(ABORT,'read visibility coalescing state unavailable') END;",
+            $body,
+            " END;\n"
+        )
+    };
+}
+
+macro_rules! s39_update_global {
+    () => {
+        " UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1;"
+    };
+}
+
+macro_rules! s39_update_global_struct {
+    () => {
+        " UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))),global_struct_gen=CASE WHEN global_struct_gen=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE global_struct_gen+1 END,global_struct_nonce=lower(hex(randomblob(32))) WHERE singleton=1;"
+    };
+}
+
+macro_rules! s39_triggers_canonical_node {
+    ($short:literal, $table:literal) => {
+        concat!(
+            s39_trigger_wrap!(
+                $short,
+                "ai",
+                "INSERT",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_add!("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
+                    s39_upsert_add!("NEW.scope", "'node_all'", "NEW.write_cursor")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "au",
+                "UPDATE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
+                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
+                    s39_upsert_add!("OLD.scope", "'node:'||OLD.kind", "OLD.write_cursor"),
+                    s39_upsert_add!("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
+                    s39_upsert_add!("OLD.scope", "'node_all'", "OLD.write_cursor"),
+                    s39_upsert_add!("NEW.scope", "'node_all'", "NEW.write_cursor")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "ad",
+                "DELETE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
+                    s39_upsert_add!("OLD.scope", "'node:'||OLD.kind", "0"),
+                    s39_upsert_add!("OLD.scope", "'node_all'", "0")
+                )
+            )
+        )
+    };
+}
+
+macro_rules! s39_triggers_canonical_edge {
+    ($short:literal, $table:literal) => {
+        concat!(
+            s39_trigger_wrap!(
+                $short,
+                "ai",
+                "INSERT",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_add!("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
+                    s39_upsert_add!("NEW.scope", "'edge_any'", "NEW.write_cursor")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "au",
+                "UPDATE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
+                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
+                    s39_upsert_add!("OLD.scope", "'edge:'||OLD.kind", "OLD.write_cursor"),
+                    s39_upsert_add!("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
+                    s39_upsert_add!("OLD.scope", "'edge_any'", "OLD.write_cursor"),
+                    s39_upsert_add!("NEW.scope", "'edge_any'", "NEW.write_cursor")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "ad",
+                "DELETE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
+                    s39_upsert_add!("OLD.scope", "'edge:'||OLD.kind", "0"),
+                    s39_upsert_add!("OLD.scope", "'edge_any'", "0")
+                )
+            )
+        )
+    };
+}
+
+macro_rules! s39_triggers_provenance {
+    ($short:literal, $table:literal) => {
+        concat!(
+            s39_trigger_wrap!(
+                $short,
+                "ai",
+                "INSERT",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
+                    s39_upsert_add!("NEW.scope", "'node_all'", "0"),
+                    s39_upsert_add!("NEW.scope", "'edge_any'", "0")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "au",
+                "UPDATE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
+                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
+                    s39_upsert_add!("OLD.scope", "'node_all'", "0"),
+                    s39_upsert_add!("NEW.scope", "'node_all'", "0"),
+                    s39_upsert_add!("OLD.scope", "'edge_any'", "0"),
+                    s39_upsert_add!("NEW.scope", "'edge_any'", "0")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "ad",
+                "DELETE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
+                    s39_upsert_add!("OLD.scope", "'node_all'", "0"),
+                    s39_upsert_add!("OLD.scope", "'edge_any'", "0")
+                )
+            )
+        )
+    };
+}
+
+macro_rules! s39_triggers_dependency {
+    ($short:literal, $table:literal) => {
+        concat!(
+            s39_trigger_wrap!(
+                $short,
+                "ai",
+                "INSERT",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_add!("NEW.scope", "'scope_dependency'", "0")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "au",
+                "UPDATE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_add!("OLD.scope", "'scope_dependency'", "0"),
+                    s39_upsert_add!("NEW.scope", "'scope_dependency'", "0"),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
+                    s39_upsert_dest!("NEW.scope", "'scope_destructive'")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "ad",
+                "DELETE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_add!("OLD.scope", "'scope_dependency'", "0"),
+                    s39_upsert_dest!("OLD.scope", "'scope_destructive'")
+                )
+            )
+        )
+    };
+}
+
+macro_rules! s39_triggers_op_state {
+    ($short:literal, $table:literal) => {
+        concat!(
+            s39_trigger_wrap!(
+                $short,
+                "ai",
+                "INSERT",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_add!("NEW.scope", "'op_state'", "NEW.write_cursor")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "au",
+                "UPDATE",
+                $table,
+                concat!(
+                    s39_update_global!(),
+                    s39_upsert_add!("OLD.scope", "'op_state'", "OLD.write_cursor"),
+                    s39_upsert_add!("NEW.scope", "'op_state'", "NEW.write_cursor")
+                )
+            ),
+            s39_trigger_wrap!(
+                $short,
+                "ad",
+                "DELETE",
+                $table,
+                concat!(s39_update_global!(), s39_upsert_add!("OLD.scope", "'op_state'", "0"))
+            )
+        )
+    };
+}
+
+macro_rules! s39_triggers_global_struct {
+    ($short:literal, $table:literal) => {
+        concat!(
+            s39_trigger_wrap!($short, "ai", "INSERT", $table, s39_update_global_struct!()),
+            s39_trigger_wrap!($short, "au", "UPDATE", $table, s39_update_global_struct!()),
+            s39_trigger_wrap!($short, "ad", "DELETE", $table, s39_update_global_struct!())
+        )
+    };
+}
+
+fn s39_upsert_add_str(scope: &str, pk: &str, cursor: &str) -> String {
+    format!(
+        " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) \
+         VALUES({scope},{pk},1,MAX(0,{cursor}),0,lower(hex(randomblob(32)))) \
+         ON CONFLICT(scope,partition_kind) DO UPDATE SET \
+         add_generation=CASE WHEN add_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE add_generation+1 END,\
+         max_cursor=MAX(max_cursor,excluded.max_cursor),\
+         state_nonce=lower(hex(randomblob(32)));"
+    )
+}
+
+fn s39_upsert_dest_str(scope: &str, pk: &str) -> String {
+    format!(
+        " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) \
+         VALUES({scope},{pk},0,0,1,lower(hex(randomblob(32)))) \
+         ON CONFLICT(scope,partition_kind) DO UPDATE SET \
+         destructive_generation=CASE WHEN destructive_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE destructive_generation+1 END,\
+         state_nonce=lower(hex(randomblob(32)));"
+    )
+}
+
+/// Single-source expected `CREATE TRIGGER` SQL for a manifest visibility trigger
+/// at `schema_version` (`31..=39`).
+///
+/// Guarantees [`STEP_39_SQL`] and `frozen_read::validate_on_open` stay strictly
+/// synchronized across all 20 trigger-bearing tables.
+#[must_use]
+pub fn expected_visibility_trigger_sql(
+    entry: &TableManifestEntry,
+    suffix: &str,
+    operation: &str,
+    schema_version: u32,
+) -> String {
+    let short = entry.visibility_trigger_prefix.expect("entry must have visibility_trigger_prefix");
+    let table = entry.name;
+    let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
+    if schema_version < 39 {
+        let branch_state =
+            if schema_version >= 33 { ",state_nonce=lower(hex(randomblob(32)))" } else { "" };
+        let gate = if schema_version >= 37 {
+            " WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1)"
+        } else {
+            ""
+        };
+        let admission = if schema_version >= 37 {
+            "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0) THEN RAISE(ABORT,'read visibility coalescing state unavailable') END; "
+        } else {
+            ""
+        };
+        return format!(
+            "CREATE TRIGGER {name} AFTER {operation} ON {table}{gate} BEGIN {admission}UPDATE \
+             _fathomdb_read_visibility_state SET generation=CASE WHEN \
+             generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation \
+             exhausted') ELSE generation+1 END{branch_state} WHERE singleton=1; END"
+        );
+    }
+
+    let class = entry.visibility_trigger_class.expect("entry must have visibility_trigger_class");
+    let update_global = s39_update_global!();
+    let update_global_struct = s39_update_global_struct!();
+    let body = match (class, suffix) {
+        (VisibilityTriggerClass::ScopedCanonicalNode, "ai") => format!(
+            "{update_global}{}{}",
+            s39_upsert_add_str("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
+            s39_upsert_add_str("NEW.scope", "'node_all'", "NEW.write_cursor"),
+        ),
+        (VisibilityTriggerClass::ScopedCanonicalNode, "au") => format!(
+            "{update_global}{}{}{}{}{}{}",
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
+            s39_upsert_add_str("OLD.scope", "'node:'||OLD.kind", "OLD.write_cursor"),
+            s39_upsert_add_str("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
+            s39_upsert_add_str("OLD.scope", "'node_all'", "OLD.write_cursor"),
+            s39_upsert_add_str("NEW.scope", "'node_all'", "NEW.write_cursor"),
+        ),
+        (VisibilityTriggerClass::ScopedCanonicalNode, "ad") => format!(
+            "{update_global}{}{}{}",
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+            s39_upsert_add_str("OLD.scope", "'node:'||OLD.kind", "0"),
+            s39_upsert_add_str("OLD.scope", "'node_all'", "0"),
+        ),
+        (VisibilityTriggerClass::ScopedCanonicalEdge, "ai") => format!(
+            "{update_global}{}{}",
+            s39_upsert_add_str("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
+            s39_upsert_add_str("NEW.scope", "'edge_any'", "NEW.write_cursor"),
+        ),
+        (VisibilityTriggerClass::ScopedCanonicalEdge, "au") => format!(
+            "{update_global}{}{}{}{}{}{}",
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
+            s39_upsert_add_str("OLD.scope", "'edge:'||OLD.kind", "OLD.write_cursor"),
+            s39_upsert_add_str("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
+            s39_upsert_add_str("OLD.scope", "'edge_any'", "OLD.write_cursor"),
+            s39_upsert_add_str("NEW.scope", "'edge_any'", "NEW.write_cursor"),
+        ),
+        (VisibilityTriggerClass::ScopedCanonicalEdge, "ad") => format!(
+            "{update_global}{}{}{}",
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+            s39_upsert_add_str("OLD.scope", "'edge:'||OLD.kind", "0"),
+            s39_upsert_add_str("OLD.scope", "'edge_any'", "0"),
+        ),
+        (VisibilityTriggerClass::ScopedProvenance, "ai") => format!(
+            "{update_global}{}{}{}",
+            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
+            s39_upsert_add_str("NEW.scope", "'node_all'", "0"),
+            s39_upsert_add_str("NEW.scope", "'edge_any'", "0"),
+        ),
+        (VisibilityTriggerClass::ScopedProvenance, "au") => format!(
+            "{update_global}{}{}{}{}{}{}",
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
+            s39_upsert_add_str("OLD.scope", "'node_all'", "0"),
+            s39_upsert_add_str("NEW.scope", "'node_all'", "0"),
+            s39_upsert_add_str("OLD.scope", "'edge_any'", "0"),
+            s39_upsert_add_str("NEW.scope", "'edge_any'", "0"),
+        ),
+        (VisibilityTriggerClass::ScopedProvenance, "ad") => format!(
+            "{update_global}{}{}{}",
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+            s39_upsert_add_str("OLD.scope", "'node_all'", "0"),
+            s39_upsert_add_str("OLD.scope", "'edge_any'", "0"),
+        ),
+        (VisibilityTriggerClass::ScopedDependency, "ai") => {
+            format!("{update_global}{}", s39_upsert_add_str("NEW.scope", "'scope_dependency'", "0"),)
+        }
+        (VisibilityTriggerClass::ScopedDependency, "au") => format!(
+            "{update_global}{}{}{}{}",
+            s39_upsert_add_str("OLD.scope", "'scope_dependency'", "0"),
+            s39_upsert_add_str("NEW.scope", "'scope_dependency'", "0"),
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
+        ),
+        (VisibilityTriggerClass::ScopedDependency, "ad") => format!(
+            "{update_global}{}{}",
+            s39_upsert_add_str("OLD.scope", "'scope_dependency'", "0"),
+            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
+        ),
+        (VisibilityTriggerClass::ScopedOperationalState, "ai") => format!(
+            "{update_global}{}",
+            s39_upsert_add_str("NEW.scope", "'op_state'", "NEW.write_cursor"),
+        ),
+        (VisibilityTriggerClass::ScopedOperationalState, "au") => format!(
+            "{update_global}{}{}",
+            s39_upsert_add_str("OLD.scope", "'op_state'", "OLD.write_cursor"),
+            s39_upsert_add_str("NEW.scope", "'op_state'", "NEW.write_cursor"),
+        ),
+        (VisibilityTriggerClass::ScopedOperationalState, "ad") => {
+            format!("{update_global}{}", s39_upsert_add_str("OLD.scope", "'op_state'", "0"),)
+        }
+        (VisibilityTriggerClass::GlobalStruct, _) => update_global_struct.to_string(),
+        _ => unreachable!("unexpected visibility trigger suffix {suffix}"),
+    };
+    format!(
+        "CREATE TRIGGER {name} AFTER {operation} ON {table} \
+         WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1) \
+         BEGIN SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0) THEN RAISE(ABORT,'read visibility coalescing state unavailable') END;{body} END"
+    )
 }
 
 /// Schema step 38 SQL DDL: inline typed properties, declared property B-tree
@@ -817,9 +1315,6 @@ pub const STEP_39_SQL: &str = concat!(
     "DROP TABLE _s39_os_tmp;\n",
     "CREATE INDEX operational_state_write_cursor_idx ON operational_state(write_cursor);\n",
     "CREATE UNIQUE INDEX operational_state_scope_collection_cursor_page_idx ON operational_state(scope, collection_name, write_cursor);\n",
-    visibility_coalescing_trigger_sql!("os", "ai", "INSERT", "operational_state"),
-    visibility_coalescing_trigger_sql!("os", "au", "UPDATE", "operational_state"),
-    visibility_coalescing_trigger_sql!("os", "ad", "DELETE", "operational_state"),
     "\n",
     // 4. operational_mutations index swap (NO table recreate).
     "DROP INDEX IF EXISTS operational_mutations_collection_id_idx;\n",
@@ -906,9 +1401,6 @@ pub const STEP_39_SQL: &str = concat!(
     "DROP TABLE _s39_ar_tmp;\n",
     "CREATE INDEX _fathomdb_artifact_revisions_write_cursor_idx ON _fathomdb_artifact_revisions(write_cursor);\n",
     "CREATE INDEX _fathomdb_artifact_revisions_scope_write_cursor_idx ON _fathomdb_artifact_revisions(scope, write_cursor);\n",
-    visibility_coalescing_trigger_sql!("ar", "ai", "INSERT", "_fathomdb_artifact_revisions"),
-    visibility_coalescing_trigger_sql!("ar", "au", "UPDATE", "_fathomdb_artifact_revisions"),
-    visibility_coalescing_trigger_sql!("ar", "ad", "DELETE", "_fathomdb_artifact_revisions"),
     "\n",
     // 7. _fathomdb_source_versions (remove global source_revision_id UNIQUE, composite PK & UNIQUE(scope, source_revision_id)).
     "CREATE TABLE _s39_sv_tmp AS SELECT schema_version, source_id, source_version_id, source_revision_id FROM _fathomdb_source_versions;\n",
@@ -925,9 +1417,6 @@ pub const STEP_39_SQL: &str = concat!(
     "INSERT INTO _fathomdb_source_versions(schema_version, source_id, source_version_id, source_revision_id, scope)\n",
     "    SELECT schema_version, source_id, source_version_id, source_revision_id, '' FROM _s39_sv_tmp;\n",
     "DROP TABLE _s39_sv_tmp;\n",
-    visibility_coalescing_trigger_sql!("sv", "ai", "INSERT", "_fathomdb_source_versions"),
-    visibility_coalescing_trigger_sql!("sv", "au", "UPDATE", "_fathomdb_source_versions"),
-    visibility_coalescing_trigger_sql!("sv", "ad", "DELETE", "_fathomdb_source_versions"),
     "\n",
     // 8. _fathomdb_source_links (composite PK(scope, artifact_revision_id), scoped source_derived index, triggers).
     "CREATE TABLE _s39_sl_tmp AS SELECT schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest FROM _fathomdb_source_links;\n",
@@ -953,9 +1442,6 @@ pub const STEP_39_SQL: &str = concat!(
     "      FROM _s39_sl_tmp;\n",
     "DROP TABLE _s39_sl_tmp;\n",
     "CREATE INDEX _fathomdb_source_links_source_derived_idx ON _fathomdb_source_links(scope, source_revision_id, artifact_revision_id);\n",
-    visibility_coalescing_trigger_sql!("sl", "ai", "INSERT", "_fathomdb_source_links"),
-    visibility_coalescing_trigger_sql!("sl", "au", "UPDATE", "_fathomdb_source_links"),
-    visibility_coalescing_trigger_sql!("sl", "ad", "DELETE", "_fathomdb_source_links"),
     "\n",
     // 9. _fathomdb_source_dependencies (composite PK & UNIQUE(scope, derived_revision_id), scoped index, triggers).
     "CREATE TABLE _s39_sd_tmp AS SELECT schema_version, dependency_id, derived_revision_id, registered_dependency_generation FROM _fathomdb_source_dependencies;\n",
@@ -975,9 +1461,6 @@ pub const STEP_39_SQL: &str = concat!(
     "      FROM _s39_sd_tmp;\n",
     "DROP TABLE _s39_sd_tmp;\n",
     "CREATE INDEX _fathomdb_source_dependencies_scope_derived_idx ON _fathomdb_source_dependencies(scope, derived_revision_id);\n",
-    visibility_coalescing_trigger_sql!("sd", "ai", "INSERT", "_fathomdb_source_dependencies"),
-    visibility_coalescing_trigger_sql!("sd", "au", "UPDATE", "_fathomdb_source_dependencies"),
-    visibility_coalescing_trigger_sql!("sd", "ad", "DELETE", "_fathomdb_source_dependencies"),
     "\n",
     // 10. _fathomdb_dependency_closures (composite PK, all 3 scoped closure indexes, triggers).
     "CREATE TABLE _s39_dc_tmp AS SELECT schema_version, closure_operation_id, root_kind, root_value, cause, effective_at_epoch_s, admitted_write_boundary, admitted_dependency_generation, closure_sequence, retry_fingerprint, phase, affected_count, blocker_code, structural_proof_write_boundary, proof_json FROM _fathomdb_dependency_closures;\n",
@@ -1014,9 +1497,6 @@ pub const STEP_39_SQL: &str = concat!(
     "CREATE INDEX _fathomdb_dependency_closures_recovery ON _fathomdb_dependency_closures(scope, phase, closure_sequence);\n",
     "CREATE UNIQUE INDEX _fathomdb_dependency_closures_active_retry ON _fathomdb_dependency_closures(scope, retry_fingerprint) WHERE phase != 'complete';\n",
     "CREATE INDEX IF NOT EXISTS _fathomdb_dependency_closures_boundary_idx ON _fathomdb_dependency_closures(admitted_write_boundary);\n",
-    visibility_coalescing_trigger_sql!("dc", "ai", "INSERT", "_fathomdb_dependency_closures"),
-    visibility_coalescing_trigger_sql!("dc", "au", "UPDATE", "_fathomdb_dependency_closures"),
-    visibility_coalescing_trigger_sql!("dc", "ad", "DELETE", "_fathomdb_dependency_closures"),
     "\n",
     // 11. _fathomdb_erasure_requests (recreate without global idempotency_key UNIQUE; copy explicit non-generated cols).
     "CREATE TABLE _s39_er_tmp AS SELECT ticket, idempotency_key, payload FROM _fathomdb_erasure_requests;\n",
@@ -1054,9 +1534,6 @@ pub const STEP_39_SQL: &str = concat!(
     "INSERT INTO _fathomdb_projection_registry(name, roles, fts_tokenizer, vector_embedder, vector_declared, source, entity_class, vector_kinds)\n",
     "    SELECT name, roles, fts_tokenizer, vector_embedder, vector_declared, source, entity_class, vector_kinds FROM _s39_pr_tmp;\n",
     "DROP TABLE _s39_pr_tmp;\n",
-    visibility_coalescing_trigger_sql!("pr", "ai", "INSERT", "_fathomdb_projection_registry"),
-    visibility_coalescing_trigger_sql!("pr", "au", "UPDATE", "_fathomdb_projection_registry"),
-    visibility_coalescing_trigger_sql!("pr", "ad", "DELETE", "_fathomdb_projection_registry"),
     "\n",
     // 13. _fathomdb_projection_terminal additive owner_kind column + Schema-38 backfill.
     "ALTER TABLE _fathomdb_projection_terminal ADD COLUMN owner_kind TEXT NOT NULL DEFAULT 'canonical' CHECK(owner_kind IN ('canonical', 'non_canonical'));\n",
@@ -1070,6 +1547,43 @@ pub const STEP_39_SQL: &str = concat!(
     "       OR EXISTS (SELECT 1 FROM operational_state WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
     "       OR EXISTS (SELECT 1 FROM _fathomdb_commit_timestamps WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
     "   );\n",
+    "\n",
+    // 14. Partitioned frozen-read visibility watermarks (ADR-0.8.32 #103).
+    "ALTER TABLE _fathomdb_read_visibility_state ADD COLUMN global_struct_gen INTEGER NOT NULL DEFAULT 0 CHECK(global_struct_gen BETWEEN 0 AND 9223372036854775807);\n",
+    "ALTER TABLE _fathomdb_read_visibility_state ADD COLUMN global_struct_nonce TEXT NOT NULL DEFAULT '';\n",
+    "UPDATE _fathomdb_read_visibility_state SET global_struct_nonce = lower(hex(randomblob(32))) WHERE singleton = 1;\n",
+    "CREATE TABLE _fathomdb_scope_visibility_watermarks(\n",
+    "    scope TEXT NOT NULL,\n",
+    "    partition_kind TEXT NOT NULL,\n",
+    "    add_generation INTEGER NOT NULL DEFAULT 0 CHECK(add_generation BETWEEN 0 AND 9223372036854775807),\n",
+    "    max_cursor INTEGER NOT NULL DEFAULT 0 CHECK(max_cursor >= 0),\n",
+    "    destructive_generation INTEGER NOT NULL DEFAULT 0 CHECK(destructive_generation BETWEEN 0 AND 9223372036854775807),\n",
+    "    state_nonce TEXT NOT NULL CHECK(length(state_nonce) = 64),\n",
+    "    PRIMARY KEY(scope, partition_kind)\n",
+    ") WITHOUT ROWID;\n",
+    // Class 1A..1E: 8 scope-bearing tables.
+    s39_triggers_canonical_node!("cn", "canonical_nodes"),
+    s39_triggers_canonical_edge!("ce", "canonical_edges"),
+    s39_triggers_provenance!("ar", "_fathomdb_artifact_revisions"),
+    s39_triggers_provenance!("sv", "_fathomdb_source_versions"),
+    s39_triggers_provenance!("sl", "_fathomdb_source_links"),
+    s39_triggers_dependency!("sd", "_fathomdb_source_dependencies"),
+    s39_triggers_dependency!("dc", "_fathomdb_dependency_closures"),
+    s39_triggers_op_state!("os", "operational_state"),
+    // Class 2: 5 row-owned projection/property tables.
+    s39_triggers_global_struct!("ca", "canonical_attributes"),
+    s39_triggers_global_struct!("cpv", "canonical_property_values"),
+    s39_triggers_global_struct!("vr", "_fathomdb_vector_rows"),
+    s39_triggers_global_struct!("vs", "_fathomdb_vector_spans"),
+    s39_triggers_global_struct!("pt", "_fathomdb_projection_terminal"),
+    // Class 3: 7 global metadata tables.
+    s39_triggers_global_struct!("oc", "operational_collections"),
+    s39_triggers_global_struct!("pr", "_fathomdb_projection_registry"),
+    s39_triggers_global_struct!("vk", "_fathomdb_vector_kinds"),
+    s39_triggers_global_struct!("ep", "_fathomdb_embedder_profiles"),
+    s39_triggers_global_struct!("pg", "_fathomdb_projection_generations"),
+    s39_triggers_global_struct!("pc", "_fathomdb_projection_generation_current"),
+    s39_triggers_global_struct!("ps", "_fathomdb_projection_state"),
 );
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2950,11 +3464,61 @@ pub fn check_migration_accretion(name: &str, sql: &str) -> Result<(), MigrationA
 
 #[cfg(test)]
 mod tests {
-    use super::{MIGRATIONS, STEP_38_SQL};
+    use rusqlite::Connection;
+
+    use super::{
+        check_migration_accretion, check_migration_logical_id_pin, expected_visibility_trigger_sql,
+        migrate, MIGRATIONS, SCHEMA_VERSION, STEP_38_SQL, STEP_39_SQL, TABLE_MANIFEST,
+    };
+
+    fn normalize(sql: &str) -> String {
+        sql.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
 
     #[test]
     fn step38_sql_constant_matches_migration_38() {
         assert_eq!(MIGRATIONS[37].step_id, 38);
         assert_eq!(MIGRATIONS[37].sql, STEP_38_SQL);
+    }
+
+    #[test]
+    fn step39_sql_triggers_match_expected_visibility_trigger_sql_manifest() {
+        assert_eq!(SCHEMA_VERSION, 39);
+        assert_eq!(MIGRATIONS[38].step_id, 39);
+        assert_eq!(MIGRATIONS[38].sql, STEP_39_SQL);
+        assert_eq!(TABLE_MANIFEST.len(), 36);
+        check_migration_accretion("step_39", STEP_39_SQL).unwrap();
+        check_migration_logical_id_pin("step_39", STEP_39_SQL).unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        migrate(&conn).unwrap();
+
+        let mut trigger_count = 0usize;
+        for entry in TABLE_MANIFEST.iter().filter(|e| e.visibility_trigger_prefix.is_some()) {
+            let short = entry.visibility_trigger_prefix.unwrap();
+            assert!(
+                entry.visibility_trigger_class.is_some(),
+                "missing visibility_trigger_class for {}",
+                entry.name
+            );
+            for (suffix, operation) in [("ai", "INSERT"), ("au", "UPDATE"), ("ad", "DELETE")] {
+                trigger_count += 1;
+                let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
+                let actual: String = conn
+                    .query_row(
+                        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?1",
+                        [&name],
+                        |row| row.get(0),
+                    )
+                    .unwrap_or_else(|e| panic!("missing trigger {name}: {e}"));
+                let expected = expected_visibility_trigger_sql(entry, suffix, operation, 39);
+                assert_eq!(
+                    normalize(&actual),
+                    normalize(&expected),
+                    "trigger {name} SQL drift between STEP_39_SQL and expected_visibility_trigger_sql"
+                );
+            }
+        }
+        assert_eq!(trigger_count, 60);
     }
 }

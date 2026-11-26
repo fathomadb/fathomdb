@@ -338,13 +338,32 @@ pub(crate) fn search_expand_in_tx(
     filter: Option<&SearchFilter>,
     scope: &ScopePredicate,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
+    frozen_context: Option<&frozen_read::ReadContextV1>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<SearchExpandResult, SearchExpandHandlerError> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
-        frozen_read::validate_snapshot(&tx, expected)
-            .map_err(SearchExpandHandlerError::FrozenRead)?;
+        let fallback_context;
+        let ctx = match frozen_context {
+            Some(ctx) => ctx,
+            None => {
+                fallback_context = frozen_read::ReadContextV1 {
+                    schema_version: frozen_read::FROZEN_READ_SCHEMA_VERSION,
+                    view,
+                    eligibility: filter.cloned().unwrap_or_default(),
+                };
+                &fallback_context
+            }
+        };
+        frozen_read::validate_snapshot(
+            &tx,
+            ctx,
+            expected,
+            scope,
+            frozen_read::ReadSurface::GraphOrEdge,
+        )
+        .map_err(SearchExpandHandlerError::FrozenRead)?;
     }
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;

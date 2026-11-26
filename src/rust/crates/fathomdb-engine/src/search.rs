@@ -257,6 +257,7 @@ pub(crate) struct FrozenQueryRuntime {
     embed_dispatch: Arc<EmbedDispatcher>,
     embedder_identity: EmbedderIdentity,
     observed_generation: Arc<AtomicU64>,
+    context: crate::frozen_read::ReadContextV1,
 }
 
 impl FrozenQueryRuntime {
@@ -264,8 +265,9 @@ impl FrozenQueryRuntime {
         embed_dispatch: Arc<EmbedDispatcher>,
         embedder_identity: EmbedderIdentity,
         observed_generation: Arc<AtomicU64>,
+        context: crate::frozen_read::ReadContextV1,
     ) -> Self {
-        Self { embed_dispatch, embedder_identity, observed_generation }
+        Self { embed_dispatch, embedder_identity, observed_generation, context }
     }
 }
 

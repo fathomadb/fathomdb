@@ -724,6 +724,9 @@ fn bootstrap_is_fresh(connection: &Connection, schema_version: u32) -> Result<bo
     {
         return Ok(false);
     }
+    if schema_version >= 39 && count(connection, "_fathomdb_scope_visibility_watermarks")? != 0 {
+        return Ok(false);
+    }
 
     let seeded_collection_is_exact: bool = connection
         .query_row(

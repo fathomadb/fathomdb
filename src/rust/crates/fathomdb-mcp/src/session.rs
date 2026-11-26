@@ -26,11 +26,13 @@ pub(crate) struct Continuation {
 }
 
 /// One frozen read context minted or reused in this session.
+///
+/// `FrozenReadContextV1` tokens are durable across store close/reopen, so this
+/// cache entry holds only the authenticated token without a global epoch or
+/// `VisibilityStateV1` pre-gate (`ADR-0.8.32 #103`).
 #[derive(Clone, Debug)]
 pub(crate) struct FrozenEntry {
-    pub(crate) epoch: u64,
     pub(crate) context: FrozenReadContextV1,
-    pub(crate) minted_state: VisibilityStateV1,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

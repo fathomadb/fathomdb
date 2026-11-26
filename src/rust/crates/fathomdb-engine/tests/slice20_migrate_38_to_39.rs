@@ -185,7 +185,7 @@ fn migrate_golden_0_8_31_schema38_upgrades_to_8col_vec0_and_passes_integrity() {
     );
     assert_eq!(sha256_file(&report.backup_path), GOLDEN_SCHEMA_38_SHA256);
     assert_eq!(
-        fs::read_to_string(&report.backup_sha256_path).unwrap().trim().split_whitespace().next(),
+        fs::read_to_string(&report.backup_sha256_path).unwrap().split_whitespace().next(),
         Some(GOLDEN_SCHEMA_38_SHA256)
     );
     assert!(report.integrity_clean(), "expected clean integrity: {:?}", report.integrity);

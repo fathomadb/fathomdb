@@ -2795,3 +2795,23 @@ compose orthogonally with world/validity time (`ReadView.valid_as_of` /
   resolution) resolves the returned node artifact's own canonical provenance
   source, with `EvidenceProjectionOriginV1.graph_origin` identifying the
   terminal edge revision separately.
+- **Partitioned frozen-read additive stability (`ADR-0.8.32 #103` §1):**
+  Schema 39 partitions frozen-read visibility watermarks by `(scope, partition_kind)`
+  in `_fathomdb_scope_visibility_watermarks` alongside `global_struct_gen` /
+  `global_struct_nonce` on `_fathomdb_read_visibility_state`, validating each
+  frozen read against its surface-specific tags (`0x53 0x39` trailing
+  `SurfaceTags`; `492 B` unscoped / `556 B` scoped). Disjoint-`kind` additive
+  writes/actuations, `AppendOnlyLog` (`operational_mutations`) appends,
+  `LatestState` (`operational_state`) upserts (against non-`OperationalState`
+  surfaces), cross-scope writes/lifecycle/erasure in disjoint caller scopes, and
+  disjoint-`(scope, kind)` background vector projection commits produce zero
+  unintended drift. Same-`(scope, kind)` writes, matching-`kind` or graph-surface
+  edge writes, destructive mutations (`transition`, `purge`, `erase_source`,
+  `excise_source`) in `scope`, dependency/closure writes in `scope`, and global
+  structural changes (projection registry/enrolment, `mean_vec` pin, uncoalesced
+  row-owned table SQL) fail closed (`StateDrifted` / `EvidenceUnavailable`).
+  In `Engine::resolve_evidence_many`, post-decode `Edge` / `GraphArm` slots
+  whose edge partition drifted fail closed per-slot (`Refused(EvidenceUnavailable)`)
+  while unaffected node-only slots resolve. Additive writes to disjoint `kind`s
+  or `scope`s share the FTS5 `search_index` table, so raw FTS5 `bm25()` scores
+  are not frozen across concurrent additive writes (`ADR-0.8.32 #103` §1.7).

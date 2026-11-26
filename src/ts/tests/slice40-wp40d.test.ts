@@ -37,6 +37,11 @@ test("WP-40D: mapPerHitExplain accepts valid vectorCosine values and normalizes 
     const mapped = mapPerHitExplain(fakeNativePerHit({ vectorCosine: val }));
     assert.equal(mapped.vectorCosine, val);
   }
+  const negZero = mapPerHitExplain(fakeNativePerHit({ vectorCosine: -0 }));
+  assert.ok(
+    Object.is(negZero.vectorCosine, 0),
+    `expected -0 to normalize to +0, got ${Object.is(negZero.vectorCosine, -0) ? "-0" : String(negZero.vectorCosine)}`,
+  );
   const omitted = fakeNativePerHit();
   delete (omitted as unknown as Record<string, unknown>).vectorCosine;
   assert.equal(mapPerHitExplain(omitted).vectorCosine, null);
@@ -145,7 +150,40 @@ test(
       );
       assert.ok(res.explanation);
       assert.ok(res.explanation.perHit.length >= 1);
+      assert.ok(
+        res.explanation.perHit.some(
+          (p) => p.vectorRank !== null && typeof p.vectorCosine === "number",
+        ),
+      );
       for (const p of res.explanation.perHit) {
+        if (p.vectorRank !== null) {
+          assert.equal(typeof p.vectorCosine, "number");
+          assert.ok(Number.isFinite(p.vectorCosine));
+          assert.ok((p.vectorCosine as number) >= -1.0 && (p.vectorCosine as number) <= 1.0);
+        } else {
+          assert.equal(p.vectorCosine, null);
+        }
+      }
+
+      const frozen = await engine.freezeReadContext({
+        schemaVersion: 1,
+        view: {},
+        eligibility: {},
+      });
+      const ev = await engine.searchWithEvidence({
+        schemaVersion: 1,
+        query: "distributed database transaction",
+        context: frozen,
+        includeExplanation: true,
+      });
+      assert.ok(ev.searchResult.explanation);
+      assert.ok(ev.searchResult.explanation.perHit.length >= 1);
+      assert.ok(
+        ev.searchResult.explanation.perHit.some(
+          (p) => p.vectorRank !== null && typeof p.vectorCosine === "number",
+        ),
+      );
+      for (const p of ev.searchResult.explanation.perHit) {
         if (p.vectorRank !== null) {
           assert.equal(typeof p.vectorCosine, "number");
           assert.ok(Number.isFinite(p.vectorCosine));

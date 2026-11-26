@@ -273,11 +273,16 @@ impl ProjectionGenerationStatusCache {
         Ok(())
     }
 
+    pub(crate) fn snapshot_epoch(&self) -> Result<u64, EngineError> {
+        Ok(self.state.lock().map_err(|_| EngineError::Storage)?.cache_epoch)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn get_or_compute(
         &self,
         tx: &Connection,
         slot: StatusCacheConnectionSlot,
+        observed_epoch: u64,
         scope: &crate::scope::ScopePredicate,
         runtime_state: ProjectionRuntimeStateV1,
         effective_at_epoch_s: i64,
@@ -301,74 +306,81 @@ impl ProjectionGenerationStatusCache {
         // Step 2: Slot-verified cache probe (brief mutex hold).
         let (miss_epoch, allow_insert) = {
             let mut state = self.state.lock().map_err(|_| EngineError::Storage)?;
-            let prev_matches_vis = state.slots[slot_idx].as_ref().is_some_and(|prev| {
-                prev.visibility_generation == visibility_generation
-                    && prev.state_nonce == state_nonce
-            });
-            if prev_matches_vis {
-                let prev = state.slots[slot_idx].as_ref().expect("slot observation present");
-                if prev.data_version != data_version || prev.total_changes != total_changes {
-                    // Subcase A1: out-of-band external tamper or same-connection mutation.
-                    state.cache_epoch = state.cache_epoch.wrapping_add(1);
-                    state.entries.clear();
-                    let next_epoch = state.cache_epoch;
-                    state.slots[slot_idx] = Some(SlotObservation {
-                        data_version,
-                        total_changes,
-                        visibility_generation,
-                        state_nonce: state_nonce.clone(),
-                        epoch: next_epoch,
-                    });
-                    (next_epoch, true)
-                } else if prev.epoch != state.cache_epoch {
-                    // Subcase A2: pinned to a pre-tamper snapshot; uncached pass-through.
-                    (state.cache_epoch, false)
-                } else {
-                    // Subcase A3: slot verified clean for (vis_gen, nonce, cache_epoch).
-                    let cache_epoch = state.cache_epoch;
-                    let matched = state.entries.iter().rposition(|entry| {
-                        entry.cache_epoch == cache_epoch
-                            && entry.visibility_generation == visibility_generation
-                            && entry.state_nonce == state_nonce
-                            && entry.schema_version == schema_version
-                            && entry.authoritative_boundary == boundary
-                            && effective_at_epoch_s >= entry.effective_from_epoch_s
-                            && entry
-                                .valid_before_epoch_s
-                                .is_none_or(|upper| effective_at_epoch_s < upper)
-                            && entry.runtime_state == runtime_state
-                            && entry.is_unscoped == scope.is_unscoped()
-                            && entry.scope_read_scopes.as_slice() == scope.read_scopes()
-                            && (!capture_coverage || entry.coverage_counts.is_some())
-                    });
-                    if let Some(pos) = matched {
-                        let entry = state.entries.remove(pos);
-                        let mut status = entry.status.clone();
-                        status.effective_at_epoch_s = effective_at_epoch_s;
-                        let counts =
-                            if capture_coverage { entry.coverage_counts.clone() } else { None };
-                        state.entries.push(entry);
-                        drop(state);
-                        let coverage = if capture_coverage {
-                            match counts {
-                                Some(counts) => crate::stored_coverage::token(tx)?.map(|token| {
-                                    crate::stored_coverage::CachedStoredHeadCoverage {
-                                        token,
-                                        counts,
-                                    }
-                                }),
-                                None => None,
-                            }
-                        } else {
-                            None
-                        };
-                        return Ok((status, coverage));
-                    }
-                    (cache_epoch, true)
-                }
+            if observed_epoch != state.cache_epoch {
+                // `tx` may have been pinned before `cache_epoch` bumped; uncached pass-through.
+                (state.cache_epoch, false)
             } else {
-                // Case B: first visit by this slot to this (vis_gen, nonce); force verification.
-                (state.cache_epoch, true)
+                let prev_matches_vis = state.slots[slot_idx].as_ref().is_some_and(|prev| {
+                    prev.visibility_generation == visibility_generation
+                        && prev.state_nonce == state_nonce
+                });
+                if prev_matches_vis {
+                    let prev = state.slots[slot_idx].as_ref().expect("slot observation present");
+                    if prev.data_version != data_version || prev.total_changes != total_changes {
+                        // Subcase A1: out-of-band external tamper or same-connection mutation.
+                        state.cache_epoch = state.cache_epoch.wrapping_add(1);
+                        state.entries.clear();
+                        let next_epoch = state.cache_epoch;
+                        state.slots[slot_idx] = Some(SlotObservation {
+                            data_version,
+                            total_changes,
+                            visibility_generation,
+                            state_nonce: state_nonce.clone(),
+                            epoch: next_epoch,
+                        });
+                        (next_epoch, true)
+                    } else if prev.epoch != state.cache_epoch {
+                        // Subcase A2: pinned to a pre-tamper snapshot; uncached pass-through.
+                        (state.cache_epoch, false)
+                    } else {
+                        // Subcase A3: slot verified clean for (vis_gen, nonce, cache_epoch).
+                        let cache_epoch = state.cache_epoch;
+                        let matched = state.entries.iter().rposition(|entry| {
+                            entry.cache_epoch == cache_epoch
+                                && entry.visibility_generation == visibility_generation
+                                && entry.state_nonce == state_nonce
+                                && entry.schema_version == schema_version
+                                && entry.authoritative_boundary == boundary
+                                && effective_at_epoch_s >= entry.effective_from_epoch_s
+                                && entry
+                                    .valid_before_epoch_s
+                                    .is_none_or(|upper| effective_at_epoch_s < upper)
+                                && entry.runtime_state == runtime_state
+                                && entry.is_unscoped == scope.is_unscoped()
+                                && entry.scope_read_scopes.as_slice() == scope.read_scopes()
+                                && (!capture_coverage || entry.coverage_counts.is_some())
+                        });
+                        if let Some(pos) = matched {
+                            let entry = state.entries.remove(pos);
+                            let mut status = entry.status.clone();
+                            status.effective_at_epoch_s = effective_at_epoch_s;
+                            let counts =
+                                if capture_coverage { entry.coverage_counts.clone() } else { None };
+                            state.entries.push(entry);
+                            drop(state);
+                            let coverage = if capture_coverage {
+                                match counts {
+                                    Some(counts) => {
+                                        crate::stored_coverage::token(tx)?.map(|token| {
+                                            crate::stored_coverage::CachedStoredHeadCoverage {
+                                                token,
+                                                counts,
+                                            }
+                                        })
+                                    }
+                                    None => None,
+                                }
+                            } else {
+                                None
+                            };
+                            return Ok((status, coverage));
+                        }
+                        (cache_epoch, true)
+                    }
+                } else {
+                    // Case B: first visit by this slot to this (vis_gen, nonce); force verification.
+                    (state.cache_epoch, true)
+                }
             }
         };
 
@@ -1991,6 +2003,7 @@ impl Engine {
         let scope = self.scope_predicate();
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let observed_epoch = self.projection_generation_status_cache.snapshot_epoch()?;
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Deferred)
             .map_err(|_| EngineError::Storage)?;
@@ -2002,6 +2015,7 @@ impl Engine {
         let (status, coverage) = self.projection_generation_status_cache.get_or_compute(
             &tx,
             StatusCacheConnectionSlot::Primary,
+            observed_epoch,
             &scope,
             runtime_state,
             effective_at_epoch_s,
@@ -2057,6 +2071,7 @@ impl Engine {
         let _operation = self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let observed_epoch = self.projection_generation_status_cache.snapshot_epoch()?;
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Deferred)
             .map_err(|_| EngineError::Storage)?;
@@ -2180,6 +2195,7 @@ impl Engine {
         let (status, coverage) = self.projection_generation_status_cache.get_or_compute(
             &tx,
             StatusCacheConnectionSlot::Primary,
+            observed_epoch,
             &scope,
             runtime_state,
             effective_at_epoch_s,
@@ -2634,6 +2650,8 @@ mod tests {
         {
             let mut guard = engine.connection.lock().unwrap();
             let conn = guard.as_mut().unwrap();
+            let observed_epoch =
+                engine.projection_generation_status_cache.snapshot_epoch().unwrap();
             let tx = conn.transaction().unwrap();
             let now = 1_000_i64;
 
@@ -2642,6 +2660,7 @@ mod tests {
                 .get_or_compute(
                     &tx,
                     StatusCacheConnectionSlot::Primary,
+                    observed_epoch,
                     &scope_a,
                     ProjectionRuntimeStateV1::Absent,
                     now,
@@ -2656,6 +2675,7 @@ mod tests {
                 .get_or_compute(
                     &tx,
                     StatusCacheConnectionSlot::Primary,
+                    observed_epoch,
                     &scope_b,
                     ProjectionRuntimeStateV1::Absent,
                     now,
@@ -2670,6 +2690,7 @@ mod tests {
                 .get_or_compute(
                     &tx,
                     StatusCacheConnectionSlot::Primary,
+                    observed_epoch,
                     &scope_a,
                     ProjectionRuntimeStateV1::Absent,
                     now,
@@ -2749,6 +2770,7 @@ mod tests {
         let b_pin0 = std::sync::Arc::clone(&barrier_pin);
         let b_tam0 = std::sync::Arc::clone(&barrier_tampered);
         let t0 = std::thread::spawn(move || {
+            let observed_epoch = cache0.snapshot_epoch().unwrap();
             let tx_pre = conn0.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
             // Pin snapshot BEFORE tamper by executing a read query inside tx_pre.
             let _: i64 =
@@ -2761,6 +2783,7 @@ mod tests {
                 .get_or_compute(
                     &tx_pre,
                     StatusCacheConnectionSlot::ReaderWorker(0),
+                    observed_epoch,
                     &scope0,
                     ProjectionRuntimeStateV1::Absent,
                     1_000,
@@ -2780,11 +2803,13 @@ mod tests {
 
         // Slot 1 observes post-tamper snapshot -> triggers Subcase A1 (bumps cache_epoch) and detects corruption.
         {
+            let observed_epoch = cache.snapshot_epoch().unwrap();
             let tx_post = conn1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
             let err = cache
                 .get_or_compute(
                     &tx_post,
                     StatusCacheConnectionSlot::ReaderWorker(1),
+                    observed_epoch,
                     &scope,
                     ProjectionRuntimeStateV1::Absent,
                     1_000,
@@ -2806,11 +2831,13 @@ mod tests {
 
         // A fresh tx on conn0 must see the post-tamper state and detect corruption (not a poisoned Ready entry).
         {
+            let observed_epoch = cache.snapshot_epoch().unwrap();
             let tx_fresh = conn0.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
             let err = cache
                 .get_or_compute(
                     &tx_fresh,
                     StatusCacheConnectionSlot::ReaderWorker(0),
+                    observed_epoch,
                     &scope,
                     ProjectionRuntimeStateV1::Absent,
                     1_000,
@@ -2848,6 +2875,7 @@ mod tests {
         cache2.observe_connection(&r0, StatusCacheConnectionSlot::ReaderWorker(0)).unwrap();
         cache2.observe_connection(&r1, StatusCacheConnectionSlot::ReaderWorker(1)).unwrap();
 
+        let observed_epoch1 = cache2.snapshot_epoch().unwrap();
         let tx1 = r0.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
         let _: i64 =
             tx1.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |r| r.get(0)).unwrap();
@@ -2869,11 +2897,13 @@ mod tests {
             .unwrap();
 
         // Slot 1 computes and caches S2 (G2), advancing max_visibility_generation to G2.
+        let observed_epoch2 = cache2.snapshot_epoch().unwrap();
         let tx2 = r1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
         let (st2, _) = cache2
             .get_or_compute(
                 &tx2,
                 StatusCacheConnectionSlot::ReaderWorker(1),
+                observed_epoch2,
                 &scope,
                 ProjectionRuntimeStateV1::Absent,
                 1_000,
@@ -2888,6 +2918,7 @@ mod tests {
             .get_or_compute(
                 &tx1,
                 StatusCacheConnectionSlot::ReaderWorker(0),
+                observed_epoch1,
                 &scope,
                 ProjectionRuntimeStateV1::Absent,
                 1_000,
@@ -2898,11 +2929,13 @@ mod tests {
         tx1.commit().unwrap();
 
         // Slot 1 still hits S2 (G2) cleanly with boundary == 1.
+        let observed_epoch2_again = cache2.snapshot_epoch().unwrap();
         let tx2_again = r1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
         let (st2_again, _) = cache2
             .get_or_compute(
                 &tx2_again,
                 StatusCacheConnectionSlot::ReaderWorker(1),
+                observed_epoch2_again,
                 &scope,
                 ProjectionRuntimeStateV1::Absent,
                 1_000,
@@ -2912,6 +2945,165 @@ mod tests {
         assert_eq!(st2_again.observed_boundary, 1);
         tx2_again.commit().unwrap();
         opened2.engine.close().unwrap();
+
+        // Scenario 3 (Case B cross-slot pre-tamper poisoning):
+        // conn0 is seeded at G0; a write advances vis_gen to G1 and conn1 warms G1.
+        // conn0 samples observed_epoch and pins tx_pre at G1 BEFORE external vector_default tamper
+        // (still holding G0 in slots[0]). After tamper (same G1), conn1 runs tx_post ->
+        // Err(ProjectionGenerationCorrupt) and bumps cache_epoch 0 -> 1. Then conn0 completes
+        // get_or_compute on tx_pre: it MUST return Ok for its own snapshot WITHOUT poisoning
+        // cache_epoch = 1 via Case B!
+        let path3 =
+            dir.path().join(format!("status-cache-case-b-race{}", fathomdb_schema::SQLITE_SUFFIX));
+        let embedder3 = std::sync::Arc::new(fathomdb_embedder::NoopEmbedder::default());
+        let opened3 = crate::Engine::open_with_embedder_for_test(&path3, embedder3).unwrap();
+        opened3
+            .engine
+            .configure_projections(
+                &[crate::ProjectionSpec {
+                    name: "memory".into(),
+                    roles: [crate::ProjectionRole::Searchable].into_iter().collect(),
+                    fts: None,
+                    vector: Some(crate::ProjectionVector {
+                        embedder: None,
+                        dense_readiness: None,
+                        kinds: None,
+                    }),
+                    source: None,
+                    entity_class: crate::PropertyEntityClass::Node,
+                }],
+                &[],
+            )
+            .unwrap();
+
+        let cache3 = std::sync::Arc::new(ProjectionGenerationStatusCache::new(
+            2,
+            #[cfg(feature = "test-hooks")]
+            std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        ));
+        let mut c0 = Connection::open(&path3).unwrap();
+        let mut c1 = Connection::open(&path3).unwrap();
+        // Seed c0 at G0 (cache_epoch = 0).
+        cache3.observe_connection(&c0, StatusCacheConnectionSlot::ReaderWorker(0)).unwrap();
+
+        // Advance vis_gen G0 -> G1 and embed so G1 is Ready.
+        let c3_cursor = opened3
+            .engine
+            .write(&[crate::PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "case-b race node".into(),
+                source_id: crate::SourceId::new("src:case-b").unwrap(),
+                logical_id: Some("case-b-1".into()),
+                state: crate::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .unwrap()
+            .row_cursors[0];
+        opened3.engine.drain(10_000).unwrap();
+
+        // Warm c1 at G1 (slots[1] = (G1, dv1, epoch=0); slots[0] is still at G0!).
+        {
+            let observed_epoch_warm = cache3.snapshot_epoch().unwrap();
+            let tx_warm = c1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+            let (st_warm, _) = cache3
+                .get_or_compute(
+                    &tx_warm,
+                    StatusCacheConnectionSlot::ReaderWorker(1),
+                    observed_epoch_warm,
+                    &scope,
+                    ProjectionRuntimeStateV1::Absent,
+                    1_000,
+                    false,
+                )
+                .unwrap();
+            assert_eq!(st_warm.readiness, ProjectionReadinessV1::Ready);
+            tx_warm.commit().unwrap();
+        }
+
+        // c0 samples observed_epoch and pins tx_pre at G1 BEFORE external tamper.
+        let observed_epoch_pre = cache3.snapshot_epoch().unwrap();
+        let tx_pre_b = c0.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+        let _: i64 =
+            tx_pre_b.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |r| r.get(0)).unwrap();
+
+        // External tamper on vector_default (same G1, no visibility bump).
+        let ext3 = Connection::open(&path3).unwrap();
+        ext3.execute("DELETE FROM vector_default WHERE rowid=?1", [c3_cursor]).unwrap();
+        drop(ext3);
+
+        // c1 runs tx_post -> detects tamper (Subcase A1 bumps cache_epoch 0 -> 1) -> Corrupt.
+        {
+            let observed_epoch_post = cache3.snapshot_epoch().unwrap();
+            let tx_post_b = c1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+            let err = cache3
+                .get_or_compute(
+                    &tx_post_b,
+                    StatusCacheConnectionSlot::ReaderWorker(1),
+                    observed_epoch_post,
+                    &scope,
+                    ProjectionRuntimeStateV1::Absent,
+                    1_000,
+                    false,
+                )
+                .map(|(s, _)| s);
+            assert!(
+                matches!(
+                    err,
+                    Err(EngineError::ProjectionGeneration(ref e))
+                        if e.reason == ProjectionGenerationErrorReason::ProjectionGenerationCorrupt
+                ),
+                "post-tamper tx_post on c1 must detect corruption, got {err:?}"
+            );
+            tx_post_b.commit().unwrap();
+        }
+
+        // c0 completes get_or_compute on tx_pre -> returns Ok(Ready) for its own snapshot
+        // WITHOUT poisoning cache_epoch = 1!
+        {
+            let (st_pre_b, _) = cache3
+                .get_or_compute(
+                    &tx_pre_b,
+                    StatusCacheConnectionSlot::ReaderWorker(0),
+                    observed_epoch_pre,
+                    &scope,
+                    ProjectionRuntimeStateV1::Absent,
+                    1_000,
+                    false,
+                )
+                .unwrap();
+            assert_eq!(st_pre_b.readiness, ProjectionReadinessV1::Ready);
+            tx_pre_b.commit().unwrap();
+        }
+
+        // Fresh query on c1 MUST STILL return Err(ProjectionGenerationCorrupt) (not poisoned Ok(Ready)!).
+        {
+            let observed_epoch_check = cache3.snapshot_epoch().unwrap();
+            let tx_check = c1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+            let err = cache3
+                .get_or_compute(
+                    &tx_check,
+                    StatusCacheConnectionSlot::ReaderWorker(1),
+                    observed_epoch_check,
+                    &scope,
+                    ProjectionRuntimeStateV1::Absent,
+                    1_000,
+                    false,
+                )
+                .map(|(s, _)| s);
+            assert!(
+                matches!(
+                    err,
+                    Err(EngineError::ProjectionGeneration(ref e))
+                        if e.reason == ProjectionGenerationErrorReason::ProjectionGenerationCorrupt
+                ),
+                "fresh query on c1 must NOT receive poisoned Ok(Ready) after Case B race, got {err:?}"
+            );
+            tx_check.commit().unwrap();
+        }
+        opened3.engine.close().unwrap();
     }
 
     #[test]

@@ -222,6 +222,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     reader_search_hook::fire(attribution);
     #[cfg(any(test, feature = "slice30-observer"))]
     let observation = crate::slice30_observer::span("reader_transaction");
+    let observed_epoch = status_cache.snapshot_epoch().map_err(SearchReaderError::Evidence)?;
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
         let generation =
@@ -638,6 +639,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 .get_or_compute(
                     &tx,
                     status_slot,
+                    observed_epoch,
                     scope,
                     projection_runtime_state,
                     view.edge_now(),

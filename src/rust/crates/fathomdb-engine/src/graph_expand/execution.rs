@@ -1367,6 +1367,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     if let Some(rendezvous) = test_controls.rendezvous.as_ref() {
         rendezvous.fire(GraphExpandRendezvousPhase::BeforePin);
     }
+    let observed_epoch = status_cache.snapshot_epoch()?;
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)
         .map_err(|_| EngineError::Storage)?;
     #[cfg(feature = "test-hooks")]
@@ -1410,6 +1411,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         let (status, _) = status_cache.get_or_compute(
             &tx,
             status_slot,
+            observed_epoch,
             scope,
             projection_runtime_state,
             view.edge_now(),

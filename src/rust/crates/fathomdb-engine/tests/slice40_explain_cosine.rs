@@ -187,6 +187,7 @@ fn vec_distance_cosine_truth_table_via_engine() {
     // Zero-norm query vector -> vec_distance_cosine returns NULL/NaN -> vector_cosine == None!
     let zero_res = opened.engine.search_explained("zero_norm", None, 0, false, 0.3, 0).unwrap();
     let zero_exp = zero_res.explanation.as_ref().expect("explanation");
+    assert!(!zero_exp.per_hit.is_empty());
     assert_universal_cosine_invariant(zero_exp);
     for p in &zero_exp.per_hit {
         assert_eq!(
@@ -402,6 +403,7 @@ fn arm_semantics_sql_branches_evidence_and_l2_order_invariance() {
         .search_reranked_view("identical hybrid", None, 0, true, 0.3, 0, true, &view_in_window)
         .unwrap();
     let graph_exp = graph_res.explanation.as_ref().expect("graph explanation");
+    assert!(graph_exp.per_hit.iter().any(|p| p.arm == SoftFallbackBranch::GraphArm));
     assert_universal_cosine_invariant(graph_exp);
     for p in &graph_exp.per_hit {
         if p.arm == SoftFallbackBranch::GraphArm {

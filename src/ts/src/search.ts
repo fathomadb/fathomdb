@@ -829,16 +829,17 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     invalid("/graphSeedSource");
   }
   optionalU32(p.graphHopDepth, "/graphHopDepth");
-  const vectorCosine = p.vectorCosine ?? null;
+  const rawVectorCosine = p.vectorCosine ?? null;
   if (
-    vectorCosine !== null &&
-    (typeof vectorCosine !== "number" ||
-      !Number.isFinite(vectorCosine) ||
-      vectorCosine < -1.0 ||
-      vectorCosine > 1.0)
+    rawVectorCosine !== null &&
+    (typeof rawVectorCosine !== "number" ||
+      !Number.isFinite(rawVectorCosine) ||
+      rawVectorCosine < -1.0 ||
+      rawVectorCosine > 1.0)
   ) {
     invalid("/vectorCosine");
   }
+  const vectorCosine = Object.is(rawVectorCosine, -0) ? 0 : rawVectorCosine;
   const result: PerHitExplain = {
     id: p.id,
     arm: p.arm as SoftFallbackBranch,

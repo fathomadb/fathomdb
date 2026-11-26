@@ -120,7 +120,13 @@ Also add `total_changes: u64` to `CachedMutationProjectionStatus` (`projection_g
 
 #### Lookup & Insertion Algorithm (`get_or_compute`)
 
-Called inside an already-open `DEFERRED` read transaction `&tx` (no mutex held across SQLite scans!):
+Before `tx` executes any SQL read (i.e., strictly before SQLite pins its `DEFERRED` WAL snapshot — before `begin_attributed_reader_tx` in `search/fusion_stage.rs` and `graph_expand/execution.rs`, and before `transaction_with_behavior(TransactionBehavior::Deferred)` / first SQL read in `read_projection_generation_status_at` and `read_mutation_projection_status`), the caller samples:
+
+```rust
+let observed_epoch = status_cache.snapshot_epoch()?;
+```
+
+`get_or_compute` is then called inside the open `DEFERRED` read transaction `&tx` with `observed_epoch` (no mutex held across SQLite scans!):
 
 1. **Snapshot metadata read (unlocked, O(1) indexed/pragma queries):**
    - Read `(visibility_generation, state_nonce, coalescing)` from `_fathomdb_read_visibility_state WHERE singleton = 1` (fail closed with `corruption()` if missing, malformed hex, `coalescing != 0`, or `generation > i64::MAX as u64`).
@@ -128,7 +134,8 @@ Called inside an already-open `DEFERRED` read transaction `&tx` (no mutex held a
    - Compute `boundary = snapshot_observed_boundary(tx)?`.
 
 2. **Slot-verified cache probe (lock acquired briefly):**
-   - Examine `state.slots[slot_idx]`:
+   - **Pre-check (`observed_epoch != state.cache_epoch`):** `tx` may have been pinned before another slot detected an out-of-band tamper and bumped `cache_epoch` (closing cross-slot pre-tamper poisoning via Case B when this slot had not yet observed the new `(visibility_generation, state_nonce)`!). Immediately fall through as an **uncached pass-through**: do **NOT** hit `state.entries`, do **NOT** update `state.slots[slot_idx]`, and set `(miss_epoch = state.cache_epoch, allow_insert = false)` so Step 4 never inserts or updates the slot.
+   - Only when `observed_epoch == state.cache_epoch`, examine `state.slots[slot_idx]`:
      - **Case A — Slot previously observed the exact same `(visibility_generation, state_nonce)`:**
        - **Subcase A1 (`prev.data_version != data_version || prev.total_changes != total_changes`):** Out-of-band external tamper (e.g., direct edit to `vector_default`, which has `visibility_trigger_prefix: None`) or same-connection non-visibility-bumping mutation detected!
          - `state.cache_epoch = state.cache_epoch.wrapping_add(1)`.
@@ -276,14 +283,14 @@ vector_cosine: exp_vector_cosines
 | Python native | `src/rust/crates/fathomdb-py/src/graph_evidence.rs:488-611` | Add `#[pyo3(get)] vector_cosine: Option<f64>` on `PyPerHitExplain` and copy `hit.vector_cosine` |
 | Python package & boundary | `src/python/fathomdb/types.py`, `src/python/fathomdb/_sdk_search.py:356-429` (`_map_per_hit_explain`), `src/python/fathomdb/_fathomdb.pyi`, `src/python/tests/python_surface_additions.json`, `src/python/tests/test_slice130_package_boundary.py:646-701` | Add `vector_cosine: float \| None = None` on `PerHitExplain`; validate `None` or finite `float`/`int` (reject `bool`, `NaN`, `inf`, out of `[-1.0, 1.0]`) in `_map_per_hit_explain` and forward `vector_cosine`; add `_fathomdb.pyi` entry + `python_surface_additions.json` + `test_slice130_package_boundary.py` stub reversal stanza; rebuild `.venv` wheel via `bash scripts/setup-python-owned.sh --build` |
 | TypeScript native | `src/rust/crates/fathomdb-napi/src/graph_evidence.rs:420-528` (+ unit test at `:543-613`) | Add `pub vector_cosine: Option<f64>` on N-API `PerHitExplain` (`vectorCosine` in JS) and populate from Rust |
-| TypeScript package | `src/ts/src/binding.ts:376-393` (`NativePerHitExplain`), `src/ts/src/search.ts:739-753, 787-839` (`PerHitExplain`, `mapPerHitExplain`) | Add `vectorCosine?: number \| null` on `NativePerHitExplain` and `readonly vectorCosine: number \| null` on `PerHitExplain`; in `mapPerHitExplain` normalize `p.vectorCosine ?? null` and assert `null` or `typeof === "number" && Number.isFinite(v) && v >= -1.0 && v <= 1.0`; rebuild native addon & `dist/` |
+| TypeScript package | `src/ts/src/binding.ts:376-393` (`NativePerHitExplain`), `src/ts/src/search.ts:739-759, 793-860` (`PerHitExplain`, `mapPerHitExplain`) | Add `vectorCosine?: number \| null` on `NativePerHitExplain` and `readonly vectorCosine?: number \| null` on `PerHitExplain` (preserving `slice55-old-object-literals.test.ts` manual-literal compatibility alongside `graphSeedSource?`/`graphHopDepth?`, while normalized to `number \| null` at runtime); in `mapPerHitExplain` normalize `p.vectorCosine ?? null`, reject non-`null` values unless `typeof === "number" && Number.isFinite(v) && v >= -1.0 && v <= 1.0`, and normalize `-0` to `+0`; rebuild native addon & `dist/` |
 | Interfaces & public docs | `dev/interfaces/{rust,rust-sdk,python,typescript}.md`, `docs/reference/{rust-sdk,rust-api,python-api,typescript-api}.md` | Document `PerHitExplain.vector_cosine` / `vectorCosine` (introducing/extending `PerHitExplain` field sections where absent) |
 | ADR & proposal cross-refs | `dev/design/0.8.8-explain-and-telemetry-adr.md` §A.4 Q1, `dev/design/mcp-adapter/engine-proposals/EP-13-raw-arm-scores.md` | Brief amendment note recording `Gate1-D10` ratified `PerHitExplain.vector_cosine` in `0.8.32` while keeping `vector_distance`/`text_bm25` deferred |
 | Unchanged surfaces | `SearchHit`, `EvidenceContributionV1` (`evidence/codec.rs`), `fathomdb-mcp` `PerHitOut`, Schema 39 DDL, `scripts/governed-surface-pin.json` (`58`/`97`) | **Strictly untouched** |
 
 ### 2.5 Bundled Slice 40 Housekeeping
 
-1. `scripts/tests/test_runtime_release_alignment.sh:262`: update the non-recovery `post-publish-smoke` matrix assertion to match `WP-40C`'s `["crates-cli","crates-mcp","crates-sdk","pypi-wheel","pypi-mcp","npm-package"]`.
+1. `scripts/tests/test_runtime_release_alignment.sh:262`: update the non-recovery `post-publish-smoke` matrix assertion to match `WP-40C`'s `["crates-cli","crates-sdk","crates-mcp","pypi-wheel","pypi-mcp","npm-package"]`.
 2. `dev/interfaces/mcp.md:177`: add `entity_class` to the `orient` field census row (`projections[].entity_class/name/roles[]/fts/vector; projection_status.projections[].entity_class/name/dense_readiness`).
 
 ---

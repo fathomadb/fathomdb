@@ -1249,6 +1249,25 @@ impl Engine {
                 let reader_scope = resolved_config.scope_policy.predicate();
                 let provenance_row_cap = resolved_config.provenance_row_cap;
                 let parts = startup.into_parts();
+                #[cfg(feature = "test-hooks")]
+                let projection_generation_status_full_owner_scan_count =
+                    Arc::new(AtomicU64::new(0));
+                let status_cache =
+                    Arc::new(projection_generation::ProjectionGenerationStatusCache::new(
+                        parts.readers.len(),
+                        #[cfg(feature = "test-hooks")]
+                        Arc::clone(&projection_generation_status_full_owner_scan_count),
+                    ));
+                if report.schema_version_after >= 37 {
+                    status_cache
+                        .observe_connection(
+                            &parts.connection,
+                            projection_generation::StatusCacheConnectionSlot::Primary,
+                        )
+                        .map_err(|_| EngineOpenError::Io {
+                            message: "could not seed projection-generation status cache".into(),
+                        })?;
+                }
                 let opened = OpenedEngine {
                     engine: Self {
                         path: canonical_path.clone(),
@@ -1267,10 +1286,10 @@ impl Engine {
                             read_visibility_generation,
                         )),
                         stored_head_coverage: Mutex::new(coverage_seed),
-                        projection_generation_status_cache: Mutex::new(None),
+                        projection_generation_status_cache: Arc::clone(&status_cache),
                         mutation_projection_status_cache: Mutex::new(None),
                         #[cfg(feature = "test-hooks")]
-                        projection_generation_status_full_owner_scan_count: AtomicU64::new(0),
+                        projection_generation_status_full_owner_scan_count,
                         #[cfg(feature = "test-hooks")]
                         graph_expand_rss_baseline_bytes: AtomicU64::new(0),
                         #[cfg(feature = "test-hooks")]
@@ -1295,6 +1314,7 @@ impl Engine {
                             Arc::clone(&wal_attribution),
                             Arc::clone(&query_stop_words),
                             reader_scope,
+                            status_cache,
                             #[cfg(any(test, feature = "test-hooks"))]
                             Arc::clone(&managed_connections),
                         ),

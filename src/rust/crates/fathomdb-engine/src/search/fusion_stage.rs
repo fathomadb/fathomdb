@@ -5,11 +5,11 @@ use super::fts_fast_path::{
 };
 use super::graph_arm::{bfs_graph_arm_candidates, BfsGraphArmOutput};
 use super::vector_arm::{
-    detect_vector_soft_fallback, execute_vector_arm, historical_dense_incomplete,
+    detect_vector_soft_fallback, execute_vector_arm, historical_dense_incomplete, VectorArmOutput,
 };
 use super::{
-    load_projection_cursor_for_search, next_write_cursor_for_search, FrozenQueryRuntime,
-    SearchOriginCapture, SearchReaderError, SearchReaderWork,
+    load_projection_cursor_for_search, FrozenQueryRuntime, SearchOriginCapture, SearchReaderError,
+    SearchReaderWork,
 };
 use crate::dependency_closure;
 use crate::embedding::search_query_vector;
@@ -133,12 +133,15 @@ fn rank_probe_arm(hits: impl IntoIterator<Item = (RecordKey, f64)>) -> Vec<serde
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
     work: SearchReaderWork,
     capture: C,
     scope_predicate: &crate::scope::ScopePredicate,
     stop_words: &StopWordSet,
+    status_cache: &projection_generation::ProjectionGenerationStatusCache,
+    status_slot: projection_generation::StatusCacheConnectionSlot,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<C::Output, SearchReaderError> {
@@ -171,6 +174,8 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
         stop_words,
         work.snippet.as_ref(),
         work.graph_options.as_deref(),
+        status_cache,
+        status_slot,
         attribution,
         worker_idx,
         capture,
@@ -205,6 +210,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     stop_words: &StopWordSet,
     snippet: Option<&SnippetOptions>,
     graph_options: Option<&GraphArmOptions>,
+    status_cache: &projection_generation::ProjectionGenerationStatusCache,
+    status_slot: projection_generation::StatusCacheConnectionSlot,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
     mut capture: C,
@@ -354,7 +361,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         view.edge_now(),
         scope,
     )?;
-    let vector_results = execute_vector_arm(
+    let VectorArmOutput { hits: vector_results, cosines: vector_cosines } = execute_vector_arm(
         &tx,
         query_vector,
         query_vector_bin,
@@ -366,7 +373,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         now_param,
         scope,
         &read_dependency_eligibility,
+        explain,
     )?;
+    let exp_vector_cosines = explain.then_some(vector_cosines);
     let original_vector_keys =
         snippet.map(|_| vector_results.iter().map(FusionHit::key).collect::<HashSet<RecordKey>>());
     let vector_rows_visible = !vector_results.is_empty();
@@ -625,13 +634,16 @@ fn read_search_in_tx<C: SearchOriginCapture>(
 
     let projection_status = explain
         .then(|| {
-            projection_generation::status_in_snapshot(
-                &tx,
-                scope,
-                projection_runtime_state,
-                view.edge_now(),
-                next_write_cursor_for_search(&tx),
-            )
+            status_cache
+                .get_or_compute(
+                    &tx,
+                    status_slot,
+                    scope,
+                    projection_runtime_state,
+                    view.edge_now(),
+                    false,
+                )
+                .map(|(status, _)| status)
         })
         .transpose()
         .map_err(SearchReaderError::Evidence)?;
@@ -663,6 +675,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     confidence: exp_confidence.as_ref().and_then(|m| m.get(&h.key()).copied()),
                     graph_seed_source,
                     graph_hop_depth,
+                    vector_cosine: exp_vector_cosines
+                        .as_ref()
+                        .and_then(|m| m.get(&h.key()).copied().flatten()),
                     structural: {
                         let projection_origin = match h.branch {
                             SoftFallbackBranch::Vector => {

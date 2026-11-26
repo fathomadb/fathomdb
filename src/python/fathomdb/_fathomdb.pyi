@@ -163,6 +163,7 @@ class PerHitExplain:
     confidence: float | None
     graph_seed_source: str | None
     graph_hop_depth: int | None
+    vector_cosine: float | None
     structural: StructuralInclusionV1
 
 class StructuralInclusionV1:

@@ -749,6 +749,12 @@ export interface PerHitExplain {
   confidence: number | null;
   graphSeedSource?: GraphArmSeedSource | null;
   graphHopDepth?: number | null;
+  /**
+   * Pre-RRF cosine similarity (`1.0 - vec_distance_cosine`, clamped to `[-1.0, 1.0]`)
+   * when this hit was scored by the vector arm (`vectorRank !== null`); `null` otherwise
+   * or for zero-norm vectors.
+   */
+  readonly vectorCosine?: number | null;
   structural?: StructuralInclusionV1;
 }
 
@@ -823,6 +829,16 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     invalid("/graphSeedSource");
   }
   optionalU32(p.graphHopDepth, "/graphHopDepth");
+  const vectorCosine = p.vectorCosine ?? null;
+  if (
+    vectorCosine !== null &&
+    (typeof vectorCosine !== "number" ||
+      !Number.isFinite(vectorCosine) ||
+      vectorCosine < -1.0 ||
+      vectorCosine > 1.0)
+  ) {
+    invalid("/vectorCosine");
+  }
   const result: PerHitExplain = {
     id: p.id,
     arm: p.arm as SoftFallbackBranch,
@@ -836,6 +852,7 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     confidence: p.confidence ?? null,
     graphSeedSource: (p.graphSeedSource ?? null) as GraphArmSeedSource | null,
     graphHopDepth: p.graphHopDepth ?? null,
+    vectorCosine,
   };
   if (p.structural !== undefined) {
     const structural = p.structural;

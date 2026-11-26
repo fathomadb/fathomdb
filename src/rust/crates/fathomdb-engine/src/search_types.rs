@@ -554,6 +554,11 @@ pub struct PerHitExplain {
     /// (`Some(0)` for `EdgeSeed`, `Some(hop_count)` for `Traversal`).
     /// `None` for non-`GraphArm` hits.
     pub graph_hop_depth: Option<u32>,
+    /// Pre-RRF cosine similarity (`1.0 - vec_distance_cosine`, clamped to `[-1.0, 1.0]`,
+    /// `-0.0` normalized to `0.0`) when this hit was scored by the vector arm
+    /// (`vector_rank.is_some()`). `None` whenever `vector_rank.is_none()` or when either
+    /// vector is zero-norm / non-finite. Computed only on the opt-in `explain = true` path.
+    pub vector_cosine: Option<f64>,
     /// Content-free inclusion classification from the same search snapshot.
     pub structural: StructuralInclusionV1,
 }

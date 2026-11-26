@@ -669,6 +669,7 @@ fn reader_worker_loop(
     wal_attribution: Arc<WalAttributionCollector>,
     stop_words: Arc<StopWordSet>,
     scope: crate::scope::ScopePredicate,
+    status_cache: Arc<crate::projection_generation::ProjectionGenerationStatusCache>,
     ready: SyncSender<()>,
     physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
@@ -678,6 +679,10 @@ fn reader_worker_loop(
     let _connection_registration =
         managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
     wal_attribution.register(WalAttributionRole::ReaderWorker, worker_idx);
+    let _ = status_cache.observe_connection(
+        &connection,
+        crate::projection_generation::StatusCacheConnectionSlot::ReaderWorker(worker_idx),
+    );
     live_workers.fetch_add(1, Ordering::SeqCst);
     ready.send(()).expect("reader worker startup receiver must remain live");
     // Drop guard so the live counter decrements even on panic.
@@ -749,6 +754,10 @@ fn reader_worker_loop(
                         NoEvidenceCapture,
                         &scope,
                         &stop_words,
+                        &status_cache,
+                        crate::projection_generation::StatusCacheConnectionSlot::ReaderWorker(
+                            worker_idx,
+                        ),
                         &wal_attribution,
                         worker_idx,
                     )
@@ -787,6 +796,10 @@ fn reader_worker_loop(
                     ),
                     &scope,
                     &stop_words,
+                    &status_cache,
+                    crate::projection_generation::StatusCacheConnectionSlot::ReaderWorker(
+                        worker_idx,
+                    ),
                     &wal_attribution,
                     worker_idx,
                 );
@@ -1008,6 +1021,10 @@ fn reader_worker_loop(
                     #[cfg(feature = "test-hooks")]
                     &request.test_controls,
                     &stop_words,
+                    &status_cache,
+                    crate::projection_generation::StatusCacheConnectionSlot::ReaderWorker(
+                        worker_idx,
+                    ),
                     &wal_attribution,
                     worker_idx,
                 );
@@ -1301,6 +1318,7 @@ impl ReaderWorkerPool {
         wal_attribution: Arc<WalAttributionCollector>,
         stop_words: Arc<StopWordSet>,
         scope: crate::scope::ScopePredicate,
+        status_cache: Arc<crate::projection_generation::ProjectionGenerationStatusCache>,
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
@@ -1319,6 +1337,7 @@ impl ReaderWorkerPool {
             let attribution = Arc::clone(&wal_attribution);
             let worker_stop_words = Arc::clone(&stop_words);
             let worker_scope = scope.clone();
+            let worker_status_cache = Arc::clone(&status_cache);
             let ready = ready_tx.clone();
             let worker_physical_admission = Arc::clone(&physical_admission);
             #[cfg(any(test, feature = "test-hooks"))]
@@ -1335,6 +1354,7 @@ impl ReaderWorkerPool {
                         attribution,
                         worker_stop_words,
                         worker_scope,
+                        worker_status_cache,
                         ready,
                         worker_physical_admission,
                         #[cfg(any(test, feature = "test-hooks"))]

@@ -642,6 +642,19 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     for new_text, old_text in slice50_stub_edits:
         assert stub.count(new_text) == 1, f"missing Slice 50 stub edit: {new_text!r}"
         stub = stub.replace(new_text, old_text, 1)
+    # Reverse the approved 0.8.32 Slice 40 WP-40D native stub addition before Slice 30.
+    slice40_wp40d_stub_edits = (
+        (
+            "    graph_hop_depth: int | None\n"
+            "    vector_cosine: float | None\n"
+            "    structural: StructuralInclusionV1\n",
+            "    graph_hop_depth: int | None\n"
+            "    structural: StructuralInclusionV1\n",
+        ),
+    )
+    for current, historical in slice40_wp40d_stub_edits:
+        assert stub.count(current) == 1, current
+        stub = stub.replace(current, historical, 1)
     # Reverse the approved 0.8.31 Slice 30 native stub additions before Slice 20.
     slice30_stub_edits = (
         (

@@ -22,7 +22,6 @@ use crate::snippet::{SnippetOptions, SnippetV1};
 use crate::temporal::ReadView;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::test_hooks::evidence_linearization_hooks;
-use crate::write_commit::load_next_cursor;
 use fathomdb_embedder::RerankerDevicePolicyError;
 use fathomdb_embedder_api::EmbedderIdentity;
 use rusqlite::Connection;
@@ -389,10 +388,6 @@ fn load_projection_cursor_for_search(connection: &Connection) -> rusqlite::Resul
             rusqlite::Error::QueryReturnedNoRows => Ok(0),
             _ => Err(err),
         })
-}
-
-fn next_write_cursor_for_search(connection: &Connection) -> u64 {
-    load_next_cursor(connection)
 }
 
 fn open_historical_property_corpus() -> rusqlite::Result<Connection> {

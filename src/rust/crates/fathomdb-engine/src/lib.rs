@@ -559,12 +559,11 @@ pub struct Engine {
     next_cursor: AtomicU64,
     read_visibility_generation: Arc<AtomicU64>,
     stored_head_coverage: Mutex<Option<stored_coverage::CachedStoredHeadCoverage>>,
-    projection_generation_status_cache:
-        Mutex<Option<projection_generation::CachedProjectionGenerationStatus>>,
+    projection_generation_status_cache: Arc<projection_generation::ProjectionGenerationStatusCache>,
     mutation_projection_status_cache:
         Mutex<Option<projection_generation::CachedMutationProjectionStatus>>,
     #[cfg(feature = "test-hooks")]
-    projection_generation_status_full_owner_scan_count: AtomicU64,
+    projection_generation_status_full_owner_scan_count: Arc<AtomicU64>,
     #[cfg(feature = "test-hooks")]
     graph_expand_rss_baseline_bytes: AtomicU64,
     #[cfg(feature = "test-hooks")]

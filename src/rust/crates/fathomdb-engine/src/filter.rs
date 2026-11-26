@@ -983,11 +983,12 @@ pub(crate) fn build_vector_phase1_plan(
     view: &ReadView,
     edge_now: i64,
     scope: &crate::scope::ScopePredicate,
+    include_cosine: bool,
 ) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
     use rusqlite::types::Value;
     if !filter_needs_preselection(conn, filter, view)? {
         let single_scope = scope.single_read_scope().unwrap_or("");
-        let sql = build_vec0_fast_phase1_sql(filter, final_limit, view);
+        let sql = build_vec0_fast_phase1_sql(filter, final_limit, view, include_cosine);
         let mut tail_params = vector_filter_values(filter);
         tail_params.push(Value::Integer(edge_now));
         tail_params.push(Value::Text(single_scope.to_string()));
@@ -1122,11 +1123,16 @@ pub(crate) fn build_vector_phase1_plan(
         let now_idx = push_vec(Value::Integer(edge_now));
         vec_where.push_str(&format!(" AND v.valid_from<=?{now_idx} AND v.valid_until>=?{now_idx}"));
     }
+    let cosine_select = if include_cosine {
+        ", vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"
+    } else {
+        ""
+    };
     let sql = format!(
         "WITH candidates AS (\
             SELECT cn.write_cursor AS rowid {candidate_from}{candidate_joins} {candidate_where}\
          ) \
-         SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 \
+         SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2{cosine_select} \
          FROM candidates c JOIN vector_default v ON v.rowid=c.rowid \
          {vec_where} \
          ORDER BY l2 LIMIT {final_limit}"
@@ -1138,6 +1144,7 @@ fn build_vec0_fast_phase1_sql(
     filter: Option<&SearchFilter>,
     final_limit: usize,
     view: &ReadView,
+    include_cosine: bool,
 ) -> String {
     let mut filter_clause = vector_filter_clause(filter);
     filter_clause.push_str(match (view.include_superseded, view.include_inactive) {
@@ -1164,9 +1171,14 @@ fn build_vec0_fast_phase1_sql(
     } else {
         knn(&temporal)
     };
+    let cosine_select = if include_cosine {
+        ", vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"
+    } else {
+        ""
+    };
     format!(
         "WITH candidates AS ({candidates})
-         SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2
+         SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2{cosine_select}
          FROM candidates c JOIN vector_default v ON v.rowid=c.rowid
          ORDER BY l2 LIMIT {final_limit}"
     )
@@ -1181,9 +1193,9 @@ pub(crate) fn build_vector_phase1_sql(
     view: &ReadView,
 ) -> String {
     let scope = crate::scope::ScopePredicate::unscoped();
-    build_vector_phase1_plan(None, filter, final_limit, view, 0, &scope)
+    build_vector_phase1_plan(None, filter, final_limit, view, 0, &scope, false)
         .map(|(sql, _)| sql)
-        .unwrap_or_else(|_| build_vec0_fast_phase1_sql(filter, final_limit, view))
+        .unwrap_or_else(|_| build_vec0_fast_phase1_sql(filter, final_limit, view, false))
 }
 
 /// Compile node eligibility into SQL that executes before ranking or limits.
@@ -1984,4 +1996,58 @@ fn slice70_native_view_matrix_and_endpoint_bounds() {
             assert_eq!(ids.len(), if expected { 2 } else { 0 }, "{from:?} {until:?} at{now}");
         }
     }
+}
+
+#[cfg(test)]
+#[test]
+fn wp40d_vector_phase1_plan_include_cosine_sql_invariance() {
+    let scope = crate::scope::ScopePredicate::unscoped();
+    let default_view = ReadView::default();
+
+    // 1. Fast path with include_cosine = false emits ZERO vec_distance_cosine
+    let (sql_off, _) =
+        build_vector_phase1_plan(None, None, 10, &default_view, 0, &scope, false).unwrap();
+    assert!(!sql_off.contains("vec_distance_cosine"), "explain=false SQL must not eval cosine");
+    assert!(sql_off.contains("ORDER BY l2 LIMIT 10"));
+
+    // 2. Fast path with include_cosine = true emits cos_dist and keeps ORDER BY l2
+    let (sql_on, _) =
+        build_vector_phase1_plan(None, None, 10, &default_view, 0, &scope, true).unwrap();
+    assert!(sql_on.contains("vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"));
+    assert!(sql_on.contains("ORDER BY l2 LIMIT 10"));
+
+    // 3. Fast path with include_out_of_window = true also emits cos_dist when true
+    let oow_view = ReadView { include_out_of_window: true, ..ReadView::default() };
+    let (oow_off, _) =
+        build_vector_phase1_plan(None, None, 10, &oow_view, 0, &scope, false).unwrap();
+    let (oow_on, _) = build_vector_phase1_plan(None, None, 10, &oow_view, 0, &scope, true).unwrap();
+    assert!(!oow_off.contains("vec_distance_cosine"));
+    assert!(oow_on.contains("vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"));
+    assert!(oow_on.contains("ORDER BY l2 LIMIT 10"));
+
+    // 4. Preselection path (Ne predicate) emits cos_dist ONLY when include_cosine = true
+    let preselect_filter = SearchFilter {
+        property_predicates: vec![crate::properties::PropertyPredicate {
+            key: "score".into(),
+            op: crate::properties::PropertyComparisonOp::Ne,
+            value: crate::properties::PropertyValue::Int(0),
+        }],
+        ..SearchFilter::default()
+    };
+    let (pre_off, _) = build_vector_phase1_plan(
+        None,
+        Some(&preselect_filter),
+        10,
+        &default_view,
+        0,
+        &scope,
+        false,
+    )
+    .unwrap();
+    let (pre_on, _) =
+        build_vector_phase1_plan(None, Some(&preselect_filter), 10, &default_view, 0, &scope, true)
+            .unwrap();
+    assert!(!pre_off.contains("vec_distance_cosine"));
+    assert!(pre_on.contains("vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"));
+    assert!(pre_on.contains("ORDER BY l2 LIMIT 10"));
 }

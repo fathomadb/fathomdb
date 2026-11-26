@@ -408,6 +408,19 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
         _invalid_explanation("/graphSeedSource")
     graph_hop_depth = getattr(p, "graph_hop_depth", None)
     require_u32(graph_hop_depth, "/graphHopDepth")
+    raw_vector_cosine = getattr(p, "vector_cosine", None)
+    vector_cosine: float | None
+    if raw_vector_cosine is None:
+        vector_cosine = None
+    else:
+        if (
+            isinstance(raw_vector_cosine, bool)
+            or not isinstance(raw_vector_cosine, (int, float))
+            or not math.isfinite(raw_vector_cosine)
+            or not -1.0 <= raw_vector_cosine <= 1.0
+        ):
+            _invalid_explanation("/vectorCosine")
+        vector_cosine = float(raw_vector_cosine)
     native_structural = getattr(p, "structural", None)
     structural = (
         _map_structural_explanation(native_structural) if native_structural is not None else None
@@ -426,6 +439,7 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
         structural=structural,
         graph_seed_source=cast(GraphArmSeedSource | None, graph_seed_source),
         graph_hop_depth=graph_hop_depth,
+        vector_cosine=vector_cosine,
     )
 
 

@@ -699,7 +699,10 @@ follow the [core engine contract](rust.md#typed-inline-properties-operational-co
 - `SearchOptions`, `FrozenSearchOptions`, and `EvidenceSearchRequestV1::new`
   carry `graph_seed`, `graph_seed_k` (`1..=100`, default `10`),
   `graph_edge_kinds`, and `graph_edge_predicates`; `PerHitExplain` exposes
-  `graph_seed_source` and `graph_hop_depth`; `EvidenceGraphOriginV1` carries
+  `graph_seed_source`, `graph_hop_depth`, and (0.8.32 Slice 40)
+  `vector_cosine: Option<f64>` (`Some` in `[-1.0, 1.0]` on the `explain = true`
+  path whenever `vector_rank.is_some()`, `None` otherwise or for zero-norm
+  vectors); `EvidenceGraphOriginV1` carries
   `seed_source`. Full semantics are owned by the
   [core engine contract](rust.md#strict-endpoint-integrity-typed-traversal-predicates-and-opt-in-fused-seeding-0831-slice-30).
 

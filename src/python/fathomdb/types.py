@@ -1396,6 +1396,10 @@ class PerHitExplain:
     structural: StructuralInclusionV1 | None = None
     graph_seed_source: GraphArmSeedSource | None = None
     graph_hop_depth: int | None = None
+    #: Pre-RRF cosine similarity (``1.0 - vec_distance_cosine``, clamped to
+    #: ``[-1.0, 1.0]``) when this hit was scored by the vector arm
+    #: (``vector_rank is not None``); ``None`` otherwise or for zero-norm vectors.
+    vector_cosine: float | None = None
 
 
 @dataclass(frozen=True)

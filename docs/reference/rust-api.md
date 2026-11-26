@@ -142,7 +142,10 @@ is built-in default or none, with no caller-provider injection.
   on `Engine::search_reranked_view_with_graph_options`,
   `Engine::search_frozen_with_graph_options`, and `#[non_exhaustive]`
   `EvidenceSearchRequestV1::new(...)`. `PerHitExplain` reports
-  `graph_seed_source` and `graph_hop_depth`, and `EvidenceGraphOriginV1`
+  `graph_seed_source`, `graph_hop_depth`, and `vector_cosine: Option<f64>`
+  (pre-RRF cosine similarity in `[-1.0, 1.0]` on the opt-in `explain = true`
+  path whenever `vector_rank.is_some()`, `None` otherwise or for zero-norm
+  vectors), and `EvidenceGraphOriginV1`
   reports `seed_source`.
 - `Engine::resolve_evidence_many`, `EVIDENCE_RESOLVE_MANY_MAX` (`50`),
   `EvidenceResolveManyRequestV1`, and `EvidenceResolveManyItemV1` resolve

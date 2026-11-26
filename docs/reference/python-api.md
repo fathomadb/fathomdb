@@ -253,7 +253,9 @@ arm (0.8.1 R3).
   so `rerank_depth=0, pool_n=10` does **not** rerank.
 - `explain` (`bool`, default `False`) — `True` includes retrieval explanation
   data in `SearchResult.explanation` (including `PerHitExplain.graph_seed_source`
-  and `PerHitExplain.graph_hop_depth` for `"graph_arm"` hits); non-boolean
+  and `PerHitExplain.graph_hop_depth` for `"graph_arm"` hits, and
+  `PerHitExplain.vector_cosine: float | None` in `[-1.0, 1.0]` whenever
+  `vector_rank is not None`); non-boolean
   values raise `TypeError`.
 - `view` (`ReadView | None`, default `None`) — controls validity at query time
   or an explicit `valid_as_of` instant. `include_out_of_window=True` widens

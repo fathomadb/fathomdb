@@ -189,8 +189,11 @@ is added.
   `graph_seed: GraphSeedMode` (`GraphFts` default, `FusedTopK`, `Both`),
   `graph_seed_k` (`1..=100`, default `10`), `graph_edge_kinds`, and
   `graph_edge_predicates`. `PerHitExplain` exposes
-  `graph_seed_source: Option<GraphArmSeedSource>` and
-  `graph_hop_depth: Option<u32>`, and `EvidenceGraphOriginV1` exposes
+  `graph_seed_source: Option<GraphArmSeedSource>`,
+  `graph_hop_depth: Option<u32>`, and `vector_cosine: Option<f64>` (pre-RRF
+  cosine similarity in `[-1.0, 1.0]` when `vector_rank.is_some()` on the
+  `explain = true` path, `None` otherwise or for zero-norm vectors), and
+  `EvidenceGraphOriginV1` exposes
   `seed_source: GraphArmSeedSource`. `TextSearchOptions` does not carry
   graph-arm seeding fields.
 

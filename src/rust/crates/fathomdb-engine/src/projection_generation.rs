@@ -1,4 +1,9 @@
 use std::fmt::{Display, Formatter};
+#[cfg(feature = "test-hooks")]
+use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(feature = "test-hooks")]
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::embedding::embedder_required_for;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
@@ -166,10 +171,41 @@ pub struct MutationProjectionStatusV1 {
     pub failed_count: u64,
 }
 
-#[derive(Clone)]
-pub(crate) struct CachedProjectionGenerationStatus {
-    visibility_generation: u64,
+pub(crate) const STATUS_CACHE_MAX_ENTRIES: usize = 8;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StatusCacheConnectionSlot {
+    ReaderWorker(usize),
+    Primary,
+}
+
+impl StatusCacheConnectionSlot {
+    fn index(self, reader_worker_count: usize) -> usize {
+        match self {
+            Self::ReaderWorker(worker_idx) => {
+                debug_assert!(worker_idx < reader_worker_count);
+                worker_idx
+            }
+            Self::Primary => reader_worker_count,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SlotObservation {
     data_version: u64,
+    total_changes: u64,
+    visibility_generation: u64,
+    state_nonce: String,
+    epoch: u64,
+}
+
+#[derive(Clone)]
+struct CachedStatusEntry {
+    cache_epoch: u64,
+    visibility_generation: u64,
+    state_nonce: String,
+    schema_version: u32,
     authoritative_boundary: u64,
     effective_from_epoch_s: i64,
     valid_before_epoch_s: Option<i64>,
@@ -177,12 +213,252 @@ pub(crate) struct CachedProjectionGenerationStatus {
     is_unscoped: bool,
     scope_read_scopes: Vec<String>,
     status: ProjectionGenerationStatusV1,
+    coverage_counts: Option<crate::StoredHeadCoverageCounts>,
+}
+
+struct StatusCacheState {
+    cache_epoch: u64,
+    max_visibility_generation: u64,
+    slots: Vec<Option<SlotObservation>>,
+    entries: Vec<CachedStatusEntry>,
+}
+
+pub(crate) struct ProjectionGenerationStatusCache {
+    reader_worker_count: usize,
+    state: Mutex<StatusCacheState>,
+    #[cfg(feature = "test-hooks")]
+    full_owner_scan_count: Arc<AtomicU64>,
+}
+
+impl ProjectionGenerationStatusCache {
+    pub(crate) fn new(
+        reader_worker_count: usize,
+        #[cfg(feature = "test-hooks")] full_owner_scan_count: Arc<AtomicU64>,
+    ) -> Self {
+        Self {
+            reader_worker_count,
+            state: Mutex::new(StatusCacheState {
+                cache_epoch: 0,
+                max_visibility_generation: 0,
+                slots: vec![None; reader_worker_count + 1],
+                entries: Vec::new(),
+            }),
+            #[cfg(feature = "test-hooks")]
+            full_owner_scan_count,
+        }
+    }
+
+    pub(crate) fn observe_connection(
+        &self,
+        connection: &Connection,
+        slot: StatusCacheConnectionSlot,
+    ) -> Result<(), EngineError> {
+        let (visibility_generation, state_nonce) = read_visibility_snapshot(connection)?;
+        let data_version: u64 = connection
+            .pragma_query_value(Some("main"), "data_version", |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        let total_changes = connection.total_changes();
+        let slot_idx = slot.index(self.reader_worker_count);
+        let mut state = self.state.lock().map_err(|_| EngineError::Storage)?;
+        state.max_visibility_generation =
+            state.max_visibility_generation.max(visibility_generation);
+        let epoch = state.cache_epoch;
+        state.slots[slot_idx] = Some(SlotObservation {
+            data_version,
+            total_changes,
+            visibility_generation,
+            state_nonce,
+            epoch,
+        });
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn get_or_compute(
+        &self,
+        tx: &Connection,
+        slot: StatusCacheConnectionSlot,
+        scope: &crate::scope::ScopePredicate,
+        runtime_state: ProjectionRuntimeStateV1,
+        effective_at_epoch_s: i64,
+        capture_coverage: bool,
+    ) -> Result<
+        (ProjectionGenerationStatusV1, Option<crate::stored_coverage::CachedStoredHeadCoverage>),
+        EngineError,
+    > {
+        // Step 1: O(1) unlocked snapshot metadata read.
+        let (visibility_generation, state_nonce) = read_visibility_snapshot(tx)?;
+        let schema_version: u32 = tx
+            .pragma_query_value(Some("main"), "schema_version", |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        let data_version: u64 = tx
+            .pragma_query_value(Some("main"), "data_version", |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        let total_changes = tx.total_changes();
+        let boundary = snapshot_observed_boundary(tx)?;
+        let slot_idx = slot.index(self.reader_worker_count);
+
+        // Step 2: Slot-verified cache probe (brief mutex hold).
+        let (miss_epoch, allow_insert) = {
+            let mut state = self.state.lock().map_err(|_| EngineError::Storage)?;
+            let prev_matches_vis = state.slots[slot_idx].as_ref().is_some_and(|prev| {
+                prev.visibility_generation == visibility_generation
+                    && prev.state_nonce == state_nonce
+            });
+            if prev_matches_vis {
+                let prev = state.slots[slot_idx].as_ref().expect("slot observation present");
+                if prev.data_version != data_version || prev.total_changes != total_changes {
+                    // Subcase A1: out-of-band external tamper or same-connection mutation.
+                    state.cache_epoch = state.cache_epoch.wrapping_add(1);
+                    state.entries.clear();
+                    let next_epoch = state.cache_epoch;
+                    state.slots[slot_idx] = Some(SlotObservation {
+                        data_version,
+                        total_changes,
+                        visibility_generation,
+                        state_nonce: state_nonce.clone(),
+                        epoch: next_epoch,
+                    });
+                    (next_epoch, true)
+                } else if prev.epoch != state.cache_epoch {
+                    // Subcase A2: pinned to a pre-tamper snapshot; uncached pass-through.
+                    (state.cache_epoch, false)
+                } else {
+                    // Subcase A3: slot verified clean for (vis_gen, nonce, cache_epoch).
+                    let cache_epoch = state.cache_epoch;
+                    let matched = state.entries.iter().rposition(|entry| {
+                        entry.cache_epoch == cache_epoch
+                            && entry.visibility_generation == visibility_generation
+                            && entry.state_nonce == state_nonce
+                            && entry.schema_version == schema_version
+                            && entry.authoritative_boundary == boundary
+                            && effective_at_epoch_s >= entry.effective_from_epoch_s
+                            && entry
+                                .valid_before_epoch_s
+                                .is_none_or(|upper| effective_at_epoch_s < upper)
+                            && entry.runtime_state == runtime_state
+                            && entry.is_unscoped == scope.is_unscoped()
+                            && entry.scope_read_scopes.as_slice() == scope.read_scopes()
+                            && (!capture_coverage || entry.coverage_counts.is_some())
+                    });
+                    if let Some(pos) = matched {
+                        let entry = state.entries.remove(pos);
+                        let mut status = entry.status.clone();
+                        status.effective_at_epoch_s = effective_at_epoch_s;
+                        let counts =
+                            if capture_coverage { entry.coverage_counts.clone() } else { None };
+                        state.entries.push(entry);
+                        drop(state);
+                        let coverage = if capture_coverage {
+                            match counts {
+                                Some(counts) => crate::stored_coverage::token(tx)?.map(|token| {
+                                    crate::stored_coverage::CachedStoredHeadCoverage {
+                                        token,
+                                        counts,
+                                    }
+                                }),
+                                None => None,
+                            }
+                        } else {
+                            None
+                        };
+                        return Ok((status, coverage));
+                    }
+                    (cache_epoch, true)
+                }
+            } else {
+                // Case B: first visit by this slot to this (vis_gen, nonce); force verification.
+                (state.cache_epoch, true)
+            }
+        };
+
+        // Step 3: Full snapshot computation (unlocked).
+        #[cfg(feature = "test-hooks")]
+        self.full_owner_scan_count.fetch_add(1, Ordering::Relaxed);
+        let (status, counts) = status_with_capture_in_snapshot(
+            tx,
+            scope,
+            runtime_state,
+            effective_at_epoch_s,
+            boundary,
+            true,
+        )?;
+        let coverage = if capture_coverage {
+            match counts.as_ref() {
+                Some(counts) => crate::stored_coverage::token(tx)?.map(|token| {
+                    crate::stored_coverage::CachedStoredHeadCoverage {
+                        token,
+                        counts: counts.clone(),
+                    }
+                }),
+                None => None,
+            }
+        } else {
+            None
+        };
+        let valid_before_epoch_s =
+            next_status_membership_boundary_in_scope(tx, effective_at_epoch_s, scope)?;
+
+        // Step 4: Epoch- & generation-guarded insertion (brief mutex hold).
+        {
+            let mut state = self.state.lock().map_err(|_| EngineError::Storage)?;
+            if !allow_insert
+                || state.cache_epoch != miss_epoch
+                || visibility_generation < state.max_visibility_generation
+            {
+                return Ok((status, coverage));
+            }
+            if visibility_generation > state.max_visibility_generation {
+                state.max_visibility_generation = visibility_generation;
+                state.entries.retain(|entry| entry.visibility_generation >= visibility_generation);
+            }
+            state.entries.retain(|entry| {
+                !(entry.cache_epoch == miss_epoch
+                    && entry.visibility_generation == visibility_generation
+                    && entry.state_nonce == state_nonce
+                    && entry.schema_version == schema_version
+                    && entry.authoritative_boundary == boundary
+                    && entry.effective_from_epoch_s == effective_at_epoch_s
+                    && entry.valid_before_epoch_s == valid_before_epoch_s
+                    && entry.runtime_state == runtime_state
+                    && entry.is_unscoped == scope.is_unscoped()
+                    && entry.scope_read_scopes.as_slice() == scope.read_scopes())
+            });
+            while state.entries.len() >= STATUS_CACHE_MAX_ENTRIES {
+                state.entries.remove(0);
+            }
+            state.entries.push(CachedStatusEntry {
+                cache_epoch: miss_epoch,
+                visibility_generation,
+                state_nonce: state_nonce.clone(),
+                schema_version,
+                authoritative_boundary: boundary,
+                effective_from_epoch_s: effective_at_epoch_s,
+                valid_before_epoch_s,
+                runtime_state,
+                is_unscoped: scope.is_unscoped(),
+                scope_read_scopes: scope.read_scopes().to_vec(),
+                status: status.clone(),
+                coverage_counts: counts,
+            });
+            state.slots[slot_idx] = Some(SlotObservation {
+                data_version,
+                total_changes,
+                visibility_generation,
+                state_nonce,
+                epoch: miss_epoch,
+            });
+        }
+
+        Ok((status, coverage))
+    }
 }
 
 #[derive(Clone)]
 pub(crate) struct CachedMutationProjectionStatus {
     visibility_generation: u64,
     data_version: u64,
+    total_changes: u64,
     authoritative_boundary: u64,
     effective_at_epoch_s: i64,
     runtime_state: ProjectionRuntimeStateV1,
@@ -325,6 +601,29 @@ pub(crate) fn corruption_error() -> EngineError {
 fn count(connection: &Connection, table: &str) -> Result<u64, EngineError> {
     let query = format!("SELECT COUNT(*) FROM {table}");
     connection.query_row(&query, [], |row| row.get::<_, u64>(0)).map_err(|_| EngineError::Storage)
+}
+
+pub(crate) fn snapshot_observed_boundary(connection: &Connection) -> Result<u64, EngineError> {
+    let base = authoritative_boundary(connection)?;
+    let floor = crate::physical_erasure::cursor_floor(connection)?;
+    Ok(base.max(floor))
+}
+
+fn read_visibility_snapshot(connection: &Connection) -> Result<(u64, String), EngineError> {
+    let (generation, state_nonce, coalescing): (u64, String, i64) = connection
+        .query_row(
+            "SELECT generation, state_nonce, coalescing \
+             FROM _fathomdb_read_visibility_state WHERE singleton = 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .map_err(|_| corruption())?;
+    let valid_nonce = state_nonce.len() == 64
+        && state_nonce.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+    if !valid_nonce || coalescing != 0 || generation > i64::MAX as u64 {
+        return Err(corruption());
+    }
+    Ok((generation, state_nonce))
 }
 
 fn authoritative_boundary(connection: &Connection) -> Result<u64, EngineError> {
@@ -1558,24 +1857,6 @@ fn physical_completion(
     ))
 }
 
-pub(crate) fn status_in_snapshot(
-    connection: &Connection,
-    scope: &crate::scope::ScopePredicate,
-    runtime_state: ProjectionRuntimeStateV1,
-    effective_at_epoch_s: i64,
-    observed_boundary: u64,
-) -> Result<ProjectionGenerationStatusV1, EngineError> {
-    status_with_capture_in_snapshot(
-        connection,
-        scope,
-        runtime_state,
-        effective_at_epoch_s,
-        observed_boundary,
-        false,
-    )
-    .map(|(status, _)| status)
-}
-
 fn status_with_capture_in_snapshot(
     connection: &Connection,
     scope: &crate::scope::ScopePredicate,
@@ -1702,73 +1983,6 @@ fn next_status_membership_boundary_with_scope(
 }
 
 impl Engine {
-    fn cached_status_in_snapshot(
-        &self,
-        connection: &Connection,
-        scope: &crate::scope::ScopePredicate,
-        runtime_state: ProjectionRuntimeStateV1,
-        effective_at_epoch_s: i64,
-        boundary: u64,
-    ) -> Result<
-        (ProjectionGenerationStatusV1, Option<crate::stored_coverage::CachedStoredHeadCoverage>),
-        EngineError,
-    > {
-        let visibility_generation = super::frozen_read::load_visibility_generation(connection)
-            .map_err(|_| EngineError::Storage)?;
-        let data_version: u64 = connection
-            .query_row("PRAGMA data_version", [], |row| row.get(0))
-            .map_err(|_| EngineError::Storage)?;
-        let mut cache =
-            self.projection_generation_status_cache.lock().map_err(|_| EngineError::Storage)?;
-        if let Some(cached) = cache.as_ref() {
-            if cached.visibility_generation == visibility_generation
-                && cached.data_version == data_version
-                && cached.authoritative_boundary == boundary
-                && effective_at_epoch_s >= cached.effective_from_epoch_s
-                && cached
-                    .valid_before_epoch_s
-                    .is_none_or(|boundary| effective_at_epoch_s < boundary)
-                && cached.runtime_state == runtime_state
-                && cached.is_unscoped == scope.is_unscoped()
-                && cached.scope_read_scopes.as_slice() == scope.read_scopes()
-            {
-                let mut status = cached.status.clone();
-                status.effective_at_epoch_s = effective_at_epoch_s;
-                return Ok((status, None));
-            }
-        }
-        #[cfg(feature = "test-hooks")]
-        self.projection_generation_status_full_owner_scan_count
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let (status, counts) = status_with_capture_in_snapshot(
-            connection,
-            scope,
-            runtime_state,
-            effective_at_epoch_s,
-            boundary,
-            true,
-        )?;
-        let coverage = match counts {
-            Some(counts) => crate::stored_coverage::token(connection)?
-                .map(|token| crate::stored_coverage::CachedStoredHeadCoverage { token, counts }),
-            None => None,
-        };
-        let valid_before_epoch_s =
-            next_status_membership_boundary_in_scope(connection, effective_at_epoch_s, scope)?;
-        *cache = Some(CachedProjectionGenerationStatus {
-            visibility_generation,
-            data_version,
-            authoritative_boundary: boundary,
-            effective_from_epoch_s: effective_at_epoch_s,
-            valid_before_epoch_s,
-            runtime_state,
-            is_unscoped: scope.is_unscoped(),
-            scope_read_scopes: scope.read_scopes().to_vec(),
-            status: status.clone(),
-        });
-        Ok((status, coverage))
-    }
-
     fn read_projection_generation_status_at(
         &self,
         effective_at_epoch_s: i64,
@@ -1785,13 +1999,13 @@ impl Engine {
         } else {
             ProjectionRuntimeStateV1::Usable
         };
-        let boundary = authoritative_boundary(&tx)?;
-        let (status, coverage) = self.cached_status_in_snapshot(
+        let (status, coverage) = self.projection_generation_status_cache.get_or_compute(
             &tx,
+            StatusCacheConnectionSlot::Primary,
             &scope,
             runtime_state,
             effective_at_epoch_s,
-            boundary,
+            true,
         )?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.publish_stored_head_coverage(coverage)?;
@@ -1857,7 +2071,8 @@ impl Engine {
         let data_version: u64 = tx
             .query_row("PRAGMA data_version", [], |row| row.get(0))
             .map_err(|_| EngineError::Storage)?;
-        let boundary = authoritative_boundary(&tx)?;
+        let total_changes = tx.total_changes();
+        let boundary = snapshot_observed_boundary(&tx)?;
         {
             let cache =
                 self.mutation_projection_status_cache.lock().map_err(|_| EngineError::Storage)?;
@@ -1865,6 +2080,7 @@ impl Engine {
             if let Some(cached) = cache.as_ref() {
                 if cached.visibility_generation == visibility_generation
                     && cached.data_version == data_version
+                    && cached.total_changes == total_changes
                     && cached.authoritative_boundary == boundary
                     && cached.effective_at_epoch_s == effective_at_epoch_s
                     && cached.runtime_state == runtime_state
@@ -1961,12 +2177,13 @@ impl Engine {
             effective_at_epoch_s,
             runtime_state,
         )?;
-        let (status, coverage) = self.cached_status_in_snapshot(
+        let (status, coverage) = self.projection_generation_status_cache.get_or_compute(
             &tx,
+            StatusCacheConnectionSlot::Primary,
             &scope,
             runtime_state,
             effective_at_epoch_s,
-            boundary,
+            true,
         )?;
         let (owner_readiness, owner_pending, owner_failed) = match owner_completion {
             Completion::Complete => (ProjectionReadinessV1::Ready, false, false),
@@ -1999,6 +2216,7 @@ impl Engine {
             Some(CachedMutationProjectionStatus {
                 visibility_generation,
                 data_version,
+                total_changes,
                 authoritative_boundary: boundary,
                 effective_at_epoch_s,
                 runtime_state,
@@ -2417,45 +2635,385 @@ mod tests {
             let mut guard = engine.connection.lock().unwrap();
             let conn = guard.as_mut().unwrap();
             let tx = conn.transaction().unwrap();
-            let boundary = authoritative_boundary(&tx).unwrap();
             let now = 1_000_i64;
 
             let (status_a1, _) = engine
-                .cached_status_in_snapshot(
+                .projection_generation_status_cache
+                .get_or_compute(
                     &tx,
+                    StatusCacheConnectionSlot::Primary,
                     &scope_a,
                     ProjectionRuntimeStateV1::Absent,
                     now,
-                    boundary,
+                    true,
                 )
                 .unwrap();
             assert_eq!(status_a1.readiness, ProjectionReadinessV1::Ready);
             assert_eq!(status_a1.pending_count, 0);
 
             let (status_b1, _) = engine
-                .cached_status_in_snapshot(
+                .projection_generation_status_cache
+                .get_or_compute(
                     &tx,
+                    StatusCacheConnectionSlot::Primary,
                     &scope_b,
                     ProjectionRuntimeStateV1::Absent,
                     now,
-                    boundary,
+                    true,
                 )
                 .unwrap();
             assert_eq!(status_b1.readiness, ProjectionReadinessV1::Blocked);
             assert_eq!(status_b1.pending_count, 1);
 
             let (status_a2, _) = engine
-                .cached_status_in_snapshot(
+                .projection_generation_status_cache
+                .get_or_compute(
                     &tx,
+                    StatusCacheConnectionSlot::Primary,
                     &scope_a,
                     ProjectionRuntimeStateV1::Absent,
                     now,
-                    boundary,
+                    true,
                 )
                 .unwrap();
             assert_eq!(status_a2.readiness, ProjectionReadinessV1::Ready);
             assert_eq!(status_a2.pending_count, 0);
         }
         engine.close().unwrap();
+    }
+
+    #[test]
+    fn concurrent_snapshot_race_pre_tamper_and_older_vis_gen_never_poison_cache() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("status-cache-race{}", fathomdb_schema::SQLITE_SUFFIX));
+        let embedder = std::sync::Arc::new(fathomdb_embedder::NoopEmbedder::default());
+        let cursor = {
+            let opened = crate::Engine::open_with_embedder_for_test(&path, embedder).unwrap();
+            opened
+                .engine
+                .configure_projections(
+                    &[crate::ProjectionSpec {
+                        name: "memory".into(),
+                        roles: [crate::ProjectionRole::Searchable].into_iter().collect(),
+                        fts: None,
+                        vector: Some(crate::ProjectionVector {
+                            embedder: None,
+                            dense_readiness: None,
+                            kinds: None,
+                        }),
+                        source: None,
+                        entity_class: crate::PropertyEntityClass::Node,
+                    }],
+                    &[],
+                )
+                .unwrap();
+            let c = opened
+                .engine
+                .write(&[crate::PreparedWrite::Node {
+                    kind: "doc".into(),
+                    body: "race seed node".into(),
+                    source_id: crate::SourceId::new("src:race").unwrap(),
+                    logical_id: Some("race-1".into()),
+                    state: crate::InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    properties: None,
+                }])
+                .unwrap()
+                .row_cursors[0];
+            opened.engine.drain(10_000).unwrap();
+            opened.engine.close().unwrap();
+            c
+        };
+
+        // Scenario 1: S_pre pinned before external vector_default tamper; S_post detects tamper
+        // and bumps cache_epoch. S_pre runs get_or_compute after S_post -> must hit Subcase A2
+        // (allow_insert = false) and must NOT poison post-tamper epoch or overwrite slot 0.
+        let cache = std::sync::Arc::new(ProjectionGenerationStatusCache::new(
+            2,
+            #[cfg(feature = "test-hooks")]
+            std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        ));
+        let mut conn0 = Connection::open(&path).unwrap();
+        let mut conn1 = Connection::open(&path).unwrap();
+        cache.observe_connection(&conn0, StatusCacheConnectionSlot::ReaderWorker(0)).unwrap();
+        cache.observe_connection(&conn1, StatusCacheConnectionSlot::ReaderWorker(1)).unwrap();
+
+        let scope = crate::scope::ScopePredicate::unscoped();
+        let barrier_pin = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let barrier_tampered = std::sync::Arc::new(std::sync::Barrier::new(2));
+
+        let cache0 = std::sync::Arc::clone(&cache);
+        let scope0 = scope.clone();
+        let b_pin0 = std::sync::Arc::clone(&barrier_pin);
+        let b_tam0 = std::sync::Arc::clone(&barrier_tampered);
+        let t0 = std::thread::spawn(move || {
+            let tx_pre = conn0.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+            // Pin snapshot BEFORE tamper by executing a read query inside tx_pre.
+            let _: i64 =
+                tx_pre.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |r| r.get(0)).unwrap();
+            b_pin0.wait();
+            b_tam0.wait();
+            // Now cache_epoch has bumped! S_pre must succeed on its own pre-tamper snapshot
+            // without poisoning the post-tamper cache.
+            let (st, _) = cache0
+                .get_or_compute(
+                    &tx_pre,
+                    StatusCacheConnectionSlot::ReaderWorker(0),
+                    &scope0,
+                    ProjectionRuntimeStateV1::Absent,
+                    1_000,
+                    false,
+                )
+                .unwrap();
+            assert_eq!(st.readiness, ProjectionReadinessV1::Ready);
+            tx_pre.commit().unwrap();
+            conn0
+        });
+
+        barrier_pin.wait();
+        // External vector_default tamper (no visibility bump).
+        let ext = Connection::open(&path).unwrap();
+        ext.execute("DELETE FROM vector_default WHERE rowid=?1", [cursor]).unwrap();
+        drop(ext);
+
+        // Slot 1 observes post-tamper snapshot -> triggers Subcase A1 (bumps cache_epoch) and detects corruption.
+        {
+            let tx_post = conn1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+            let err = cache
+                .get_or_compute(
+                    &tx_post,
+                    StatusCacheConnectionSlot::ReaderWorker(1),
+                    &scope,
+                    ProjectionRuntimeStateV1::Absent,
+                    1_000,
+                    false,
+                )
+                .map(|(s, _)| s);
+            assert!(
+                matches!(
+                    err,
+                    Err(EngineError::ProjectionGeneration(ref e))
+                        if e.reason == ProjectionGenerationErrorReason::ProjectionGenerationCorrupt
+                ),
+                "post-tamper slot 1 must detect corruption, got {err:?}"
+            );
+            tx_post.commit().unwrap();
+        }
+        barrier_tampered.wait();
+        let mut conn0 = t0.join().unwrap();
+
+        // A fresh tx on conn0 must see the post-tamper state and detect corruption (not a poisoned Ready entry).
+        {
+            let tx_fresh = conn0.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+            let err = cache
+                .get_or_compute(
+                    &tx_fresh,
+                    StatusCacheConnectionSlot::ReaderWorker(0),
+                    &scope,
+                    ProjectionRuntimeStateV1::Absent,
+                    1_000,
+                    false,
+                )
+                .map(|(s, _)| s);
+            assert!(
+                matches!(
+                    err,
+                    Err(EngineError::ProjectionGeneration(ref e))
+                        if e.reason == ProjectionGenerationErrorReason::ProjectionGenerationCorrupt
+                ),
+                "fresh tx on slot 0 must detect post-tamper corruption, got {err:?}"
+            );
+            tx_fresh.commit().unwrap();
+        }
+
+        // Scenario 2: Older concurrent snapshot S1 (vis_gen G1) completes after S2 (vis_gen G2)
+        // -> step 4 rejects insert (G1 < max_visibility_generation G2) and never evicts S2!
+        let path2 =
+            dir.path().join(format!("status-cache-vis-race{}", fathomdb_schema::SQLITE_SUFFIX));
+        let opened2 = crate::Engine::open_with_choice_and_config(
+            &path2,
+            crate::EmbedderChoice::None,
+            crate::EngineConfig::default(),
+        )
+        .unwrap();
+        let cache2 = std::sync::Arc::new(ProjectionGenerationStatusCache::new(
+            2,
+            #[cfg(feature = "test-hooks")]
+            std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        ));
+        let mut r0 = Connection::open(&path2).unwrap();
+        let mut r1 = Connection::open(&path2).unwrap();
+        cache2.observe_connection(&r0, StatusCacheConnectionSlot::ReaderWorker(0)).unwrap();
+        cache2.observe_connection(&r1, StatusCacheConnectionSlot::ReaderWorker(1)).unwrap();
+
+        let tx1 = r0.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+        let _: i64 =
+            tx1.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |r| r.get(0)).unwrap();
+
+        // Advance visibility_generation on the engine (G1 -> G2).
+        opened2
+            .engine
+            .write(&[crate::PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "vis advance".into(),
+                source_id: crate::SourceId::new("src:v2").unwrap(),
+                logical_id: Some("v2".into()),
+                state: crate::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .unwrap();
+
+        // Slot 1 computes and caches S2 (G2), advancing max_visibility_generation to G2.
+        let tx2 = r1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+        let (st2, _) = cache2
+            .get_or_compute(
+                &tx2,
+                StatusCacheConnectionSlot::ReaderWorker(1),
+                &scope,
+                ProjectionRuntimeStateV1::Absent,
+                1_000,
+                false,
+            )
+            .unwrap();
+        assert_eq!(st2.observed_boundary, 1);
+        tx2.commit().unwrap();
+
+        // Older snapshot S1 (G1) runs get_or_compute -> returns G1 status, must NOT insert or evict G2.
+        let (st1, _) = cache2
+            .get_or_compute(
+                &tx1,
+                StatusCacheConnectionSlot::ReaderWorker(0),
+                &scope,
+                ProjectionRuntimeStateV1::Absent,
+                1_000,
+                false,
+            )
+            .unwrap();
+        assert_eq!(st1.observed_boundary, 0);
+        tx1.commit().unwrap();
+
+        // Slot 1 still hits S2 (G2) cleanly with boundary == 1.
+        let tx2_again = r1.transaction_with_behavior(TransactionBehavior::Deferred).unwrap();
+        let (st2_again, _) = cache2
+            .get_or_compute(
+                &tx2_again,
+                StatusCacheConnectionSlot::ReaderWorker(1),
+                &scope,
+                ProjectionRuntimeStateV1::Absent,
+                1_000,
+                false,
+            )
+            .unwrap();
+        assert_eq!(st2_again.observed_boundary, 1);
+        tx2_again.commit().unwrap();
+        opened2.engine.close().unwrap();
+    }
+
+    #[test]
+    fn primary_connection_self_write_total_changes_invalidates_generation_and_mutation_caches() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("primary-self-write{}", fathomdb_schema::SQLITE_SUFFIX));
+        let embedder = std::sync::Arc::new(fathomdb_embedder::NoopEmbedder::default());
+        let opened = crate::Engine::open_with_embedder_for_test(&path, embedder).unwrap();
+        opened
+            .engine
+            .configure_projections(
+                &[crate::ProjectionSpec {
+                    name: "memory".into(),
+                    roles: [crate::ProjectionRole::Searchable].into_iter().collect(),
+                    fts: None,
+                    vector: Some(crate::ProjectionVector {
+                        embedder: None,
+                        dense_readiness: None,
+                        kinds: None,
+                    }),
+                    source: None,
+                    entity_class: crate::PropertyEntityClass::Node,
+                }],
+                &[],
+            )
+            .unwrap();
+        let receipt = opened
+            .engine
+            .actuate(
+                crate::ActuationBatchV1::new(
+                    "self-write-op",
+                    vec![crate::ActuationOperationV1::PutCanonicalNode(crate::ProvenancedNodeV1 {
+                        kind: "doc".into(),
+                        body: "self write body".into(),
+                        source_id: crate::SourceId::new("src:sw").unwrap(),
+                        logical_id: Some("sw-1".into()),
+                        state: crate::InitialState::Active,
+                        reason: None,
+                        valid_from: None,
+                        valid_until: None,
+                        provenance: crate::WriteProvenanceV1::canonical(
+                            crate::ArtifactRevisionId::new("rev-sw").unwrap(),
+                            crate::SourceVersionId::new("ver-sw").unwrap(),
+                        ),
+                        properties: None,
+                    })],
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        opened.engine.drain(10_000).unwrap();
+        let cursor = receipt.pending_projection_write_cursors[0];
+        let gen_id = receipt.projection_generation_id.unwrap();
+        let req = MutationProjectionStatusRequestV1 {
+            schema_version: 1,
+            operation_id: "self-write-op".into(),
+            write_cursor: cursor,
+            expected_generation_id: gen_id,
+        };
+
+        // Warm both Primary generation status cache and mutation status cache.
+        assert_eq!(
+            opened.engine.read_projection_generation_status().unwrap().readiness,
+            ProjectionReadinessV1::Ready
+        );
+        assert_eq!(
+            opened.engine.read_mutation_projection_status(req.clone()).unwrap().readiness,
+            ProjectionReadinessV1::Ready
+        );
+
+        // Mutate vector_default directly ON Engine.connection (PRAGMA data_version stays CONSTANT,
+        // _fathomdb_read_visibility_state stays CONSTANT, ONLY total_changes() advances!).
+        {
+            let mut guard = opened.engine.connection.lock().unwrap();
+            let conn = guard.as_mut().unwrap();
+            let dv_before: u64 = conn.query_row("PRAGMA data_version", [], |r| r.get(0)).unwrap();
+            let tc_before = conn.total_changes();
+            conn.execute("DELETE FROM vector_default WHERE rowid=?1", [cursor]).unwrap();
+            let dv_after: u64 = conn.query_row("PRAGMA data_version", [], |r| r.get(0)).unwrap();
+            let tc_after = conn.total_changes();
+            assert_eq!(dv_before, dv_after, "same-connection write keeps data_version constant");
+            assert!(tc_after > tc_before, "same-connection write must advance total_changes");
+        }
+
+        // Both read_projection_generation_status and read_mutation_projection_status MUST detect
+        // the self-write immediately via total_changes instead of returning stale Ready!
+        assert!(
+            matches!(
+                opened.engine.read_projection_generation_status(),
+                Err(EngineError::ProjectionGeneration(ref e))
+                    if e.reason == ProjectionGenerationErrorReason::ProjectionGenerationCorrupt
+            ),
+            "Primary generation cache must detect same-connection total_changes mutation"
+        );
+        assert!(
+            matches!(
+                opened.engine.read_mutation_projection_status(req),
+                Err(EngineError::ProjectionGeneration(ref e))
+                    if e.reason == ProjectionGenerationErrorReason::ProjectionGenerationCorrupt
+            ),
+            "Primary mutation cache must detect same-connection total_changes mutation"
+        );
+        opened.engine.close().unwrap();
     }
 }

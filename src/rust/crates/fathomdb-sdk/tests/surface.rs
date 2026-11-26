@@ -581,3 +581,9 @@ fn write_options_and_endpoint_validation_mode_surface() {
         WriteOptions::strict()
     );
 }
+
+#[test]
+fn per_hit_explain_vector_cosine_surface() {
+    let field_accessor: fn(&fathomdb_sdk::PerHitExplain) -> Option<f64> = |p| p.vector_cosine;
+    let _ = field_accessor;
+}

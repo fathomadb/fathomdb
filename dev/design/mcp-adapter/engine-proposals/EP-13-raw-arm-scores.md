@@ -7,7 +7,7 @@ desc: Draft engine proposal. Carry the vector distance and BM25 score the reader
 
 # EP-13 — Raw per-arm scores in the explanation
 
-Status: Draft. Priority P2. Not an accepted decision.
+Status: Draft. Priority P2. Not an accepted decision. (Note: `0.8.32` Slice 40 / `Gate1-D10` ratified additive `PerHitExplain.vector_cosine: Option<f64>` for the `explain = true` path, including vector-scored `TextEdge` hits; raw `vector_distance` and `text_bm25` proposed below remain deferred.)
 
 ## Problem
 

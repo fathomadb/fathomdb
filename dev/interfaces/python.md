@@ -1767,8 +1767,12 @@ Zero new governed operations are added.
   Mixed-edge FTS matches never allocate a `SEED_FTS_N = 10` slot to ineligible
   endpoints, and `"fused_top_k"` / `"both"` seed body-less property-graph edges
   from fused/reranked canonical-node hits (`logical_id IS NOT NULL`).
-  `PerHitExplain` exposes `graph_seed_source: GraphArmSeedSource | None = None`
-  and `graph_hop_depth: int | None = None`; `EvidenceGraphOriginV1` exposes
+  `PerHitExplain` exposes `graph_seed_source: GraphArmSeedSource | None = None`,
+  `graph_hop_depth: int | None = None`, and (0.8.32 Slice 40)
+  `vector_cosine: float | None = None` (pre-RRF cosine similarity in `[-1.0, 1.0]`
+  when `vector_rank is not None`, `None` otherwise or for zero-norm vectors;
+  non-finite, `bool`, or out-of-range native values raise `ValueError` at
+  `"/vectorCosine"`); `EvidenceGraphOriginV1` exposes
   `seed_source: GraphArmSeedSource`. `Engine.search_text_only` does not accept
   graph-arm seeding options.
 

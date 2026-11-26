@@ -250,7 +250,9 @@ cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
   graph-arm fields and `hints` are accepted on `FrozenSearchOptions` and
   `EvidenceSearchRequestV1`, and are excluded from `TextSearchOptions`
   (`searchTextOnly`). When explanation or evidence is
-  requested, `PerHitExplain` reports `graphSeedSource` and `graphHopDepth`, and
+  requested, `PerHitExplain` reports `graphSeedSource`, `graphHopDepth`, and
+  `vectorCosine` (`number | null` in `[-1.0, 1.0]` when `vectorRank !== null`,
+  `null` otherwise or for zero-norm vectors), and
   `EvidenceGraphOriginV1` reports `seedSource`. Validity, dependency and
   mandatory edge-expiry restrictions remain; incomplete historical dense
   coverage uses lexical fallback.

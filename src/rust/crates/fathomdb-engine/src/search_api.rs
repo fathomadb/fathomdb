@@ -2008,6 +2008,7 @@ impl Engine {
             &ReadView::default(),
             0,
             &scope,
+            false,
         )
         .map_err(|_| EngineError::Storage)?;
         let mut all_params = vec![

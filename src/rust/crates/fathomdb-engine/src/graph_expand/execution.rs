@@ -25,7 +25,6 @@ use crate::search_types::StructuralLifecycleStateV1;
 use crate::structural_state::{structural_dependency_state, structural_dependency_state_as_of};
 use crate::temporal::FrozenView;
 use crate::wal_attribution::WalAttributionCollector;
-use crate::write_commit::load_next_cursor;
 use fathomdb_query::{compile_text_query_with, StopWordSet};
 use rusqlite::{Connection, OptionalExtension};
 
@@ -1326,6 +1325,11 @@ pub(crate) fn read_graph_expand_in_tx(
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
+    let local_status_cache = projection_generation::ProjectionGenerationStatusCache::new(
+        1,
+        #[cfg(feature = "test-hooks")]
+        std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+    );
     read_graph_expand_with_stop_words_in_tx(
         reader,
         request,
@@ -1336,6 +1340,8 @@ pub(crate) fn read_graph_expand_in_tx(
         #[cfg(feature = "test-hooks")]
         test_controls,
         &StopWordSet::default(),
+        &local_status_cache,
+        projection_generation::StatusCacheConnectionSlot::ReaderWorker(0),
         attribution,
         worker_idx,
     )
@@ -1352,6 +1358,8 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     evidence_authority: Option<&crate::evidence::GraphEvidenceAuthority>,
     #[cfg(feature = "test-hooks")] test_controls: &GraphExpandReaderControlsForTest,
     stop_words: &StopWordSet,
+    status_cache: &projection_generation::ProjectionGenerationStatusCache,
+    status_slot: projection_generation::StatusCacheConnectionSlot,
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
@@ -1399,12 +1407,13 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     let (generation_id, projection_origin, projection_readiness) = if seed_source
         == GraphSeedSourceV1::Query
     {
-        let status = projection_generation::status_in_snapshot(
+        let (status, _) = status_cache.get_or_compute(
             &tx,
+            status_slot,
             scope,
             projection_runtime_state,
             view.edge_now(),
-            load_next_cursor(&tx),
+            false,
         )?;
         {
             let (source_origin, source_readiness) = {

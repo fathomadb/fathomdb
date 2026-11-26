@@ -18,10 +18,8 @@ CALLERS = (
     "actuation.rs",
     "dependency_trace.rs",
     "frozen_read.rs",
-    "search.rs",
     "open.rs",
     "data_plane_integrity.rs",
-    "graph_expand/execution.rs",
 )
 OWNER_IMPORT = "use crate::write_commit::load_next_cursor;"
 

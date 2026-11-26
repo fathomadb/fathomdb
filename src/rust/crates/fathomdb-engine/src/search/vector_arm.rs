@@ -1,7 +1,7 @@
 use super::fts_fast_path::{prepare_search_statement, search_body_from_row};
 use super::SearchReaderError;
 use crate::filter::{build_vector_phase1_plan, SearchFilter};
-use crate::fusion::{FusionHit, FusionOwnership};
+use crate::fusion::{FusionHit, FusionOwnership, RecordKey};
 use crate::identity::derive_stable_id;
 use crate::projection_commit::projection_physical_tuple_is_empty;
 use crate::projection_generation::{member_completion, Completion, ProjectionRuntimeStateV1};
@@ -14,6 +14,25 @@ use crate::temporal::{edge_validity_sql_for_view, FrozenView};
 use crate::vector_storage::kind_is_vector_committable_on;
 use fathomdb_query::CompiledQuery;
 use rusqlite::{Connection, OptionalExtension};
+use std::collections::HashMap;
+
+pub(super) struct VectorArmOutput {
+    pub(super) hits: Vec<FusionHit>,
+    pub(super) cosines: HashMap<RecordKey, Option<f64>>,
+}
+
+pub(crate) fn cosine_similarity_from_distance(distance: Option<f64>) -> Option<f64> {
+    let d = distance?;
+    if !d.is_finite() {
+        return None;
+    }
+    let sim = 1.0 - d;
+    if !sim.is_finite() {
+        return None;
+    }
+    let clamped = sim.clamp(-1.0, 1.0);
+    Some(if clamped == 0.0 { 0.0 } else { clamped })
+}
 
 pub(super) fn historical_dense_incomplete(
     tx: &Connection,
@@ -78,23 +97,24 @@ pub(super) fn execute_vector_arm(
     now_param: Option<i64>,
     scope: &crate::scope::ScopePredicate,
     read_dependency_eligibility: &dyn Fn(&str, usize) -> String,
-) -> Result<Vec<FusionHit>, SearchReaderError> {
+    explain: bool,
+) -> Result<VectorArmOutput, SearchReaderError> {
     let Some(query_vector) = query_vector.filter(|_| !vector_eligibility_degraded) else {
         #[cfg(any(test, feature = "slice30-observer"))]
         crate::slice30_observer::not_run("vector_retrieval", "vector_unavailable_or_ineligible");
-        return Ok(Vec::new());
+        return Ok(VectorArmOutput { hits: Vec::new(), cosines: HashMap::new() });
     };
     #[cfg(test)]
     let rank_probe = crate::slice30_observer::rank_probe_route();
     #[cfg(any(test, feature = "slice30-observer"))]
     let vector_observation = crate::slice30_observer::span("vector_retrieval");
-    let mut rowids: Vec<(i64, f64)> = Vec::new();
+    let mut rowids: Vec<(i64, f64, Option<f64>)> = Vec::new();
     let bin_vector = query_vector_bin.unwrap_or(query_vector);
     {
         #[cfg(any(test, feature = "slice30-observer"))]
         let sql_observation = crate::slice30_observer::span("vector_phase1_f32_sql");
         let candidate_limit = candidate_limit.max(final_limit).max(TOP_K_BIT_CANDIDATES);
-        let run_phase1_for = |phase_scope: &crate::scope::ScopePredicate| -> Result<Vec<(i64, f64)>, rusqlite::Error> {
+        let run_phase1_for = |phase_scope: &crate::scope::ScopePredicate| -> Result<Vec<(i64, f64, Option<f64>)>, rusqlite::Error> {
             let (sql, tail_params) = build_vector_phase1_plan(
                 Some(tx),
                 filter,
@@ -102,6 +122,7 @@ pub(super) fn execute_vector_arm(
                 &view.view,
                 view.edge_now(),
                 phase_scope,
+                explain,
             )?;
             let mut params: Vec<rusqlite::types::Value> = vec![
                 rusqlite::types::Value::Text(bin_vector.to_string()),
@@ -110,7 +131,8 @@ pub(super) fn execute_vector_arm(
             params.extend(tail_params);
             let mut statement = prepare_search_statement(tx, &sql)?;
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
+                let cos_dist = if explain { row.get::<_, Option<f64>>(2)? } else { None };
+                Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?, cos_dist))
             })?;
             rows.collect()
         };
@@ -131,7 +153,7 @@ pub(super) fn execute_vector_arm(
         #[cfg(test)]
         if rank_probe.is_some() {
             let candidates: Vec<_> =
-                rowids.iter().map(|(rowid, distance)| (rowid, distance.to_bits())).collect();
+                rowids.iter().map(|(rowid, distance, _)| (rowid, distance.to_bits())).collect();
             crate::slice30_observer::record_rank_probe(
                 "s50_vector_candidates",
                 serde_json::json!(candidates),
@@ -143,6 +165,7 @@ pub(super) fn execute_vector_arm(
     #[cfg(any(test, feature = "slice30-observer"))]
     let hydration_observation = crate::slice30_observer::span("vector_hydration");
     let mut results = Vec::new();
+    let mut cosines: HashMap<RecordKey, Option<f64>> = HashMap::new();
     let node_existence = view.view.existence_sql("canonical_nodes");
     let node_validity = view.validity_sql("canonical_nodes", 2);
     let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
@@ -176,7 +199,7 @@ pub(super) fn execute_vector_arm(
         scope.push_values(&mut p);
         p
     };
-    for (rowid, score) in rowids {
+    for (rowid, score, cos_dist) in rowids {
         if results.len() >= final_limit.max(VECTOR_FUSION_POOL) {
             break;
         }
@@ -193,7 +216,7 @@ pub(super) fn execute_vector_arm(
             .optional()?
         {
             let id = derive_stable_id(logical_id.as_deref(), &body);
-            results.push(FusionHit {
+            let hit = FusionHit {
                 ownership: FusionOwnership::CanonicalNode,
                 hit: SearchHit {
                     id,
@@ -206,7 +229,13 @@ pub(super) fn execute_vector_arm(
                     ce_score: None,
                     properties,
                 },
-            });
+            };
+            if explain {
+                cosines
+                    .entry(hit.key())
+                    .or_insert_with(|| cosine_similarity_from_distance(cos_dist));
+            }
+            results.push(hit);
         } else {
             let mut edge_params = vec![
                 rusqlite::types::Value::Integer(rowid),
@@ -225,7 +254,7 @@ pub(super) fn execute_vector_arm(
                 .optional()?
             {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
-                results.push(FusionHit {
+                let hit = FusionHit {
                     ownership: FusionOwnership::CanonicalEdge,
                     hit: SearchHit {
                         id,
@@ -238,7 +267,13 @@ pub(super) fn execute_vector_arm(
                         ce_score: None,
                         properties,
                     },
-                });
+                };
+                if explain {
+                    cosines
+                        .entry(hit.key())
+                        .or_insert_with(|| cosine_similarity_from_distance(cos_dist));
+                }
+                results.push(hit);
             }
         }
     }
@@ -247,7 +282,7 @@ pub(super) fn execute_vector_arm(
         hydration_observation.counted_success(results.len());
         vector_observation.counted_success(results.len());
     }
-    Ok(results)
+    Ok(VectorArmOutput { hits: results, cosines })
 }
 
 pub(super) fn detect_vector_soft_fallback(
@@ -294,4 +329,58 @@ pub(super) fn detect_vector_soft_fallback(
     #[cfg(any(test, feature = "slice30-observer"))]
     observation.boolean_result(&Ok::<bool, rusqlite::Error>(selected.is_some()), probe_attempted);
     Ok(selected)
+}
+
+#[cfg(test)]
+#[test]
+fn cosine_similarity_from_distance_contract_and_sqlite_vec_truth_table() {
+    // 1. Pure helper edge cases
+    assert_eq!(cosine_similarity_from_distance(Some(0.0)), Some(1.0));
+    let zero = cosine_similarity_from_distance(Some(1.0)).unwrap();
+    assert_eq!(zero, 0.0);
+    assert!(!zero.is_sign_negative(), "1.0 - 1.0 must normalize to +0.0");
+    assert_eq!(cosine_similarity_from_distance(Some(2.0)), Some(-1.0));
+    assert_eq!(cosine_similarity_from_distance(Some(-0.0001)), Some(1.0));
+    assert_eq!(cosine_similarity_from_distance(Some(2.0001)), Some(-1.0));
+    assert_eq!(cosine_similarity_from_distance(None), None);
+    assert_eq!(cosine_similarity_from_distance(Some(f64::NAN)), None);
+    assert_eq!(cosine_similarity_from_distance(Some(f64::INFINITY)), None);
+    assert_eq!(cosine_similarity_from_distance(Some(f64::NEG_INFINITY)), None);
+
+    // 2. Direct sqlite-vec = "=0.1.9" vec_distance_cosine truth table
+    let conn = crate::vector_storage::slice70_mapping_fixture(false);
+    let query_cos = |a: &str, b: &str| -> Option<f64> {
+        let raw: Option<f64> = conn
+            .query_row(
+                "SELECT vec_distance_cosine(vec_f32(?1), vec_f32(?2))",
+                rusqlite::params![a, b],
+                |row| row.get(0),
+            )
+            .unwrap();
+        cosine_similarity_from_distance(raw)
+    };
+
+    // Identical unit vectors -> ~1.0
+    let ident = query_cos("[1,0,0,0,0,0,0,0]", "[1,0,0,0,0,0,0,0]").unwrap();
+    assert!((ident - 1.0).abs() < 1e-6, "identical: {ident}");
+
+    // Orthogonal vectors -> +0.0 (never -0.0)
+    let ortho = query_cos("[1,0,0,0,0,0,0,0]", "[0,1,0,0,0,0,0,0]").unwrap();
+    assert!(ortho.abs() < 1e-6, "orthogonal: {ortho}");
+    if ortho == 0.0 {
+        assert!(!ortho.is_sign_negative(), "orthogonal zero must be +0.0");
+    }
+
+    // Opposite vectors -> ~-1.0
+    let opp = query_cos("[1,0,0,0,0,0,0,0]", "[-1,0,0,0,0,0,0,0]").unwrap();
+    assert!((opp + 1.0).abs() < 1e-6, "opposite: {opp}");
+
+    // Non-unit-norm scaled vectors -> ~1.0
+    let scaled = query_cos("[3,4,0,0,0,0,0,0]", "[6,8,0,0,0,0,0,0]").unwrap();
+    assert!((scaled - 1.0).abs() < 1e-6, "scaled non-unit: {scaled}");
+
+    // Zero-norm stored or query vector -> None (never NaN, never 0.0)
+    assert_eq!(query_cos("[0,0,0,0,0,0,0,0]", "[1,0,0,0,0,0,0,0]"), None);
+    assert_eq!(query_cos("[1,0,0,0,0,0,0,0]", "[0,0,0,0,0,0,0,0]"), None);
+    assert_eq!(query_cos("[0,0,0,0,0,0,0,0]", "[0,0,0,0,0,0,0,0]"), None);
 }

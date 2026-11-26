@@ -1722,8 +1722,12 @@ governed operations are added.
   allocate a `SEED_FTS_N = 10` slot to ineligible endpoints, and
   `"fused_top_k"` / `"both"` seed body-less property-graph edges from
   fused/reranked canonical-node hits (`logical_id IS NOT NULL`).
-  `PerHitExplain` exposes `graphSeedSource?: GraphArmSeedSource | null` and
-  `graphHopDepth?: number | null`; `EvidenceGraphOriginV1` exposes
+  `PerHitExplain` exposes `graphSeedSource?: GraphArmSeedSource | null`,
+  `graphHopDepth?: number | null`, and (0.8.32 Slice 40)
+  `readonly vectorCosine?: number | null` (pre-RRF cosine similarity in `[-1.0, 1.0]`
+  when `vectorRank !== null`, normalized to `null` when absent or for zero-norm
+  vectors; non-finite, non-number, or out-of-range native values throw
+  `FathomDbError` at `"/vectorCosine"`); `EvidenceGraphOriginV1` exposes
   `seedSource: GraphArmSeedSource`.
 
 ## Historical bitemporal graph reconstruction (0.8.31 Slice 40)

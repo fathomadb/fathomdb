@@ -510,6 +510,7 @@ pub(super) struct PyPerHitExplain {
     pub(super) confidence: Option<f64>,
     pub(super) graph_seed_source: Option<String>,
     pub(super) graph_hop_depth: Option<u32>,
+    pub(super) vector_cosine: Option<f64>,
     pub(super) structural: PyStructuralInclusionV1,
 }
 
@@ -605,6 +606,7 @@ impl PyPerHitExplain {
             confidence: p.confidence,
             graph_seed_source: p.graph_seed_source.map(|source| source.as_str().to_string()),
             graph_hop_depth: p.graph_hop_depth,
+            vector_cosine: p.vector_cosine,
             structural: PyStructuralInclusionV1::from_rust(&p.structural),
         }
     }

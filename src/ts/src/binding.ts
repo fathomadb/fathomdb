@@ -389,6 +389,7 @@ export interface NativePerHitExplain {
   confidence?: number | null;
   graphSeedSource?: string | null;
   graphHopDepth?: number | null;
+  vectorCosine?: number | null;
   structural?: NativeStructuralInclusionV1;
 }
 

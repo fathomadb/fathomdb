@@ -434,6 +434,7 @@ pub struct PerHitExplain {
     pub confidence: Option<f64>,
     pub graph_seed_source: Option<String>,
     pub graph_hop_depth: Option<u32>,
+    pub vector_cosine: Option<f64>,
     pub structural: StructuralInclusionV1,
 }
 
@@ -522,6 +523,7 @@ impl PerHitExplain {
             confidence: p.confidence,
             graph_seed_source: p.graph_seed_source.map(|source| source.as_str().to_string()),
             graph_hop_depth: p.graph_hop_depth,
+            vector_cosine: p.vector_cosine,
             structural: StructuralInclusionV1::from_rust(&p.structural),
         }
     }
@@ -608,7 +610,75 @@ mod per_hit_explain_tests {
         let mirror = PerHitExplain::from_rust(entry);
         assert_eq!(mirror.importance, Some(0.25), "importance must propagate to the N-API mirror");
         assert_eq!(mirror.confidence, Some(0.90), "confidence must propagate to the N-API mirror");
+        assert_eq!(
+            mirror.vector_cosine, None,
+            "text/graph-only hit must propagate vector_cosine=None"
+        );
 
+        opened.engine.close().unwrap();
+    }
+
+    #[test]
+    fn from_rust_copies_vector_cosine_some_and_none() {
+        use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+        #[derive(Debug)]
+        struct UnitEmbedder;
+        impl Embedder for UnitEmbedder {
+            fn identity(&self) -> EmbedderIdentity {
+                EmbedderIdentity::new("napi-cosine-test", "v1", 8)
+            }
+            fn embed(&self, _text: &str) -> std::result::Result<Vector, EmbedderError> {
+                Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+            }
+        }
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let path =
+            dir.path().join(format!("napi_cosine_explain{}", fathomdb_schema::SQLITE_SUFFIX));
+        let opened =
+            EngEngine::open_with_embedder_for_test(&path, std::sync::Arc::new(UnitEmbedder))
+                .expect("open");
+        opened
+            .engine
+            .configure_projections(
+                &[fathomdb_engine::ProjectionSpec {
+                    name: "memory".into(),
+                    roles: [fathomdb_engine::ProjectionRole::Searchable].into_iter().collect(),
+                    fts: None,
+                    vector: Some(fathomdb_engine::ProjectionVector {
+                        embedder: None,
+                        dense_readiness: None,
+                        kinds: None,
+                    }),
+                    source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
+                }],
+                &[],
+            )
+            .expect("configure");
+        opened
+            .engine
+            .write(&[EngPreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "cosine propagation payload".to_string(),
+                source_id: fathomdb_engine::SourceId::new("test:napi-cos").unwrap(),
+                logical_id: Some("cos-1".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .expect("write");
+        opened.engine.drain(10_000).expect("drain");
+
+        let explained =
+            opened.engine.search_explained("cosine", None, 0, false, 0.3, 0).expect("search");
+        let exp = explained.explanation.expect("explanation");
+        let entry = &exp.per_hit[0];
+        assert!(entry.vector_cosine.is_some_and(|v| (v - 1.0).abs() < 1e-5));
+        let mirror = PerHitExplain::from_rust(entry);
+        assert_eq!(mirror.vector_cosine, entry.vector_cosine);
         opened.engine.close().unwrap();
     }
 }

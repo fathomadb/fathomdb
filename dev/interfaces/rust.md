@@ -2553,8 +2553,14 @@ Fallible reranker APIs map it to the shared overload class. Infallible
   edges from fused/reranked canonical-node hits (`logical_id IS NOT NULL`) with
   single-pass cross-encoder reuse and deterministic `(FusedTopK, EdgeFts, EntityFts)`
   min-hop merging. `PerHitExplain` exposes
-  `graph_seed_source: Option<GraphArmSeedSource>` and
-  `graph_hop_depth: Option<u32>`, and both `EvidenceGraphOriginV1` variants
+  `graph_seed_source: Option<GraphArmSeedSource>`,
+  `graph_hop_depth: Option<u32>`, and (0.8.32 Slice 40, `Gate1-D10`)
+  `vector_cosine: Option<f64>` (pre-RRF cosine similarity `1.0 - vec_distance_cosine`,
+  clamped to `[-1.0, 1.0]` with `-0.0` normalized to `0.0`, populated on the opt-in
+  `explain = true` path whenever `vector_rank.is_some()` — including vector-scored
+  `TextEdge` `edge_fact` hits — and `None` when `vector_rank.is_none()` or for
+  zero-norm / non-finite vectors; zero SQL change when `explain = false`), and
+  both `EvidenceGraphOriginV1` variants
   carry `seed_source: GraphArmSeedSource`. `use_graph_arm = false` remains
   byte-identical with zero added SQL or joins.
 

@@ -9,7 +9,7 @@ use super::{
     EvidenceArtifactClassV1, EvidenceErrorReasonV1, EvidenceErrorV1, GraphEvidenceRefV1,
     INTRINSIC_EDGE_PREFLIGHT_SQL, INTRINSIC_NODE_PREFLIGHT_SQL,
 };
-use crate::dependency::SourceDependencyV1;
+use crate::dependency::{SourceDependencyV1, VerifiedSourceBody};
 use crate::errors::EngineError;
 use crate::filter::{
     append_node_eligibility_sql, append_node_eligibility_sql_historical,
@@ -1010,8 +1010,9 @@ pub(crate) fn resolve_graph_evidence(
     if !eligible || !source_eligible || stored.completeness != "complete" {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    validate_source_bytes(&stored)?;
-    validate_full_provenance(connection, &stored)?;
+    let verified_sha256 = validate_source_bytes(&stored)?;
+    validate_full_provenance(connection, &stored, &verified_sha256)?;
+    let verified = VerifiedSourceBody { body: &stored.source_body, sha256_hex: &verified_sha256 };
     let cursor = i64::try_from(payload.artifact_cursor).map_err(|_| EngineError::Storage)?;
     let (
         artifact_body,
@@ -1067,7 +1068,8 @@ pub(crate) fn resolve_graph_evidence(
             )
             .map_err(|_| EngineError::Storage)?,
     };
-    let dependency = load_dependency(connection, &stored.scope, &stored.artifact_revision_id)?;
+    let dependency =
+        load_dependency(connection, &stored.scope, &stored.artifact_revision_id, Some(verified))?;
     let _material = GraphEvidenceMaterial {
         artifact_class: payload.artifact_class,
         write_cursor: payload.artifact_cursor,

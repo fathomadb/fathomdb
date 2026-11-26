@@ -11,8 +11,9 @@ use super::{
     EvidenceSidecarEntryV1, ResolvedEvidenceV1, SCHEMA_VERSION, TOKEN_MAX_BYTES,
 };
 use crate::dependency::{
-    load_persisted_canonical_source, validate_dependency_chain, validate_persisted_dependency_row,
-    DependencyValidationMode, SourceDependencyV1,
+    load_persisted_canonical_source_with_verified_hash, validate_dependency_chain,
+    validate_dependency_chain_with_verified_hash, validate_persisted_dependency_row,
+    DependencyValidationMode, SourceDependencyV1, VerifiedSourceBody,
 };
 use crate::dependency_closure::active_barrier_for_source;
 use crate::errors::EngineError;
@@ -26,7 +27,7 @@ use crate::properties::{decode_properties_json, PropertyMap};
 use crate::provenance::SourceLocator;
 use crate::record_lifecycle::LifecycleState;
 use crate::search_types::{
-    CapturedGraphOrigin, GraphArmSeedSource, PerHitExplain, SearchResult, SoftFallbackBranch,
+    CapturedGraphOrigin, GraphArmSeedSource, SearchResult, SoftFallbackBranch,
 };
 use crate::temporal::ReadView;
 use crate::write_commit::canonical_body_hash;
@@ -80,6 +81,7 @@ pub(super) fn evidence_as_of_sql_i64(cursor: u64) -> i64 {
     i64::try_from(cursor).unwrap_or(i64::MAX)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_search_result(
     connection: &Connection,
     scope: &crate::scope::ScopePredicate,
@@ -88,11 +90,12 @@ pub(crate) fn build_search_result(
     include_explanation: bool,
     graph_origins: &std::collections::HashMap<u64, CapturedGraphOrigin>,
     ownership: &[crate::fusion::FusionOwnership],
+    contributions: Option<Vec<EvidenceContributionV1>>,
 ) -> Result<EvidenceSearchResultV1, EngineError> {
-    let explanation = search_result.explanation.as_ref().ok_or_else(|| {
+    let contributions = contributions.ok_or_else(|| {
         EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/explanation")
     })?;
-    if explanation.per_hit.len() != search_result.results.len()
+    if contributions.len() != search_result.results.len()
         || ownership.len() != search_result.results.len()
     {
         return Err(EvidenceErrorV1::new(
@@ -101,16 +104,32 @@ pub(crate) fn build_search_result(
         )
         .into());
     }
+    if include_explanation {
+        let explanation = search_result.explanation.as_ref().ok_or_else(|| {
+            EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/explanation")
+        })?;
+        if explanation.per_hit.len() != search_result.results.len() {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                "/explanation/perHit",
+            )
+            .into());
+        }
+    }
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
     let generation = current_generation_id(connection)?;
     let context_bytes = frozen_read::validate_context(&frozen.context)?;
     let database_commitment = keyed(&key, DATABASE_DOMAIN, database_id.as_bytes());
     let context_commitment = keyed(&key, CONTEXT_DOMAIN, &context_bytes);
     let mut evidence = Vec::with_capacity(search_result.results.len());
-    for (index, (hit, per_hit)) in
-        search_result.results.iter().zip(explanation.per_hit.iter()).enumerate()
+    for (index, (hit, contribution)) in search_result.results.iter().zip(contributions).enumerate()
     {
-        if per_hit.id != hit.write_cursor {
+        if include_explanation
+            && search_result
+                .explanation
+                .as_ref()
+                .is_none_or(|exp| exp.per_hit[index].id != hit.write_cursor)
+        {
             return Err(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceCorrupt,
                 "/explanation/perHit",
@@ -188,26 +207,29 @@ pub(crate) fn build_search_result(
             )
             .into());
         }
-        validate_source_bytes(&stored).map_err(|_| {
+        let verified_sha256 = validate_source_bytes(&stored).map_err(|_| {
             EngineError::Evidence(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceCorrupt,
                 format!("/results/{index}/provenance"),
             ))
         })?;
-        validate_full_provenance(connection, &stored).map_err(|_| {
+        let verified =
+            VerifiedSourceBody { body: &stored.source_body, sha256_hex: &verified_sha256 };
+        validate_full_provenance(connection, &stored, &verified_sha256).map_err(|_| {
             EngineError::Evidence(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceCorrupt,
                 format!("/results/{index}/provenance"),
             ))
         })?;
-        load_dependency(connection, &stored.scope, &stored.artifact_revision_id).map_err(|_| {
-            EngineError::Evidence(EvidenceErrorV1::new(
-                EvidenceErrorReasonV1::EvidenceCorrupt,
-                format!("/results/{index}/provenance"),
-            ))
-        })?;
+        load_dependency(connection, &stored.scope, &stored.artifact_revision_id, Some(verified))
+            .map_err(|_| {
+                EngineError::Evidence(EvidenceErrorV1::new(
+                    EvidenceErrorReasonV1::EvidenceCorrupt,
+                    format!("/results/{index}/provenance"),
+                ))
+            })?;
         let locator_bytes = locator_bytes(&stored.locator);
-        let contribution = contribution(per_hit)?;
+        validate_contribution(&contribution)?;
         let generation_nonce = random_nonce()?;
         let payload = Payload {
             artifact_class,
@@ -494,14 +516,16 @@ fn resolve_single_ref(
         .into());
     }
     let evidence_text = slice(&stored.source_body, &stored.locator)?;
-    validate_full_provenance(connection, &stored)?;
+    let verified = VerifiedSourceBody { body: &stored.source_body, sha256_hex: &actual_hash };
+    validate_full_provenance(connection, &stored, &actual_hash)?;
     if let Some((edge_revision, source_revision)) = graph_provenance {
-        validate_dependency_chain(
+        validate_dependency_chain_with_verified_hash(
             connection,
             &stored.scope,
             &source_revision,
             &edge_revision,
             DependencyValidationMode::Persisted,
+            Some(verified),
         )
         .map_err(|_| {
             EngineError::Evidence(EvidenceErrorV1::new(
@@ -516,7 +540,8 @@ fn resolve_single_ref(
         &payload.generation_nonce,
         &payload.generation_ciphertext,
     )?;
-    let dependency = load_dependency(connection, &stored.scope, &stored.artifact_revision_id)?;
+    let dependency =
+        load_dependency(connection, &stored.scope, &stored.artifact_revision_id, Some(verified))?;
     Ok(ResolvedEvidenceV1 {
         schema_version: SCHEMA_VERSION,
         logical_id: stored.logical_id,
@@ -647,13 +672,13 @@ pub(super) fn authorize_graph_intrinsic_lifecycle(
     Ok(())
 }
 
-fn contribution(per_hit: &PerHitExplain) -> Result<EvidenceContributionV1, EngineError> {
+fn validate_contribution(contribution: &EvidenceContributionV1) -> Result<(), EngineError> {
     let values = [
-        Some(per_hit.fused_score),
-        per_hit.ce_score,
-        Some(per_hit.blended),
-        per_hit.importance,
-        per_hit.confidence,
+        Some(contribution.fused_score),
+        contribution.ce_score,
+        Some(contribution.blended_score),
+        contribution.importance,
+        contribution.confidence,
     ];
     if values.into_iter().flatten().any(|value| !value.is_finite()) {
         return Err(EvidenceErrorV1::new(
@@ -662,17 +687,7 @@ fn contribution(per_hit: &PerHitExplain) -> Result<EvidenceContributionV1, Engin
         )
         .into());
     }
-    Ok(EvidenceContributionV1 {
-        schema_version: SCHEMA_VERSION,
-        vector_rank: per_hit.vector_rank,
-        text_rank: per_hit.text_rank,
-        graph_rank: per_hit.graph_rank,
-        fused_score: per_hit.fused_score,
-        ce_score: per_hit.ce_score,
-        blended_score: per_hit.blended,
-        importance: per_hit.importance,
-        confidence: per_hit.confidence,
-    })
+    Ok(())
 }
 
 pub(super) fn load_stored(
@@ -1014,34 +1029,45 @@ fn resolve_generation(
     Ok(generation)
 }
 
-pub(super) fn validate_source_bytes(stored: &StoredEvidence) -> Result<(), EngineError> {
+pub(super) fn validate_source_bytes(stored: &StoredEvidence) -> Result<String, EngineError> {
     CanonicalHash::sha256(stored.hash_digest.clone()).map_err(|_| {
         EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/canonicalSourceHash")
     })?;
-    if canonical_body_hash(&stored.source_body) != stored.hash_digest {
+    let actual_hash = canonical_body_hash(&stored.source_body);
+    if actual_hash != stored.hash_digest {
         return Err(EvidenceErrorV1::new(
             EvidenceErrorReasonV1::EvidenceCorrupt,
             "/canonicalSourceHash",
         )
         .into());
     }
-    slice(&stored.source_body, &stored.locator).map(|_| ())
+    slice(&stored.source_body, &stored.locator)?;
+    Ok(actual_hash)
 }
 
 pub(super) fn validate_full_provenance(
     connection: &Connection,
     stored: &StoredEvidence,
+    verified_sha256: &str,
 ) -> Result<(), EngineError> {
+    let verified =
+        Some(VerifiedSourceBody { body: &stored.source_body, sha256_hex: verified_sha256 });
     let validation = if stored.artifact_revision_id == stored.source_revision_id {
-        load_persisted_canonical_source(connection, &stored.scope, &stored.source_revision_id)
-            .and_then(|source| source.ok_or(EngineError::Storage).map(|_| ()))
+        load_persisted_canonical_source_with_verified_hash(
+            connection,
+            &stored.scope,
+            &stored.source_revision_id,
+            verified,
+        )
+        .and_then(|source| source.ok_or(EngineError::Storage).map(|_| ()))
     } else {
-        validate_dependency_chain(
+        validate_dependency_chain_with_verified_hash(
             connection,
             &stored.scope,
             &stored.source_revision_id,
             &stored.artifact_revision_id,
             DependencyValidationMode::Persisted,
+            verified,
         )
     };
     validation.map_err(|_| {
@@ -1056,6 +1082,7 @@ pub(super) fn load_dependency(
     connection: &Connection,
     scope: &str,
     artifact_revision_id: &str,
+    verified: Option<VerifiedSourceBody<'_>>,
 ) -> Result<Option<SourceDependencyV1>, EngineError> {
     let row: Option<(i64, String, i64, String)> = connection
         .query_row(
@@ -1086,12 +1113,13 @@ pub(super) fn load_dependency(
             "/dependency",
         ))
     })?;
-    validate_dependency_chain(
+    validate_dependency_chain_with_verified_hash(
         connection,
         scope,
         &source_revision_id,
         artifact_revision_id,
         DependencyValidationMode::Persisted,
+        verified,
     )
     .map_err(|_| {
         EngineError::Evidence(EvidenceErrorV1::new(

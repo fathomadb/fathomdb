@@ -1621,28 +1621,40 @@ fn empty_physical_fast_path(
         return Ok(None);
     }
 
-    let builtin_kinds = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
-        .iter()
-        .map(|(kind, _)| format!("'{kind}'"))
-        .collect::<Vec<_>>()
-        .join(",");
-    let (node_scope_sql, _) = scope.sql_clause("n.scope", 2);
-    let mut node_binds = vec![rusqlite::types::Value::Integer(i64::from(node_arm_declared))];
-    scope.push_values(&mut node_binds);
-    let node_sql = format!(
-        "SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
-         FROM canonical_nodes n
-         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind AND vk.kind<>'edge_fact'
-         WHERE ({node_scope_sql})
-           AND n.row_kind IN ('leaf','coverage')
-           AND (n.kind IN ({builtin_kinds}) OR vk.kind IS NOT NULL)
-           AND (?1!=0 OR vk.kind IS NOT NULL)"
-    );
-    let (node_count, first_node, unenrolled_nodes): (u64, Option<u64>, u64) = connection
-        .query_row(&node_sql, rusqlite::params_from_iter(node_binds.iter()), |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-        })
+    let has_explicit_node_enrolment: bool = connection
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds WHERE kind <> 'edge_fact' LIMIT 1)",
+        )
+        .and_then(|mut stmt| stmt.query_row([], |row| row.get(0)))
         .map_err(|_| EngineError::Storage)?;
+    let (node_count, first_node, unenrolled_nodes): (u64, Option<u64>, u64) = if node_arm_declared
+        || has_explicit_node_enrolment
+    {
+        let builtin_kinds = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
+            .iter()
+            .map(|(kind, _)| format!("'{kind}'"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let (node_scope_sql, _) = scope.sql_clause("n.scope", 2);
+        let mut node_binds = vec![rusqlite::types::Value::Integer(i64::from(node_arm_declared))];
+        scope.push_values(&mut node_binds);
+        let node_sql = format!(
+            "SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
+                 FROM canonical_nodes n
+                 LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind AND vk.kind<>'edge_fact'
+                 WHERE ({node_scope_sql})
+                   AND n.row_kind IN ('leaf','coverage')
+                   AND (n.kind IN ({builtin_kinds}) OR vk.kind IS NOT NULL)
+                   AND (?1!=0 OR vk.kind IS NOT NULL)"
+        );
+        connection
+            .query_row(&node_sql, rusqlite::params_from_iter(node_binds.iter()), |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .map_err(|_| EngineError::Storage)?
+    } else {
+        (0, None, 0)
+    };
     let (edge_scope_sql, _) = scope.sql_clause("scope", 2);
     let mut edge_binds = vec![rusqlite::types::Value::Integer(effective_at)];
     scope.push_values(&mut edge_binds);
@@ -2456,6 +2468,33 @@ impl Engine {
         let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_ref().ok_or(EngineError::Closing)?;
         status_query_plans_for_test(connection)
+    }
+
+    /// Execute `empty_physical_fast_path` with a SQLite authorizer denying reads
+    /// on `canonical_nodes` (returns `(pending_count, failed_count, first_incomplete)`).
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn run_empty_physical_fast_path_with_node_read_denied_for_test(
+        &self,
+    ) -> Result<Option<(u64, u64, Option<u64>)>, EngineError> {
+        use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+        let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
+        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let node_arm_declared =
+            super::vector_projection_declared(connection).map_err(|_| EngineError::Storage)?;
+        let effective_at = crate::temporal::current_epoch_seconds();
+        connection
+            .authorizer(Some(|context: AuthContext<'_>| match context.action {
+                AuthAction::Read { table_name: "canonical_nodes", .. } => Authorization::Deny,
+                _ => Authorization::Allow,
+            }))
+            .map_err(|_| EngineError::Storage)?;
+        let outcome = empty_physical_fast_path(connection, &scope, effective_at, node_arm_declared);
+        let _ = connection.authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+        outcome
+            .map(|opt| opt.map(|acc| (acc.pending_count, acc.failed_count, acc.first_incomplete)))
     }
 }
 

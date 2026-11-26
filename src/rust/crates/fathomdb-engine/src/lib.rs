@@ -161,6 +161,12 @@ pub use search_api::take_slice71_search_statement_trace_for_test;
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub use search_api::vector_phase1_sql_for_test;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use search_api::{set_slice41_sql_trace_enabled_for_test, take_slice41_sql_trace_for_test};
+#[cfg(any(test, feature = "test-hooks"))]
+#[doc(hidden)]
+pub use write_commit::canonical_body_hash_calls_for_test;
 mod search_types;
 mod snippet;
 mod snippet_query;

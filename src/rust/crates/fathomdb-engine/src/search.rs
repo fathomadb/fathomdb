@@ -36,7 +36,7 @@ pub(crate) use fts_fast_path::retain_complete_rank_boundary_candidates;
 #[cfg(feature = "test-hooks")]
 pub(crate) use fts_fast_path::{
     append_json_witness_for_test, record_slice71_profile_statement_for_test,
-    slice71_search_statement_trace,
+    set_slice41_sql_trace_enabled, slice41_sql_trace, slice71_search_statement_trace,
 };
 pub(crate) use fusion_stage::{read_search_work_in_tx, NoEvidenceCapture};
 #[cfg(any(test, feature = "test-hooks"))]
@@ -183,6 +183,7 @@ impl SearchReaderWork {
         use_graph_arm: bool,
         alpha: f64,
         pool_n: usize,
+        include_explanation: bool,
         projection_runtime_state: ProjectionRuntimeStateV1,
         view: ReadView,
         frozen_binding: frozen_read::FrozenReadBinding,
@@ -203,7 +204,7 @@ impl SearchReaderWork {
             use_graph_arm,
             alpha,
             pool_n,
-            true,
+            include_explanation,
             projection_runtime_state,
             view,
             Some(frozen_binding),
@@ -275,6 +276,10 @@ pub(crate) trait SearchOriginCapture: Sized {
         false
     }
 
+    fn requires_contributions(&self) -> bool {
+        false
+    }
+
     fn record_graph_origin(&mut self, _node_cursor: u64, _origin: CapturedGraphOrigin) {}
 
     #[allow(clippy::too_many_arguments)]
@@ -287,6 +292,7 @@ pub(crate) trait SearchOriginCapture: Sized {
         results: Vec<FusionHit>,
         graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
+        contributions: Option<Vec<crate::evidence::EvidenceContributionV1>>,
         expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
         snippets: Option<Vec<SnippetV1>>,
@@ -297,6 +303,10 @@ impl SearchOriginCapture for EvidenceCapture {
     type Output = EvidenceSearchResultV1;
 
     fn requires_edge_origin(&self) -> bool {
+        true
+    }
+
+    fn requires_contributions(&self) -> bool {
         true
     }
 
@@ -313,6 +323,7 @@ impl SearchOriginCapture for EvidenceCapture {
         results: Vec<FusionHit>,
         _graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
+        contributions: Option<Vec<crate::evidence::EvidenceContributionV1>>,
         _expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
         _snippets: Option<Vec<SnippetV1>>,
@@ -337,6 +348,7 @@ impl SearchOriginCapture for EvidenceCapture {
             self.include_explanation,
             &self.graph_origins,
             &ownership,
+            contributions,
         )
         .map_err(SearchReaderError::Evidence)
     }

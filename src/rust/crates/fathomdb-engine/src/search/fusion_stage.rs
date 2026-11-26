@@ -75,6 +75,7 @@ impl SearchOriginCapture for NoEvidenceCapture {
         results: Vec<FusionHit>,
         graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
+        _contributions: Option<Vec<crate::evidence::EvidenceContributionV1>>,
         expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
         snippets: Option<Vec<SnippetV1>>,
@@ -338,8 +339,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let history_incomplete = if (view.view.include_superseded || view.view.include_inactive)
         && direct_text_candidate_limit.is_none()
     {
-        let incomplete = historical_dense_incomplete(&tx, scope, view)?;
-        query_vector.is_none() || incomplete
+        query_vector.is_none() || historical_dense_incomplete(&tx, scope, view)?
     } else {
         false
     };
@@ -362,6 +362,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         view.edge_now(),
         scope,
     )?;
+    let capture_contributions = capture.requires_contributions();
+    let track_contributions = explain || capture_contributions;
     let VectorArmOutput { hits: vector_results, cosines: vector_cosines } = execute_vector_arm(
         &tx,
         query_vector,
@@ -380,12 +382,19 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let original_vector_keys =
         snippet.map(|_| vector_results.iter().map(FusionHit::key).collect::<HashSet<RecordKey>>());
     let vector_rows_visible = !vector_results.is_empty();
+    let has_vector_kinds = if query_vector.is_some() && !vector_rows_visible {
+        tx.prepare_cached("SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds LIMIT 1)")?
+            .query_row([], |row| row.get::<_, bool>(0))?
+    } else {
+        true
+    };
     let soft_fallback = detect_vector_soft_fallback(
         &tx,
         compiled,
         query_vector,
         vector_eligibility_degraded,
         vector_rows_visible,
+        has_vector_kinds,
         scope,
     )?;
     let mut fts_rows = FtsRows::new();
@@ -404,8 +413,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         importance_enabled,
         vector_stage_only,
         rerank_depth,
+        pool_n,
         use_graph_arm,
-        explain,
+        track_contributions,
+        has_vector_kinds,
+        vector_rows_visible,
         view,
         now_param,
         has_source_dependencies,
@@ -461,7 +473,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         hits.iter().map(|h| (h.key(), h.score)).collect()
     };
 
-    let (exp_vector_ranks, exp_text_ranks, exp_vector_n, exp_text_n) = if explain {
+    let (exp_vector_ranks, exp_text_ranks, exp_vector_n, exp_text_n) = if track_contributions {
         (
             Some(record_rank_map(&vector_results)),
             Some(record_rank_map(&text_results)),
@@ -477,6 +489,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let mut exp_graph_n: u32 = 0;
     let mut exp_importance: Option<HashMap<RecordKey, f64>> = None;
     let mut exp_confidence: Option<HashMap<RecordKey, f64>> = None;
+    let mut deferred_graph_edge_confidence: HashMap<u64, f64> = HashMap::new();
 
     #[cfg(any(test, feature = "slice30-observer"))]
     let mut thin_identity_observed = false;
@@ -555,8 +568,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 &mut capture,
             )?;
             graph_stats = stats;
-            if explain {
+            if track_contributions {
                 exp_graph_ranks = Some(record_rank_map(&graph_candidates));
+            }
+            if explain {
                 exp_graph_origins = Some(graph_origins);
                 exp_graph_n = graph_candidates.len() as u32;
             }
@@ -565,21 +580,24 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     .map_err(SearchReaderError::Evidence)?,
                 recency_enabled,
             );
-            let (imp_map, mut conf_map) = if importance_enabled || explain {
-                build_importance_confidence_maps(&tx, &fused)?
-            } else {
-                (HashMap::new(), HashMap::new())
-            };
-            if importance_enabled || explain {
+            let fused = if importance_enabled {
+                let (imp_map, mut conf_map) = build_importance_confidence_maps(&tx, &fused)?;
                 for (cursor, conf) in &graph_edge_confidence {
                     conf_map.entry(RecordKey::CanonicalNode(*cursor)).or_insert(*conf);
                 }
-            }
-            let fused =
-                apply_record_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
-            if explain {
-                exp_importance = Some(imp_map);
-                exp_confidence = Some(conf_map);
+                let fused = apply_record_importance_reweight(fused, &imp_map, &conf_map, true);
+                if track_contributions {
+                    exp_importance = Some(imp_map);
+                    exp_confidence = Some(conf_map);
+                }
+                fused
+            } else {
+                if track_contributions {
+                    deferred_graph_edge_confidence = graph_edge_confidence;
+                }
+                fused
+            };
+            if track_contributions {
                 exp_fused_scores = Some(record_score_map(&fused));
             }
             try_rerank_ranked_with_cache(
@@ -596,16 +614,18 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 fuse_rrf(vector_results, text_results).map_err(SearchReaderError::Evidence)?,
                 recency_enabled,
             );
-            let (imp_map, conf_map) = if importance_enabled || explain {
-                build_importance_confidence_maps(&tx, &fused)?
+            let fused = if importance_enabled {
+                let (imp_map, conf_map) = build_importance_confidence_maps(&tx, &fused)?;
+                let fused = apply_record_importance_reweight(fused, &imp_map, &conf_map, true);
+                if track_contributions {
+                    exp_importance = Some(imp_map);
+                    exp_confidence = Some(conf_map);
+                }
+                fused
             } else {
-                (HashMap::new(), HashMap::new())
+                fused
             };
-            let fused =
-                apply_record_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
-            if explain {
-                exp_importance = Some(imp_map);
-                exp_confidence = Some(conf_map);
+            if track_contributions {
                 exp_fused_scores = Some(record_score_map(&fused));
             }
             try_rerank_ranked(raw_query, fused, rerank_depth, alpha, pool_n)
@@ -619,6 +639,15 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         }
         results
     };
+
+    if !importance_enabled && track_contributions && !vector_stage_only {
+        let (imp_map, mut conf_map) = build_importance_confidence_maps(&tx, &results)?;
+        for (cursor, conf) in &deferred_graph_edge_confidence {
+            conf_map.entry(RecordKey::CanonicalNode(*cursor)).or_insert(*conf);
+        }
+        exp_importance = Some(imp_map);
+        exp_confidence = Some(conf_map);
+    }
 
     if deferred_text_identity {
         #[cfg(any(test, feature = "slice30-observer"))]
@@ -651,7 +680,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         .map_err(SearchReaderError::Evidence)?;
 
     let explanation = if explain {
-        let fused_scores = exp_fused_scores.unwrap_or_default();
         let per_hit: Vec<PerHitExplain> = results
             .iter()
             .map(|h| -> rusqlite::Result<PerHitExplain> {
@@ -670,7 +698,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     vector_rank: exp_vector_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
                     text_rank: exp_text_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
                     graph_rank: exp_graph_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
-                    fused_score: fused_scores.get(&h.key()).copied().unwrap_or(h.score),
+                    fused_score: exp_fused_scores
+                        .as_ref()
+                        .and_then(|m| m.get(&h.key()).copied())
+                        .unwrap_or(h.score),
                     ce_score: h.ce_score,
                     blended: h.score,
                     importance: exp_importance.as_ref().and_then(|m| m.get(&h.key()).copied()),
@@ -769,6 +800,40 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         None
     };
 
+    let contributions = if capture_contributions {
+        let mut out = Vec::with_capacity(results.len());
+        for h in &results {
+            let fused_score =
+                exp_fused_scores.as_ref().and_then(|m| m.get(&h.key()).copied()).unwrap_or(h.score);
+            let importance = exp_importance.as_ref().and_then(|m| m.get(&h.key()).copied());
+            let confidence = exp_confidence.as_ref().and_then(|m| m.get(&h.key()).copied());
+            let values = [Some(fused_score), h.ce_score, Some(h.score), importance, confidence];
+            if values.into_iter().flatten().any(|value| !value.is_finite()) {
+                return Err(SearchReaderError::Evidence(
+                    crate::evidence::EvidenceErrorV1::new(
+                        crate::evidence::EvidenceErrorReasonV1::EvidenceCorrupt,
+                        "/explanation/perHit",
+                    )
+                    .into(),
+                ));
+            }
+            out.push(crate::evidence::EvidenceContributionV1 {
+                schema_version: 1,
+                vector_rank: exp_vector_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
+                text_rank: exp_text_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
+                graph_rank: exp_graph_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
+                fused_score,
+                ce_score: h.ce_score,
+                blended_score: h.score,
+                importance,
+                confidence,
+            });
+        }
+        Some(out)
+    } else {
+        None
+    };
+
     let expanded = expand_depth
         .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter, scope))
         .transpose()?;
@@ -806,6 +871,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         results,
         graph_stats,
         explanation,
+        contributions,
         expanded,
         degradations,
         snippets,

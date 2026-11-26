@@ -1375,8 +1375,11 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     if let Some(binding) = frozen_binding {
         frozen_read::validate_snapshot(&tx, binding)?;
     } else {
-        tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
-            .map_err(|_| EngineError::Storage)?;
+        tx.prepare_cached(
+            "SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton = 1",
+        )
+        .and_then(|mut stmt| stmt.query_row([], |row| row.get::<_, i64>(0)))
+        .map_err(|_| EngineError::Storage)?;
     }
     #[cfg(feature = "test-hooks")]
     if let Some(rendezvous) = test_controls.rendezvous.as_ref() {

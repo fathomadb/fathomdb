@@ -1383,10 +1383,11 @@ pub(crate) fn body_fts_rank_sql(
     eligibility: &str,
     limit_clause: &str,
 ) -> String {
-    body_fts_rank_sql_view(validity, lifecycle, eligibility, limit_clause, &ReadView::default())
+    body_fts_rank_sql_view("", validity, lifecycle, eligibility, limit_clause, &ReadView::default())
 }
 
 pub(crate) fn body_fts_rank_sql_view(
+    fts_prefilter: &str,
     validity: &str,
     lifecycle: &str,
     eligibility: &str,
@@ -1399,7 +1400,7 @@ pub(crate) fn body_fts_rank_sql_view(
          bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid, cn.write_cursor, \
          search_index.body IS cn.body, search_index.kind IS cn.kind, cn.properties FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
-         WHERE search_index MATCH ?1 {existence}{validity}{lifecycle}{eligibility} \
+         WHERE search_index MATCH ?1{fts_prefilter} {existence}{validity}{lifecycle}{eligibility} \
          ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
     )
 }

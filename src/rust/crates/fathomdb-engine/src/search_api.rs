@@ -269,6 +269,7 @@ impl Engine {
             request.use_graph_arm,
             request.alpha,
             request.pool_n as usize,
+            request.include_explanation,
             if self.runtime_embedder.is_none() {
                 ProjectionRuntimeStateV1::Absent
             } else {
@@ -2067,6 +2068,23 @@ pub fn slice35_ranked_eligibility_sql_for_test(
 #[doc(hidden)]
 pub fn take_slice71_search_statement_trace_for_test() -> Vec<String> {
     slice71_search_statement_trace()
+        .lock()
+        .map(|mut trace| std::mem::take(&mut *trace))
+        .unwrap_or_default()
+}
+
+/// Enable or disable Slice 41 raw SQL statement tracing across managed connections.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn set_slice41_sql_trace_enabled_for_test(enabled: bool) {
+    crate::search::set_slice41_sql_trace_enabled(enabled);
+}
+
+/// Return and clear the captured Slice 41 raw SQL statement trace.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn take_slice41_sql_trace_for_test() -> Vec<String> {
+    crate::search::slice41_sql_trace()
         .lock()
         .map(|mut trace| std::mem::take(&mut *trace))
         .unwrap_or_default()

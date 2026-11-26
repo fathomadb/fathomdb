@@ -136,6 +136,64 @@ const READ_COLLECTION_MAX_LIMIT: usize = 1_000_000;
 /// returned slot per requested id, in REQUEST ORDER; `None` where no ACTIVE row
 /// (`superseded_at IS NULL`) carries that id. Mirrors the canonical
 /// projection columns + `logical_id`; superseded versions are never returned.
+pub(crate) fn build_read_get_by_id_sql(
+    unique: &[&String],
+    view: &ReadView,
+    scope: &ScopePredicate,
+    has_source_dependencies: bool,
+) -> (String, Vec<rusqlite::types::Value>) {
+    let mut binds: Vec<rusqlite::types::Value> = Vec::with_capacity(unique.len() + 4);
+    let mut scope_sql = String::new();
+    scope.append_sql_values("canonical_nodes.scope", &mut scope_sql, &mut binds);
+    let lid_start = binds.len() + 1;
+    let placeholders = (lid_start..lid_start + unique.len())
+        .map(|idx| format!("?{idx}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    for s in unique {
+        binds.push(rusqlite::types::Value::Text((*s).clone()));
+    }
+    let state_sql =
+        if view.include_inactive { "" } else { " AND canonical_nodes.state = 'active'" };
+    let now_idx = binds.len() + 1;
+    let validity_sql = view.validity_sql("canonical_nodes", now_idx);
+    if let Some(now) = view.now_param() {
+        binds.push(rusqlite::types::Value::Integer(now));
+    }
+    let dep_sql = if has_source_dependencies {
+        crate::dependency_closure::read_eligibility_sql(
+            "canonical_nodes",
+            view.include_superseded,
+            view.include_inactive,
+            view.include_out_of_window,
+            now_idx,
+        )
+    } else {
+        String::new()
+    };
+    let sql = if view.include_superseded {
+        format!(
+            "SELECT logical_id, kind, body, write_cursor, properties \
+             FROM canonical_nodes \
+             WHERE {scope_sql} AND logical_id IN ({placeholders}) \
+               AND canonical_nodes.superseded_at IS NULL{state_sql}{validity_sql}{dep_sql} \
+             UNION ALL \
+             SELECT logical_id, kind, body, write_cursor, properties \
+             FROM canonical_nodes \
+             WHERE {scope_sql} AND logical_id IN ({placeholders}) \
+               AND canonical_nodes.superseded_at IS NOT NULL{state_sql}{validity_sql}{dep_sql}"
+        )
+    } else {
+        format!(
+            "SELECT logical_id, kind, body, write_cursor, properties \
+             FROM canonical_nodes \
+             WHERE {scope_sql} AND logical_id IN ({placeholders}) \
+               AND canonical_nodes.superseded_at IS NULL{state_sql}{validity_sql}{dep_sql}"
+        )
+    };
+    (sql, binds)
+}
+
 pub(crate) fn read_get_by_id_in_tx(
     reader: &mut Connection,
     logical_ids: &[String],
@@ -149,39 +207,16 @@ pub(crate) fn read_get_by_id_in_tx(
     }
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     // De-duplicate the requested ids for the IN(...) probe, then re-expand into
-    // request order (a repeated id echoes the same active row).
+    // request order (a repeated id echoes the same winning row).
     let mut found: HashMap<String, NodeRecord> = HashMap::new();
     {
         let unique: Vec<&String> = {
             let mut seen = std::collections::HashSet::new();
             logical_ids.iter().filter(|id| seen.insert((*id).clone())).collect()
         };
-        let mut binds: Vec<rusqlite::types::Value> = Vec::with_capacity(unique.len() + 4);
-        let mut scope_sql = String::new();
-        scope.append_sql_values("scope", &mut scope_sql, &mut binds);
-        let lid_start = binds.len() + 1;
-        let placeholders = (lid_start..lid_start + unique.len())
-            .map(|idx| format!("?{idx}"))
-            .collect::<Vec<_>>()
-            .join(", ");
-        for s in &unique {
-            binds.push(rusqlite::types::Value::Text((*s).clone()));
-        }
-        let now_idx = binds.len() + 1;
-        let node_sql = view.node_sql("canonical_nodes", now_idx);
-        if let Some(now) = view.now_param() {
-            binds.push(rusqlite::types::Value::Integer(now));
-        }
-        // R-20-RV: with `include_superseded` a logical_id can match several
-        // rows. `ORDER BY write_cursor` + last-write-wins into `found` resolves
-        // the slot DETERMINISTICALLY to the most recent version, rather than
-        // leaving it at the mercy of scan order.
-        let sql = format!(
-            "SELECT logical_id, kind, body, write_cursor, properties
-             FROM canonical_nodes
-             WHERE {scope_sql} AND logical_id IN ({placeholders}){node_sql}
-             ORDER BY write_cursor"
-        );
+        let has_source_dependencies =
+            crate::dependency_closure::has_source_dependencies(&tx, scope)?;
+        let (sql, binds) = build_read_get_by_id_sql(&unique, view, scope, has_source_dependencies);
         let mut statement = tx.prepare(&sql)?;
         let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
             let logical_id: String = row.get(0)?;
@@ -195,7 +230,16 @@ pub(crate) fn read_get_by_id_in_tx(
         })?;
         for row in rows {
             let record = row?;
-            found.insert(record.logical_id.clone(), record);
+            match found.entry(record.logical_id.clone()) {
+                std::collections::hash_map::Entry::Occupied(mut existing) => {
+                    if record.write_cursor > existing.get().write_cursor {
+                        existing.insert(record);
+                    }
+                }
+                std::collections::hash_map::Entry::Vacant(vacant) => {
+                    vacant.insert(record);
+                }
+            }
         }
     }
     // tx is read-only; dropping it rolls back the (empty) transaction.

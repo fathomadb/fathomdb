@@ -593,11 +593,29 @@ fn stored_canonical_source_revision_id_is_valid(value: &str) -> bool {
     stored_artifact_revision_id_is_valid(value) && stored_source_revision_id_is_valid(value)
 }
 
+/// Already-verified canonical source body paired with its computed SHA-256 hex
+/// digest, allowing persisted provenance validators on the same read path to
+/// avoid redundant SHA-256 passes while verifying byte equality defensively.
+#[derive(Clone, Copy)]
+pub(crate) struct VerifiedSourceBody<'a> {
+    pub(crate) body: &'a str,
+    pub(crate) sha256_hex: &'a str,
+}
+
 #[allow(dead_code)] // Used by the Slice 25 prospective-write constructor.
 pub(crate) fn load_persisted_canonical_source(
     connection: &Connection,
     scope: &str,
     source_revision: &str,
+) -> Result<Option<ProspectiveCanonicalSource>, EngineError> {
+    load_persisted_canonical_source_with_verified_hash(connection, scope, source_revision, None)
+}
+
+pub(crate) fn load_persisted_canonical_source_with_verified_hash(
+    connection: &Connection,
+    scope: &str,
+    source_revision: &str,
+    verified: Option<VerifiedSourceBody<'_>>,
 ) -> Result<Option<ProspectiveCanonicalSource>, EngineError> {
     if !stored_canonical_source_revision_id_is_valid(source_revision) {
         return Err(EngineError::Storage);
@@ -718,6 +736,10 @@ pub(crate) fn load_persisted_canonical_source(
     {
         return Err(EngineError::Storage);
     }
+    let hash_matches = match verified {
+        Some(v) if v.body == body => hash == v.sha256_hex,
+        _ => hash == canonical_body_hash(&body),
+    };
     if version_schema != 1
         || link_schema != 1
         || canonical_source_id != version_source_id
@@ -729,7 +751,7 @@ pub(crate) fn load_persisted_canonical_source(
         || start.is_some()
         || end.is_some()
         || algorithm != "sha256"
-        || hash != canonical_body_hash(&body)
+        || !hash_matches
     {
         return Err(dependency_validation_error(
             DependencyValidationMode::Requested,
@@ -749,6 +771,24 @@ pub(crate) fn validate_dependency_chain(
     requested_source_revision: &str,
     derived_revision: &str,
     mode: DependencyValidationMode,
+) -> Result<(), EngineError> {
+    validate_dependency_chain_with_verified_hash(
+        connection,
+        scope,
+        requested_source_revision,
+        derived_revision,
+        mode,
+        None,
+    )
+}
+
+pub(crate) fn validate_dependency_chain_with_verified_hash(
+    connection: &Connection,
+    scope: &str,
+    requested_source_revision: &str,
+    derived_revision: &str,
+    mode: DependencyValidationMode,
+    verified: Option<VerifiedSourceBody<'_>>,
 ) -> Result<(), EngineError> {
     if !stored_canonical_source_revision_id_is_valid(requested_source_revision)
         || !stored_artifact_revision_id_is_valid(derived_revision)
@@ -979,10 +1019,10 @@ pub(crate) fn validate_dependency_chain(
             DependencyErrorReason::DependencyReferenceMissing,
         ));
     };
-    let computed_hash = Sha256::digest(canonical_body.as_bytes())
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
+    let hash_matches = match verified {
+        Some(v) if v.body == canonical_body => self_hash == v.sha256_hex,
+        _ => self_hash == canonical_body_hash(&canonical_body),
+    };
     if ![
         derived_source_id.as_str(),
         link_source_id.as_str(),
@@ -1034,7 +1074,7 @@ pub(crate) fn validate_dependency_chain(
         && hash_algorithm == "sha256"
         && self_algorithm == "sha256"
         && link_hash == self_hash
-        && self_hash == computed_hash
+        && hash_matches
         && locator_valid;
     if !consistent {
         return Err(match mode {

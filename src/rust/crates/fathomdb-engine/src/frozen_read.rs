@@ -212,7 +212,8 @@ fn mint_inner(
     #[cfg(feature = "test-hooks")]
     let snapshot_started = Instant::now();
     let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-    tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
+    tx.prepare_cached("SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton = 1")
+        .and_then(|mut stmt| stmt.query_row([], |row| row.get::<_, i64>(0)))
         .map_err(|_| EngineError::Storage)?;
     crate::filter::validate_filter_attributes_on_snapshot(&tx, &resolved.eligibility).map_err(
         |error| match error {

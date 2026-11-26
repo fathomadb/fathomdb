@@ -146,14 +146,27 @@ fn runtime_revision_id(write: &PreparedWrite, scope: &str, cursor: u64) -> Strin
     format!("_fdb:r:{}", hex_encode(&hasher.finalize()))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 thread_local! {
     pub(crate) static CANONICAL_BODY_HASH_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
+static CANONICAL_BODY_HASH_CALLS_GLOBAL: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[doc(hidden)]
+pub fn canonical_body_hash_calls_for_test() -> usize {
+    CANONICAL_BODY_HASH_CALLS_GLOBAL.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 pub(crate) fn canonical_body_hash(body: &str) -> String {
-    #[cfg(test)]
-    CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(calls.get() + 1));
+    #[cfg(any(test, feature = "test-hooks"))]
+    {
+        CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(calls.get() + 1));
+        CANONICAL_BODY_HASH_CALLS_GLOBAL.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
     hex_encode(&Sha256::digest(body.as_bytes()))
 }
 

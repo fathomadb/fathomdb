@@ -291,6 +291,7 @@ pub(super) fn detect_vector_soft_fallback(
     query_vector: Option<&str>,
     vector_eligibility_degraded: bool,
     vector_rows_visible: bool,
+    has_vector_kinds: bool,
     scope: &crate::scope::ScopePredicate,
 ) -> rusqlite::Result<Option<SoftFallback>> {
     #[cfg(any(test, feature = "slice30-observer"))]
@@ -299,7 +300,7 @@ pub(super) fn detect_vector_soft_fallback(
     let mut probe_attempted = false;
     let selected = if vector_eligibility_degraded {
         Some(SoftFallback { branch: SoftFallbackBranch::Vector })
-    } else if query_vector.is_some() && !vector_rows_visible {
+    } else if query_vector.is_some() && !vector_rows_visible && has_vector_kinds {
         #[cfg(any(test, feature = "slice30-observer"))]
         {
             probe_attempted = true;

@@ -8,7 +8,10 @@ use crate::filter::{Filter, Predicate, PREDICATE_PATH_ALLOWLIST};
 use crate::frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
 use crate::pagination::{self, PageRequestV1, PageV1};
 #[cfg(feature = "test-hooks")]
-use crate::read::{canonical_page_query, operational_state_page_sql, operational_state_point_sql};
+use crate::read::{
+    build_read_get_by_id_sql, canonical_page_query, operational_state_page_sql,
+    operational_state_point_sql,
+};
 use crate::read::{
     NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError, VisibilityStateV1,
 };
@@ -492,5 +495,39 @@ impl Engine {
                 Ok((name.to_string(), details))
             })
             .collect()
+    }
+
+    /// Test-only SQL and `EXPLAIN QUERY PLAN` output for `read_get_by_id_in_tx`.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn read_get_by_id_explain_plan_for_test(
+        &self,
+        logical_ids: &[String],
+        view: ReadView,
+    ) -> Result<(String, Vec<String>), EngineError> {
+        let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
+        let connection = open_managed_connection(
+            &self.path,
+            ManagedConnectionCategory::RuntimeProbe,
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        let unique: Vec<&String> = {
+            let mut seen = std::collections::HashSet::new();
+            logical_ids.iter().filter(|id| seen.insert((*id).clone())).collect()
+        };
+        let has_deps = dependency_closure::has_source_dependencies(&connection, &scope)
+            .map_err(|_| EngineError::Storage)?;
+        let (sql, binds) = build_read_get_by_id_sql(&unique, &view, &scope, has_deps);
+        let mut statement = connection
+            .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+            .map_err(|_| EngineError::Storage)?;
+        let details = statement
+            .query_map(rusqlite::params_from_iter(binds.iter()), |row| row.get(3))
+            .map_err(|_| EngineError::Storage)?
+            .collect::<Result<Vec<String>, _>>()
+            .map_err(|_| EngineError::Storage)?;
+        Ok((sql, details))
     }
 }

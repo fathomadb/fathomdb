@@ -11,7 +11,11 @@
     {
       "path": "dev/design/actuation.md",
       "profile": "current",
-      "semantic_authority": ["dev/adr/ADR-0.8.25-bounded-atomic-actuation.md"],
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.25-bounded-atomic-actuation.md",
+        "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
+        "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md"
+      ],
       "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/slice25_actuation.rs"],
       "evidence_only": []
     },
@@ -46,7 +50,12 @@
     {
       "path": "dev/design/engine.md",
       "profile": "current",
-      "semantic_authority": ["dev/adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md"],
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md",
+        "dev/adr/ADR-0.8.28-transactional-visibility-coalescing.md",
+        "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md"
+      ],
       "implementation_witness": ["src/rust/crates/fathomdb-engine/src/lib.rs"],
       "evidence_only": []
     },
@@ -99,6 +108,9 @@
       "path": "dev/design/fathomdb-data-plane-architecture-v2.md",
       "profile": "current",
       "semantic_authority": [
+        "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
+        "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
         "dev/interfaces/rust.md",
         "dev/requirements.md"
       ],
@@ -127,6 +139,8 @@
       "path": "dev/design/mcp-adapter/design.md",
       "profile": "current",
       "semantic_authority": [
+        "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
         "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
         "dev/interfaces/mcp.md"
       ],
@@ -143,6 +157,8 @@
       "path": "dev/design/mcp-adapter/requirements.md",
       "profile": "current",
       "semantic_authority": [
+        "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
         "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
         "dev/interfaces/mcp.md"
       ],
@@ -239,7 +255,12 @@
     {
       "path": "dev/design/retrieval.md",
       "profile": "current",
-      "semantic_authority": ["dev/adr/ADR-0.8.25-eligibility-and-frozen-reads.md"],
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.25-compact-source-evidence.md",
+        "dev/adr/ADR-0.8.25-eligibility-and-frozen-reads.md",
+        "dev/adr/ADR-0.8.25-frozen-pagination-and-operational-state.md",
+        "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md"
+      ],
       "implementation_witness": ["src/rust/crates/fathomdb-engine/src/lib.rs"],
       "evidence_only": []
     },

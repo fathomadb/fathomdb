@@ -1,9 +1,9 @@
 ---
 title: Actuation Subsystem Design
-date: 2026-09-15
-target_release: 0.8.28
+date: 2026-11-26
+target_release: 0.8.32
 desc: Atomic caller-decided semantic batches, prospective validation, compact receipts, replay, and lifecycle effects
-blast_radius: fathomdb-engine actuation; Rust/Python/TypeScript bindings; schema-37 receipt tables
+blast_radius: fathomdb-engine actuation; Rust/Python/TypeScript bindings; schema-39 receipt tables
 status: ACTIVE
 ---
 
@@ -18,17 +18,18 @@ their declared durable effects.
 ## One changed-in-place V1 grammar
 
 `ActuationBatchV1` contains 1–128 ordered operations and one caller-owned
-`operation_id`. `ActuationOperationV1` has exactly five variants:
+`operation_id`. `ActuationOperationV1` has six variants:
 
 - `PutCanonicalNode`;
 - `PutDerivedNode`;
 - `PutDerivedEdge`;
-- `RegisterSourceDependency`; and
-- `TransitionLifecycle`.
+- `RegisterSourceDependency`;
+- `TransitionLifecycle`; and
+- `PutLatestState`.
 
 There is no V2 type, parser, method, router, redirect, or historical V1 reader.
-The current request, digest, receipt, replay, and integrity rules apply only to
-fresh schema-37 databases.
+The current request, digest, receipt, replay, and integrity rules apply to
+Schema 39 databases (migrated from Schema 38 or created fresh).
 
 ## Admission and prospective validation
 
@@ -74,9 +75,13 @@ A current receipt with pending projection cursors always names its commit-time
 generation; a missing generation identity is corruption and is never covered
 by an unrelated retained legacy generation.
 
-Source erasure or purge redacts receipt content and source-reference rows but
-retains an opaque operation-ID tombstone. The ID therefore remains permanently
-reserved without retaining erased evidence.
+Source erasure (`erase_source`) redacts receipt content and source-reference
+rows for all receipts bound to that `source_id`, retaining opaque operation-ID
+tombstones (`OperationIdErased`) so those IDs remain permanently reserved
+without retaining erased evidence. Single-node `purge(logical_id)` redacts only
+receipts referencing the purged `logical_id` / purged revision cursors and MUST
+NOT pass a shared `source_id` bucket into receipt redaction, preserving cached
+receipt replay for surviving sibling entities that share the same `source_id`.
 
 ## Projection and lifecycle effects
 

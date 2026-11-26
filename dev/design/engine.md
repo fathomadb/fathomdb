@@ -1,6 +1,6 @@
 ---
 title: Engine Subsystem Design
-date: 2026-09-17
+date: 2026-11-26
 target_release: 0.8.32
 desc: Current open, connection, write, projection, cursor, identity, and close design
 blast_radius: fathomdb-engine runtime/writer/reader; interfaces/*.md; requirements and acceptance engine intersections
@@ -111,7 +111,13 @@ operations and cannot reactivate history.
 
 Search results expose a typed public `IdSpace`, which is distinct from the
 internal positional `write_cursor`. The two must not be conflated in binding or
-pagination code.
+pagination code. Direct logical lookup (`read.get` / `read.get_many`) with
+`include_superseded = true` avoids scanning `canonical_nodes` by emitting a
+zero-schema-change `UNION ALL` over existing
+`canonical_nodes_scope_logical_active_idx` and
+`canonical_nodes_scope_logical_sup_idx`, performing max-`write_cursor`
+tiebreaking in Rust (no SQL `ORDER BY write_cursor`), and gating
+`read_eligibility_sql` on `has_source_dependencies`.
 
 ## Batch submission semantics
 
@@ -139,8 +145,10 @@ positions; the batch receipt's `cursor` is the last one.
 
 Projection progress has separate generation/readiness authority. A canonical
 write cursor therefore does not claim that asynchronous vector work is already
-visible. Frozen reads authenticate both the canonical boundary and the
-relevant dependency/projection generations.
+visible. Frozen reads authenticate the canonical boundary and surface-relevant
+dependency/projection partitions (`ADR-0.8.32` `#103` `ReadSurface`-selective
+validation on Schema `39+`, where `OperationalState` and `CanonicalPage`
+intentionally skip unrelated dependency/projection partitions).
 
 ## Projection maintenance
 
@@ -278,13 +286,30 @@ retained in Git history but are not current 0.8.32 authority.
 
 ## Transactional visibility coalescing
 
-The [technical successor ADR](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+The [technical successor ADR](../adr/ADR-0.8.28-transactional-visibility-coalescing.md),
+[partitioned frozen-read ADR `#103`](../adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md),
 and `TABLE_MANIFEST` in `fathomdb-schema` own the visibility-trigger manifest
-and outer writer admission inventory. An owned
-IMMEDIATE canonical/projection transaction arms the persisted integer marker,
-retains fresh fence reads and mapping cleanup, and atomically advances the
-checked generation/random nonce while clearing the marker before commit.
-Missing, malformed or committed-armed state refuses writer/frozen binding
-admission. Native trigger execution is checked but never toggled, preserving compiled
-SQLite programs across the owned interval. Transaction
-rollback owns cleanup; no destructor SQL can create an autocommit disarm.
+and outer writer admission inventory across all 20 trigger-bearing tables
+(`8` scope-bearing: `cn, ce, ar, sv, sl, sd, dc, os`; `5` row-owned:
+`ca, vr, vs, pt, cpv`; `7` global metadata: `oc, pr, vk, ep, pg, pc, ps`). An owned IMMEDIATE transaction — generalized across all non-`AdminSchema` write
+batches (canonical, `OpStore` `AppendOnlyLog`/`LatestState`, and mixed
+`[Node/Edge, OpStore]` batches retaining `('up_to_date', 'non_canonical')`
+terminal cursors and `advance_projection_cursor` without deadlocks), plus
+`actuate`, `record_lifecycle::transition`, `purge_inner`, `excise_source`, and
+`physical_erasure::sanitize_unit` (gated on `canonical_batch_has_no_custom_triggers`
+/ `guard_canonical_custom_triggers`), alongside `projection_commit` (gated on
+`projection_batch_has_no_custom_triggers` / `guard_projection_custom_triggers`,
+which additionally guards `vector_default`) — arms the persisted integer marker
+(`coalescing = 1`), retains fresh fence reads and mapping cleanup, explicitly
+upserts only the touched `(scope, partition_kind)` rows in
+`_fathomdb_scope_visibility_watermarks` (and `(global_struct_gen, global_struct_nonce)`
+only on global structural mutations such as `mean_vec` pin or projection
+registry/generation changes), and atomically advances the checked global
+`_fathomdb_read_visibility_state.(generation, state_nonce)` while clearing the
+marker before commit. Raw uncoalesced (`coalescing = 0`) SQL triggers fail
+closed per table class (scope-local on scope-bearing tables; DB-wide
+`global_struct` on row-owned/global tables). Missing, malformed, or
+committed-armed state refuses writer/frozen binding admission. Native trigger
+execution is checked but never toggled, preserving compiled SQLite programs
+across the owned interval. Transaction rollback owns cleanup; no destructor
+SQL can create an autocommit disarm.

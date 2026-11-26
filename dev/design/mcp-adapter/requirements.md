@@ -1,6 +1,6 @@
 ---
 title: MCP adapter requirements and acceptance criteria
-date: 2026-11-25
+date: 2026-11-26
 status: ACTIVE
 desc: Falsifiable requirements and acceptance criteria (MR-###, SC-01..SC-10, AC32-MCP-SAFETY-01..09) for the production read+write fathomdb-mcp server over FathomDB.
 inputs:
@@ -40,13 +40,17 @@ Conventions:
 - **[engine]** marks a requirement that needs a new or extended `fathomdb-sdk`
   verb, under its own ADR, before the adapter can meet it. Until then the
   adapter reports the signal as `unavailable` (MR-032), never an approximation.
-- "Store state" means the engine's read-visibility generation. Triggers advance
-  it on canonical, source, dependency, projection, vector and op-store tables,
-  so it moves both when records change and when a projection commit changes
-  what is searchable. It is monotonic. The canonical write boundary
-  (`MAX(write_cursor)` over four tables) and the projection cursor are read
-  beside it only to classify the cause. They are not monotonic proofs: the write
-  boundary can fall after a purge.
+- "Store state" means the engine's read-visibility generation (`EP-01`
+  `read::visibility_state`, shipped in `0.8.32`). Triggers and coalesced commit
+  paths advance it across canonical, source, dependency, projection, vector,
+  and op-store tables, so it moves both when records change and when a
+  projection commit changes what is searchable. It is monotonic. The canonical
+  write boundary (read via `load_next_cursor` across canonical, operational,
+  commit-timestamp, and projection-terminal tables) and the projection cursor
+  are read beside it only to classify telemetry (`Envelope.state`), never as a
+  global pre-gate on Schema `39+` partitioned `FrozenReadContextV1` sessions
+  (`ADR-0.8.32` `#103`). They are not monotonic proofs: the write boundary can
+  fall after a purge.
 - Test seams for delays and blocked calls (MR-003, MR-033) live in the
   adapter's own bridge, behind a test-only feature of the adapter crate; they
   need no engine hook.
@@ -207,8 +211,10 @@ Meets AN-002.
 relative to the response's validity instant and whether a newer record
 superseded it. Meets AN-003. **[engine]** for search hits and for fetch:
 `SearchHit` carries id, kind, body, scores and `source_id`, and `NodeRecord`
-carries `logical_id`, `kind`, `body` and `write_cursor`; neither carries
-validity or supersession fields, and `read.get` materialises active rows only.
+carries `logical_id`, `kind`, `body` and `write_cursor`; neither exposes
+per-record validity or supersession fields (`EP-06`), while `read.get` /
+`read.get_many` defaults to active, non-superseded rows and supports opt-in
+`include_superseded` (via `ReadView`).
 
 - MR-013.1 On a fixture with a superseded record and an expired record, every
   read tool that returns them, under a view that includes them, reports the
@@ -217,11 +223,12 @@ validity or supersession fields, and `read.get` materialises active rows only.
 
 **MR-014 — Operator-bound scope.** The operator can bind an adapter session to
 a scope; every tool honours it inside the engine, and no tool argument can
-widen it. Meets AN-019. **[engine]**: today eligibility reaches only the search
-family; `read.get`, `read.get_many`, `read.list` predicates, `graph.neighbors`,
-aggregates and change queries take none. Until the engine applies scope to
-every read path, the adapter refuses to start with a scope configured (fails
-closed), rather than filtering in the adapter.
+widen it. Meets AN-019. Graduated in `0.8.32` via Schema 39 engine-enforced
+`ScopePolicy` (`ADR-0.8.32` `#102`) across read (`read.get`, `read.get_many`,
+`read.list`), search, graph, frozen-evidence, and write paths alongside
+`SC-01`–`SC-10` fail-fast startup conflict enforcement (`ADR-0.8.32` `#99`,
+while deferred `EP-05`/`EP-16` aggregate counts and change queries remain
+outside current tool scope).
 
 - MR-014.1 With a session bound to scope A, no read tool returns a record
   outside A, including by direct reference and through neighbours of an
@@ -231,12 +238,11 @@ closed), rather than filtering in the adapter.
   "valid, no match" distinction.
 - MR-014.3 Counts (MR-022) and change queries (MR-055) in a scoped session
   reflect only records in A.
-- MR-014.4 Launching with a scope configured, on an engine without scoped point
-  reads, fails at startup with a typed error naming the missing capability. Two
-  checks apply: a build-time capability of the linked SDK, which runs before
-  the handshake, and a schema check after open (from the open report), whose
-  failure is reported through the MR-003.3 path, since a file can predate the
-  schema step even when the SDK supports it.
+- MR-014.4 Under `0.8.32` (`SC-01`–`SC-10`), invalid or conflicting scope
+  configurations (including enabling `allow_writes: true` without an explicit
+  non-empty writable caller `ScopePolicy`, or attempting to open a non-Schema-39
+  database via `MR-003.3` `IncompatibleSchemaVersion`) fail closed at startup
+  or open without weakening scope isolation.
 - MR-014.5 Records written through the adapter carry the session's scope as
   stamped by the engine from launch policy, not from the body; an agent cannot
   write into another scope.
@@ -473,13 +479,14 @@ AN-011.
 **MR-050 — State identity on every response.** Every read response carries a
 state identifier derived from the store state only, and the validity instant as
 a separate field. Two responses with equal identifiers read the same visible
-store, including what was searchable. Meets AN-013. **[engine]**: a
-content-free read, on a reader connection, of the visibility generation, the
-canonical write boundary and the projection cursor. `freeze_read_context` cannot
-serve: it takes the writer-connection lock and counts every canonical row.
-Until that supported read exists, state is optional in schema and omitted in
-both formats. Orient discloses state among exactly state/verdict/kinds/counts.
-Epoch and validity instant remain separate facts, not substitute freshness IDs.
+store, including what was searchable. Meets AN-013. Shipped in `0.8.32` via
+`EP-01` (`read::visibility_state` on a reader connection returning the
+visibility generation, canonical write boundary, and projection cursor; note
+that `freeze_read_context` also pins snapshots in `O(1)` via
+`_fathomdb_read_visibility_state` under `0.8.32` Slice 41 and validates
+partitioned drift directly via `ADR-0.8.32` `#103`). Orient discloses state
+among exactly state/verdict/kinds/counts. Epoch and validity instant remain
+separate facts, not substitute freshness IDs.
 
 - MR-050.1 Two reads with no intervening commit of any kind, with different
   filters and an unpinned validity instant, report the same identifier.
@@ -555,9 +562,10 @@ enables writing at launch; with writing disabled, write tools are absent from
 record a fact, replace a record by reference, and retract a record by reference;
 each returns the resulting reference and a cursor. Every record the adapter
 writes has a logical id, so it can later be replaced or retracted, and a kind
-from the operator's launch allow-list. Meets AN-017. The write family is not in
-the first release: it waits for engine-stamped origin class (MR-011) and scope
-(MR-014.5).
+from the operator's launch allow-list. Meets AN-017. Graduated in `0.8.32`
+(`ADR-0.8.32` `#99` & `#102`) as opt-in per-store caller-scoped `actuate` and
+`put_latest_state` tools under `SC-01`–`SC-10` and `AC32-MCP-SAFETY-01`–`09`
+(while engine-stamped `origin_class` `EP-10` remains deferred).
 
 - MR-061.1 A remembered fact is returned by a following search in the same
   session (with the MR-051.2 label).
@@ -631,11 +639,16 @@ Meets AN-009.
   hints. A `fetch` whose items fit only without the `body_cut` hint is still
   refused, as when they cannot fit at all.
 
-## First-release scope
+## Historical `0.8.27` evaluation baseline (superseded by `0.8.32`)
 
-The first release ships only what the 0.8.27 SDK supports plus one engine
-addition, the state read (MR-050). It is read-only, with no scope
-binding.
+> **Superseded in `0.8.32`:** Production `0.8.32` (`ADR-0.8.32` `#99`, `#102`,
+> `#103`) ships live `EP-01` (`read::visibility_state`, `MR-050`), `EP-07`
+> (`create_if_missing`), Schema 39 caller-scope enforcement (`ScopePolicy`,
+> `MR-014`), scoped frozen-evidence resolution across close/reopen, and opt-in
+> governed write tools (`actuate`, `put_latest_state`, `AC32-MCP-SAFETY-01`–`09`).
+> Only `EP-05` (`read::kinds`), `EP-10`'s `origin_class` (`MR-011`), `EP-13`
+> (`vector_distance`/`text_bm25`), and `EP-16` remain deferred. The table below
+> is retained solely as the historical `0.8.27` evaluation baseline.
 
 | Group | Requirements |
 | --- | --- |

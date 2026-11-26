@@ -1,6 +1,6 @@
 ---
 title: Retrieval Subsystem Design
-date: 2026-09-17
+date: 2026-11-26
 target_release: 0.8.32
 desc: Current lexical, vector, fusion, reranking, graph, frozen-view, explanation, and evidence pipeline
 blast_radius: fathomdb-query; fathomdb-engine retrieval/frozen/evidence/graph paths; SDK search and graph interfaces
@@ -92,11 +92,28 @@ text participates only through the registered projection grammar. Direct
 `search_text_only*` requests preserve the stable prefix contract: the unfiltered
 node-only fast path reads the hidden-rank stream through the complete score
 group crossing its fixed candidate boundary, restores stable
-`(bm25 score, write_cursor)` order, and then applies the public limit. Filters,
-edge-bearing workspaces, unsupported shapes, and statement/stream-row failures
-use the full stable-sort path. A row decoding failure on that path propagates
-`EngineError::Storage`; it must not return a partial result. The optimization
-does not change public ordering.
+`(bm25 score, write_cursor)` order, and then applies the public limit. Filtered
+FTS-only `search_frozen` and `search_with_evidence` push `search_index.kind = ?`
+before joining `canonical_nodes`, use FTS5 `ORDER BY rank` streaming /
+`collect_complete_fusion_rank_boundary` for deterministic `(bm25 score, write_cursor)`
+prefixes (never applying an `ORDER BY`-less `LIMIT` on `defer_full_hydration`),
+cap `fts_only_limit` when `_fathomdb_vector_kinds` is empty strictly when
+`!use_graph_arm && !recency_enabled && !importance_enabled` (respecting
+`rerank_depth` pool bounds when `rerank_depth > 0`), and defer
+`build_importance_confidence_maps` until after `truncate(final_limit)` whenever
+`!importance_enabled` (preserving `EngineError::Storage` propagation on row
+decode failure for all surviving hits `<= final_limit`). Unscoped single-store
+detection (`store_single_unscoped`) uses `SEARCH`-only `EXISTS(... WHERE scope < '' LIMIT 1) OR EXISTS(... WHERE scope > '' LIMIT 1)`
+range probes gated behind cheap booleans; `detect_vector_soft_fallback`
+short-circuits in `O(1)` via `EXISTS(SELECT 1 FROM _fathomdb_vector_kinds LIMIT 1)`;
+`historical_dense_incomplete` short-circuits immediately when
+`query_vector.is_none()`; and `DEFERRED` snapshot pinning in both
+`frozen_read::mint_inner` and `graph_expand/execution.rs` (`Current` branch)
+reads `_fathomdb_read_visibility_state WHERE singleton = 1` in `O(1)` instead
+of scanning `canonical_nodes`. Edge-bearing workspaces, unsupported shapes, and
+statement/stream-row failures use the full stable-sort path. A row decoding
+failure on that path propagates `EngineError::Storage`; it must not return a
+partial result. The optimization does not change public ordering.
 
 ### Vector collection and fusion
 
@@ -145,6 +162,37 @@ eligibility envelope. Reproduction succeeds only while those facts remain
 available and coherent; tamper, foreign database, or state drift returns the
 typed frozen-read outcome rather than silently reading current state.
 
+On Schema `39+` databases ([ADR-0.8.32 `#103`](../adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md)),
+`FrozenReadBinding` binds only the visibility partitions intersected by
+`scope.read_scopes()` (`ScopePolicy::Unscoped` resolves uniformly to `[""]`),
+`ReadContextV1.eligibility`, and the caller's active `ReadSurface`
+(`OperationalState`, `CanonicalPage`, `Preflight`, `SearchNoGraph`,
+`EvidenceNode`, `GraphOrEdge`, `EvidenceGraph`, `TraceDependency`) using
+`_fathomdb_scope_visibility_watermarks` (`WITHOUT ROWID`),
+`_fathomdb_read_visibility_state.(global_struct_gen, global_struct_nonce)`,
+universal `serving_digest` (`SERVING_DOMAIN_V4` over `global_struct`, sorted
+`current_generation`, and `(scope, 'scope_destructive')`), and `34 B`/`66 B`
+trailing `0x53 0x39` surface tags (`492`–`556 B` total `fdbfr1` token vs.
+`1,024 B` cap; Schema `< 39` retains legacy global encoding bit-for-bit).
+`validate_snapshot` always returns the global monotonic
+`load_visibility_generation` clock for `Engine::read_visibility_generation.fetch_max`.
+`search_expand_frozen` (`expand_depth.is_some()`) routes through `GraphOrEdge`;
+`resolve_evidence` and `resolve_evidence_many` perform pre-decode
+`EvidenceNode` validation, post-decode `edge_any` (`projection_cursor`) checks
+for `Edge`/`GraphArm` payloads (emitting per-slot `Refused(EvidenceUnavailable)`
+in `resolve_evidence_many` so unaffected node-only slots resolve), and
+post-resolve TOCTOU re-validation (`EvidenceGraph` when any slot resolved
+`Edge`/`GraphArm`). Unrelated additive writes (disjoint canonical `kind`,
+`operational_mutations` append-only logs, `operational_state` vs. canonical
+surfaces, isolated tenant scopes including destructive mutations in other
+scopes, and unrelated background `projection_worker` commits) preserve frozen
+contexts, while same-partition writes, matching-kind edge-FTS inserts,
+same-scope destructive/dependency mutations, global structural updates, and raw
+`coalescing = 0` SQL fail closed. Eligibility, provenance, lifecycle/validity,
+keyset order, `operational_state`, and graph topology are exact across
+unrelated additive writes; FTS5 `bm25` raw scores reflect live corpus
+`(N, avgdl, df)` statistics rather than frozen IDF snapshots (`ADR #103` §1.7).
+
 Frozen pagination and operational-state reads use their own bound cursor
 contracts. A frozen context is not a permanently held SQLite transaction or a
 persisted lease. Each operation opens a reader transaction and revalidates the
@@ -190,8 +238,8 @@ preserves L2 ordering. `SearchHit`, `fathomdb-mcp` `PerHitOut`, and the
 HMAC-authenticated `EvidenceContributionV1` wire codec remain unchanged.
 
 Snapshot projection-generation status needed by `search(..., explain=true)`,
-`search_frozen(..., explain=true)`, `search_with_evidence`, and query-seeded
-`graph_expand` shares one unified snapshot boundary helper with
+`search_frozen(..., explain=true)`, `search_with_evidence(include_explanation=true)`,
+and query-seeded `graph_expand` shares one unified snapshot boundary helper with
 `read_projection_generation_status` and reuses the engine's scope-partitioned
 `CachedProjectionGenerationStatus` cache across `Engine` and `ReaderWorkerPool`
 with monotonic cache-epoch guarding and per-connection `PRAGMA data_version`
@@ -199,12 +247,36 @@ with monotonic cache-epoch guarding and per-connection `PRAGMA data_version`
 `status_in_snapshot` work `O(1)` under default lifecycle views
 (`!include_superseded && !include_inactive`) while immediately observing
 internal and external SQLite mutations, projection publication, `runtime_state`
-changes, and valid-time membership boundaries.
+changes, and valid-time membership boundaries. Inside `empty_physical_fast_path`,
+the internal `canonical_nodes` aggregation (`node_sql`) is skipped whenever
+`!(node_arm_declared || has_explicit_node_enrolment)` while preserving
+`edge_count` and `edge_count != 0 && !edge_enrolled` corruption checks. When
+`search_with_evidence` is invoked with `include_explanation = false`,
+lightweight `EvidenceContributionV1` capture is decoupled from full
+`explain = true`, skipping status-cache/snapshot checks, structural explain
+hydration, and `vec_distance_cosine` SQL evaluation while producing
+bit-identical `EvidenceContributionV1` payloads.
 
 Compact ranked evidence is also opt-in and resolves under its authenticated
-frozen eligibility envelope to exact source revision, locator, hash, bytes or
-span, lifecycle, contribution, and dependency facts. Authorization and
-nondisclosure precede detailed corruption diagnostics.
+frozen eligibility envelope to exact source revision, locator, hash (computing
+each `source_body` SHA-256 once per resolution rather than duplicating across
+evidence and dependency verification), bytes or span, lifecycle, contribution,
+and dependency facts. Under [ADR-0.8.32 `#103`](../adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md)
+Part 2 (amending `ADR-0.8.25` `#48`), `SearchFilter.property_predicates` is
+artifact-scoped and cleared on `source_filter` alongside `kind` and
+`source_type` across `authorize_source_access`, `query_graph_evidence_batch`,
+and `resolve_graph_evidence`, while access-bearing `attributes`,
+`created_after`, `status`, `ReadView` validity/lifecycle, dependency closures,
+and Schema 39 `ScopePredicate` remain strictly source-enforced. By contrast,
+`trace_dependency` preserves `ADR-0.8.25 #49` symmetric endpoint visibility:
+only its SQL candidate pre-queries omit `property_predicates`, while Rust
+`visible_artifact` in `authorize_candidate_chain` and `include_candidate`
+continues applying full `context.eligibility` (including `kind`, `source_type`,
+and `property_predicates`) to both root and counterpart endpoints (intentionally
+unchanged by `#269` Option A). On `GraphArm`-origin hits, `SearchHit.source_id` intentionally preserves the
+traversed edge's legacy `source_id` while `ResolvedEvidenceV1.source_id`
+resolves the returned node artifact's own canonical provenance source.
+Authorization and nondisclosure precede detailed corruption diagnostics.
 
 Bounded graph expansion has a distinct positional V1 evidence sidecar.
 Frozen-only opaque references bind the selected target and winning terminal

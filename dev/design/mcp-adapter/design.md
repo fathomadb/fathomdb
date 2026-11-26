@@ -1,6 +1,6 @@
 ---
 title: MCP adapter design (production read+write, 0.8.32)
-date: 2026-11-25
+date: 2026-11-26
 status: ACTIVE
 desc: Module structure, lifecycle implementation, rmcp confinement, opt-in scoped write safety (SC-01..SC-10, AC32-MCP-SAFETY-01..09), frozen evidence, and 3-channel distribution design for fathomdb-mcp. Contract in dev/interfaces/mcp.md; semantics in requirements.md.
 inputs:
@@ -76,11 +76,16 @@ delay and block hooks, MR-003.1, MR-033.1). Dev-dependencies add
 
 | Module | Responsibility | rmcp types? |
 | --- | --- | --- |
-| `config` | Parse and validate the JSON config; resolve the registry of names to paths | No |
+| `actuate` | Governed opt-in write (`actuate` / `put_latest_state`) validation, CAS boundary checks, idempotent replay, and strict SDK actuation dispatch | No |
+| `config` | Parse and validate the JSON config (`SC-01`–`SC-10`); resolve the registry of names to paths and `ScopePolicy` | No |
+| `error` | Adapter error taxonomy, secret-scrubbed templates, and `fathomdb_sdk::Error` mapping | No |
+| `hints` | Deterministic, data-free `hints` sidecar generation (`MR-072`) | No |
+| `hooks` | Internal lifecycle/telemetry observer hooks | No |
 | `names` | Store-name grammar and resolution, rejecting paths (MR-005.3) | No |
+| `output` | Compact text and structured JSON envelope formatting and budget rendering | No |
 | `registry` | Store slots, lifecycle state machine, epochs, idle clock, open limit (fixed at 1), LRU choice; owns `Engine`s | No |
 | `bridge` | Readiness gate, admission counter, deadline, `spawn_blocking`, apply-on-open list, `ErrorKind` mapping | No |
-| `session` | Default store, per-store handle tables (continuations, response ids) | No |
+| `session` | Default store, per-store handle tables (continuations, frozen contexts, response ids) | No |
 | `shape` | References, snippets, budget, completeness, degradation, canonical ordering, text rendering. Pure functions | No |
 | `tools` | One function per tool: validate, call bridge, call shape | No |
 | `edge` | `ServerHandler` with `#[tool_router]`; converts tool outcomes to `CallToolResult`; progress notifications | **Yes, only here** |
@@ -120,13 +125,14 @@ closed ──open()──▶ opening ──ok──▶ ready ──idle/switch�
     that carry a token receive progress notifications while they wait
     (MR-006.4). At the deadline the call returns `not_ready` with the phase
     (owner decision, 2026-10-17, FIX-1 CR-1).
-- **Open.** If the entry has `create: false` and the file does not exist, fail
-  with `unavailable/missing_file`; `Engine::open` would otherwise create it. The
-  race between this check and the open is accepted, because the directory is
-  operator-controlled. Then, on a blocking thread, `Engine::open(path,
-  OpenOptions)` and the apply-on-open list (§5). Success sets `ready`, `epoch += 1`. Failure records
-  `last_error` and sets `closed`. The next acquire retries (MR-006.6) but returns
-  the recorded error first if the retry also fails.
+- **Open.** On a blocking thread, `Engine::open(path, OpenOptions)` passes
+  `create_if_missing(entry.create)` (`EP-07`), failing atomically with
+  `DatabaseNotFound` → `unavailable/missing_file` before lock/database creation
+  or embedder/CUDA initialization when `create: false` and the file is missing
+  or zero-length (closing the pre-`0.8.32` check-then-open race), followed by
+  the apply-on-open list (§5). Success sets `ready`, `epoch += 1`. Failure
+  records `last_error` and sets `closed`. The next acquire retries (MR-006.6)
+  but returns the recorded error first if the retry also fails.
 - **Idle.** A single tokio task ticks every second (skipped when
   `idle_timeout_secs == 0`). It drains a `ready` slot when `in_flight == 0` and
   `last_used` is older than the timeout.
@@ -216,21 +222,72 @@ search event).
   - Then the budget pass: drop trailing results until
     the selected format's final-byte predicate holds (interface §3). If any were dropped, set
     `cut_by_budget` and store a continuation.
-- **Continuations.** The session stores `{store, epoch, args, offset}` under
-  `c<epoch>-<hash>`, with the hash as in the interface §4 (SHA-256 over store,
-  canonical arguments and offset, first 16 hex digits). Continuing re-runs the same SDK call with
+- **Continuations & frozen-context sessions.** Unfrozen continuations store
+  `{store, epoch, args, offset}` under `c<epoch>-<hash>`, with the hash as in
+  the interface §4 (SHA-256 over store, canonical arguments and offset, first 16
+  hex digits). Continuing re-runs the same SDK call with
   `limit = min(100, offset + page)` and slices from `offset`. That is exact
   while the store is unchanged (MR-041.2, within the ranked cap). An epoch
-  mismatch returns `invalid_request/stale_handle`.
+  mismatch on an unfrozen continuation returns `invalid_request/stale_handle`.
+  By contrast, cached `FrozenReadContextV1` sessions (`ADR-0.8.32` `#103` §1.4)
+  are durable across MCP close/reopen (`expire_idle` or `max_open_stores = 1`
+  LRU eviction) and MUST NOT reject calls via global `visibility != entry.minted_state`
+  pre-gates, premature `entry.epoch != guard.epoch` checks, or global
+  `after != visibility` / `after != minted_state` post-error checks across
+  either reused or freshly minted `frozen_ctx` handles. Instead, `search`,
+  `fetch` (`resolve_evidence_many` and `graph_refs` `resolve_graph_evidence`),
+  and `expand` pass `frozen_ctx` directly to `fathomdb-sdk` so Schema 39
+  partitioned `validate_snapshot` decides drift; `ErrorKind::FrozenRead(StateDrifted)`
+  maps directly to `state_drift`, and cold-path `ErrorKind::Evidence` while a
+  `frozen_ctx` is active is classified strictly through `MR-070.2`-compliant
+  frozen SDK probes:
+  - `search` (`engine.search_with_evidence`): probes
+    `engine.search_frozen(&ev_req.query, &frozen_ctx, opts)` with matching
+    `opts.use_graph_arm = ev_req.use_graph_arm` and `opts.limit = 1`;
+  - `fetch` (`engine.resolve_evidence_many`): runs a two-step probe —
+    `engine.search_frozen("probe", &frozen_ctx, opts)` with
+    `use_graph_arm = false, limit = 1` (`SearchNoGraph`/`EvidenceNode`), and
+    if `Ok(_)`, `use_graph_arm = true, limit = 1` (`GraphOrEdge`/`EvidenceGraph`
+    TOCTOU `edge_any`);
+  - `fetch` `graph_refs` (`engine.resolve_graph_evidence`): maps
+    `ErrorKind::FrozenRead(StateDrifted)` immediately to whole-call
+    `FetchEvidenceExec::Drifted` and probes `ErrorKind::Evidence` via
+    `engine.search_frozen("probe", &frozen_ctx, opts)` with
+    `use_graph_arm = true, limit = 1` (`GraphOrEdge`), escalating drift to
+    whole-call `FetchEvidenceExec::Drifted` and converting only non-drift
+    evidence errors to per-item `ResolvedFetchSlot` errors;
+  - `expand` (`graph::expand`): maps `ErrorKind::FrozenRead(StateDrifted)`
+    directly and probes `ErrorKind::Evidence` via
+    `engine.search_expand_frozen("probe", &frozen_ctx, 0, SearchExpandOptions { search_limit: 1, view: None })` (`GraphOrEdge`).
+  Live `read::visibility_state` calls remain exclusively for populating
+  `Envelope.state` (`EP-01`).
 - **Response ids.** `r<epoch>-<hash>` (store, canonical arguments, result
   references) maps to `{mode, query_id?, ref → write_cursor}` for feedback. LRU
   of 256 per store. Handles are content-derived, so identical requests on
   identical state produce identical output (MR-043).
-- **fetch.** Reject non-`l:` refs per item with `unsupported_ref`. Call
-  `read::get_many(engine, ids, Some(&view))` once (one SDK read). `None` gives a
-  per-item `not_found`. Bodies are budgeted like snippets, with `body_cut`.
-- **expand.** As in the interface doc. One `graph::expand` call. Map
-  `GraphExpandResultV1.targets`, `complete` and `degradation_codes`.
+- **fetch.** Supports two modes: (1) logical lookup — reject non-`l:` refs per
+  item with `unsupported_ref`, call `read::get_many(engine, ids, Some(&view))`
+  once (`None` yields per-item `not_found`), and budget bodies with `body_cut`;
+  (2) frozen evidence resolution — when `evidence_refs` or `graph_evidence_refs`
+  are supplied with a `frozen_context` handle, invoke
+  `engine.resolve_evidence_many` and/or `engine.resolve_graph_evidence` under
+  the bound `FrozenReadContextV1` with the cold-path drift probes above,
+  returning exact source bytes, revision identity, and typed drift, erasure,
+  and truncation outcomes.
+- **expand.** Supports current (`GraphReadContextV1::Current`) and frozen
+  (`GraphReadContextV1::Frozen` via `frozen_context` / `include_evidence_refs`)
+  one-call `graph::expand` execution with bounded depth/work/targets, returning
+  `GraphExpandResultV1.targets`, optional opaque graph evidence refs,
+  `complete`, and `degradation_codes`.
+- **actuate / put_latest_state (opt-in write tools).** Exposed in `tools/list`
+  only when at least one configured store enables `allow_writes: true` with a
+  non-empty bound writable caller `ScopePolicy`; refused deterministically with
+  `writes_disabled` (zero DB mutation) on read-only profiles or read-only
+  stores. Serialized per canonical store path with CAS
+  `expected_write_boundary`, idempotent `(store, scope, operation_id)` replay,
+  strict-only atomic rollback via `engine.actuate` (including atomic
+  `ActuationOperationV1::PutLatestState`), and blocking shutdown/cancellation
+  drain fencing (`AC32-MCP-SAFETY-01`–`09`).
 - **orient.** `read::projections`, `read::projection_status`,
   `read::embedding_readiness`, `dense_disabled`. Kinds and counts are
   `unavailable`.
@@ -295,17 +352,17 @@ returns an rmcp client.
 
 | Order | Test file | Covers |
 | --- | --- | --- |
-| 1 | `tests/config.rs` | Config grammar, defaults, invalid values (`max_open_stores ≠ 1`, `write: true`, `scope` non-null), name grammar, root resolution, path rejection (MR-005.3) |
+| 1 | `tests/config.rs` & `tests/startup_conflicts.rs` | Config grammar, defaults, `SC-01`–`SC-10` fail-fast startup conflicts (including `allow_writes` requiring non-empty writable `ScopePolicy`, rejecting legacy `"write"` key, and read-only `roots`), name grammar, root resolution, path rejection (MR-005.3) |
 | 2 | `tests/manifest.rs` | MR-070.2 dependency lint; rmcp confinement |
-| 3 | `tests/protocol.rs` | Handshake, static `tools/list` across configs (MR-012.1, MR-006.7), stdio purity by spawning the binary (MR-002.1), diagnostics on stderr (MR-002.3), panic isolation (MR-002.2), no listener (MR-001.2) |
+| 3 | `tests/protocol.rs` | Handshake, static `tools/list` across read-only (7 tools) and write-enabled (9 tools) configs (MR-012.1, MR-006.7), stdio purity by spawning the binary (MR-002.1), diagnostics on stderr (MR-002.3), panic isolation (MR-002.2), no listener (MR-001.2) |
 | 4 | `tests/lifecycle.rs` | Lazy open, `not_ready` during open with test seam (MR-003.1/.2), open failure without exit and retry (MR-003.3, MR-006.6), lock conflict (MR-004.2), idle close at the timeout and never at 0 (MR-005.4), one-open-at-a-time switch (MR-005.7), reopen re-applies settings (MR-006.1/.2), epoch handling, close after a failed drain releases the lock (F-44), and a stall test: a call blocked past its deadline while idle expiry fires does not delay a call to another store beyond its deadline (F-42) |
 | 4b | `tests/stores.rs` | Three stores return their own records (MR-005.1), listing has no paths (MR-005.2), no creation without `create` (MR-005.5), handle from another store rejected (MR-005.6), embedded mode with two host engines (MR-004.1) |
 | 5 | `tests/bridge.rs` | A panic on the blocking thread is `internal/panic` and frees its admission permit |
 | 5b | `tests/admission.rs` | Admission queue (MR-033.2; `dev/design/agent-access/queue-admission.md` § 9): FIFO wait for a permit, `busy/admission` reasons `queue_full` and `deadline`, no start check, queued and cancelled calls, `busy/store_switch`, progress while queued; started calls run to completion, `timeout/deadline` at the run limit from the permit and the adapter keeps serving (MR-033.1), abandoned and stuck counts, cancel of a running call, shutdown with waiters |
 | 6 | `tests/search.rs` | Text and hybrid paths, closed direct-text filters, `as_of` and `validity_instant` (MR-023), snippet cap (MR-040.1), completeness values (MR-030.1, MR-032), continuation exact on an unchanged store and stale on a new epoch (MR-041.2/.5), budget fits (MR-041.1/.3), references contain the logical id and are stable across restarts (MR-042.1/.3) |
-| 7 | `tests/fetch_expand.rs` | Fetch order and per-item errors (MR-052), `l:` only (MR-042.2), malformed versus missing reference (MR-054.2), same content as SDK (MR-040.2, MR-070.1), `as_of` on fetch (MR-023.1), expand bounds (MR-053) |
+| 7 | `tests/fetch_expand.rs` & `tests/mcp_frozen_evidence.rs` | Fetch order and per-item errors (MR-052), `l:` only (MR-042.2), malformed versus missing reference (MR-054.2), same content as SDK (MR-040.2, MR-070.1), `as_of` on fetch (MR-023.1), expand bounds (MR-053), scoped frozen-evidence equivalence across `search`/`fetch`/`expand`, reopen durability, and `ADR #103` partitioned drift isolation |
 | 8 | `tests/feedback.rs` | `telemetry_disabled` (MR-024.2), `text_mode`, recorded with the right query id under concurrent hybrid searches (MR-024.1/.6), available in read-only mode (MR-024.4), wrong store or foreign refs rejected (MR-024.5), `store_reopened` (MR-006.5), unique ids per sink file across epochs (MR-024.7), output unchanged after feedback (MR-024.3) |
-| 8b | `tests/readonly.rs` | After calling every tool, the canonical write cursor and a digest of canonical and op-store rows are unchanged (MR-060.1) |
+| 8b | `tests/readonly.rs` & `tests/mcp_write_safety.rs` | Read-only default mutation invariance (MR-060.1) and opt-in write safety (`AC32-MCP-SAFETY-01`–`09`: scoped writes, CAS `expected_write_boundary`, idempotent `operation_id` replay, `put_latest_state`, strict rollback, blocking drain fence, secret-scrubbed errors) |
 | 9 | `tests/determinism.rs` | Two process lifetimes, pinned `as_of`, byte-identical output (MR-043.1) |
 | 10 | `tests/schema.rs` | Every structured result validates against its `outputSchema`; schemas are draft 2020-12 (MR-071) |
 | — | `src/shape/*` unit + `proptest` | Budget never exceeded, snippet on char boundary, continuation pages have no gaps or duplicates, ordering stable |
@@ -315,9 +372,14 @@ conformance suite, run manually once and recorded), MR-021 (evaluation run).
 
 ## 10. Workspace touch points
 
-- `Cargo.toml`: add the member and the `fathomdb-mcp` workspace dependency
-  entry.
-- `scripts/agent-*.sh`: none expected; the new crate joins `cargo test
-  --workspace`. If module-boundary or clippy configuration needs an entry, add
-  it in the same change.
-- No change to `fathomdb-engine`, `fathomdb-sdk`, the bindings or the CLI.
+- `Cargo.toml`: `fathomdb-mcp` is a publishable workspace member (`publish = true`,
+  `default = []` on `crates.io`; `--features default-embedder` on 5-target GH
+  Release archives and lockstep `src/python-mcp/` PyPI wheels).
+- `fathomdb-engine` / `fathomdb-sdk` / bindings: backed by `ADR-0.8.32` `#99`
+  (`Pin C`: `PutLatestState`, `EP-07` `create_if_missing`, `EP-01`
+  `read::visibility_state`), `#102` (`ScopePolicy`), and `#103` (Schema 39
+  partitioned frozen-read additive stability) while keeping `fathomdb-mcp`
+  runtime dependencies strictly confined to `fathomdb-sdk` (`MR-070.2`).
+- `scripts/agent-*.sh` & `.github/workflows/release.yml`: covered by workspace
+  tests, `MR-070.2` manifest lint, `rmcp` confinement checks, and 3-channel
+  packaging/smoke gates.

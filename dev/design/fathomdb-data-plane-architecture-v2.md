@@ -9,7 +9,7 @@ approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-11-25 0.8.32 workspace profile (13 members including publishable fathomdb-mcp and fathomdb-inspector)
+last_reconciled: 2026-11-26 0.8.32 workspace profile (13 members including publishable fathomdb-mcp and fathomdb-inspector; Slice 41 ADR #103)
 ---
 
 # FathomDB data-plane architecture v2
@@ -339,7 +339,26 @@ canonical high-water point, projection generation, and hard eligibility
 envelope used across compatible reads. In 0.8.25 it is an optional,
 self-contained context with reproduce-or-fail semantics; persisted expiring
 snapshot leases are a later profile. Mismatched, drifted, or unavailable state
-fails with typed outcomes.
+fails with typed outcomes. On Schema `39+` (`ADR-0.8.32` `#103`), frozen-read
+snapshot validation is scope-and-partition aware via
+`_fathomdb_scope_visibility_watermarks` (`WITHOUT ROWID`),
+`_fathomdb_read_visibility_state.(global_struct_gen, global_struct_nonce)`,
+and `ReadSurface`-selective validation (`OperationalState`, `CanonicalPage`,
+`Preflight`, `SearchNoGraph`, `EvidenceNode`, `GraphOrEdge`, `EvidenceGraph`,
+`TraceDependency`) encoded in compact `0x53 0x39` wire tags (`492`–`556 B` vs.
+`1,024 B` cap): unrelated additive mutations (disjoint canonical `kind`,
+`operational_mutations` append-only logs, `operational_state` vs. canonical
+surfaces, isolated tenant scopes including destructive mutations in other
+scopes, and unrelated background `projection_worker` commits) preserve frozen
+contexts without holding WAL transactions, while same-partition writes,
+same-scope destructive/dependency mutations, global structural changes, and
+raw uncoalesced SQL across all 20 trigger-bearing tables fail closed. FTS5
+`bm25` raw scores reflect live corpus `(N, avgdl, df)` statistics rather than
+frozen IDF snapshots (`ADR #103` §1.7). Direct logical lookup (`read.get` /
+`read.get_many`) with `include_superseded = true` executes `SEARCH`-only via
+`UNION ALL` over `canonical_nodes_scope_logical_{active,sup}_idx` with
+Rust-side max-`write_cursor` tiebreaking and `has_source_dependencies`-gated
+eligibility SQL (zero schema change).
 
 Eligibility predicates extend the existing allowlisted grammar. Equality and
 range remain; membership and existence are admitted only when a declared native
@@ -377,6 +396,26 @@ one exact source revision, locator, bytes/span, hash, effective validity,
 lifecycle state, projection origin, retrieval contribution, dependency, and
 supersession status. Persisted leases and multi-source replay are later
 profiles. A stale reference never grants access to invisible or erased bytes.
+In `0.8.32` (`ADR-0.8.32` `#103` Part 2, amending `ADR-0.8.25` `#48`),
+`SearchFilter.property_predicates` is explicitly classified as an
+artifact-scoped domain selector (cleared on evidence `source_filter` alongside
+`kind` and `source_type` across `authorize_source_access`,
+`query_graph_evidence_batch`, and `resolve_graph_evidence`), while
+access-bearing `attributes`, `created_after`, `status`, `ReadView`
+lifecycle/validity, dependency closures, and Schema 39 `ScopePredicate` remain
+strictly source-enforced. By contrast, `trace_dependency` (`dependency_trace.rs`)
+preserves `ADR-0.8.25 #49` symmetric endpoint visibility: only its SQL candidate
+pre-queries omit `property_predicates`, while Rust `visible_artifact` in
+`authorize_candidate_chain` and `include_candidate` continues applying full
+`context.eligibility` (including `kind`, `source_type`, and
+`property_predicates`) to both root and counterpart endpoints (intentionally
+unchanged by `#269` Option A). On `GraphArm` hits, `SearchHit.source_id`
+intentionally preserves the traversed edge's legacy `source_id`, whereas
+`ResolvedEvidenceV1.source_id` resolves the returned node artifact's canonical
+provenance source. When `search_with_evidence` runs with
+`include_explanation = false`, lightweight `EvidenceContributionV1` capture is
+decoupled from full `explain = true` so status-cache, structural explanation,
+and `vec_distance_cosine` work is skipped.
 
 Combined graph expansion reuses the existing graph store. Its 0.8.25 governed
 request supports query or explicit seeds, incoming/outgoing/both directions,
@@ -457,8 +496,10 @@ adds a first-generation V1 sidecar without creating a parallel graph API.
   representation additively extensible but enforces a zero/one-source bound;
   multi-source behavior requires later requirements and design review.
 - Governed current-state reads expose the existing `operational_state` table
-  and require no data migration. `latest_state` remains consumer terminology,
-  not a FathomDB table, lifecycle axis, or semantic-truth policy.
+  and require no data migration. `latest_state` names the `operational_collections`
+  collection kind and the `PutLatestState` / `put_latest_state` operations
+  backed by `operational_state` — not a separate SQLite table, canonical
+  lifecycle axis, or semantic-truth policy.
 - Erasure, supersession, access, snapshot, and binding tests precede performance
   or readiness claims.
 
@@ -469,9 +510,9 @@ of architecture v2 rather than optional implementation guidance:
 
 | Constraint | Architectural decision | Owning slices |
 | --- | --- | --- |
-| A25-01 | A frozen read is defined by reproducible canonical boundary, validity instant, projection generation, and eligibility envelope. 0.8.25 provides optional self-contained reproduce-or-fail context with typed unavailable, mismatch, and drift outcomes; persisted leases add expiry only in a later profile. It does not promise a permanently held SQLite reader transaction. | 35 |
+| A25-01 | A frozen read is defined by reproducible canonical boundary, validity instant, projection generation, and eligibility envelope (refined on Schema `39+` by `ADR-0.8.32` `#103` `ReadSurface`-selective watermark validation so `OperationalState` and `CanonicalPage` skip unrelated partitions). 0.8.25 provides optional self-contained reproduce-or-fail context with typed unavailable, mismatch, and drift outcomes; persisted leases add expiry only in a later profile. It does not promise a permanently held SQLite reader transaction. | 35; 0.8.32 Slice 41 |
 | A25-02 | Exact locators are UTF-8 byte ranges over a named immutable revision, using a declared canonical byte representation and hash algorithm; invalid boundaries and hash mismatch reject typed. | 15, 50 |
-| A25-03 | FathomDB exposes governed current operational state backed by `operational_state`; `latest_state` remains a consumer concept. | 45 |
+| A25-03 | FathomDB exposes governed current operational state backed by `operational_state` (with `latest_state` as the `operational_collections` kind and `PutLatestState` actuation operation, never a separate table or canonical lifecycle state). | 45; 0.8.32 Slice 40 |
 | A25-04 | Multi-source dependencies use a bounded Engine-known liveness grammar. `all_required` and `any_surviving` have distinct removal behavior; unsupported rules reject typed. | Deferred; future allocation requires approval. |
 | A25-05 | Every new persisted or public type defines schema/wire version and unknown-field/unknown-variant behavior, with feature-local Rust, Python, TypeScript, and applicable Windows CPU/native proof. | active 15–60; audit 75; future slices retain the rule |
 | A25-06 | Eligibility and graph constraints execute before seed/candidate truncation and expansion. 0.8.25 reports compact inclusion/degradation state; expanded deterministic ineligible/not-selected explanation follows only when justified. | 35/55/60 core; expanded explanation 0.8.28 |

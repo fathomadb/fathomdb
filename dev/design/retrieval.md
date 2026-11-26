@@ -1,7 +1,7 @@
 ---
 title: Retrieval Subsystem Design
 date: 2026-09-17
-target_release: 0.8.28
+target_release: 0.8.32
 desc: Current lexical, vector, fusion, reranking, graph, frozen-view, explanation, and evidence pipeline
 blast_radius: fathomdb-query; fathomdb-engine retrieval/frozen/evidence/graph paths; SDK search and graph interfaces
 status: ACTIVE
@@ -133,7 +133,8 @@ Standalone `rerank` is a live governed package operation in Python and
 TypeScript. It accepts caller passages and reuses the same bounded reranker
 mechanism, but it does not query SQLite and does not imply that ordinary search
 always reranks. The executable operation map and binding surface oracle are
-owned by Slice 55.
+governed by `src/conformance/governed-operation-parity.json` and
+`src/conformance/governed-surface-allowlist.json`.
 
 ## Current and frozen reads
 
@@ -171,6 +172,34 @@ engine-minted correlation identity. It describes returned results using the
 live fusion/reranking, fallback, projection, graph, dependency, and lifecycle
 facts; it does not run a parallel ranking implementation. Explanation-off
 ranking and result identity remain unchanged.
+
+For hits scored by `execute_vector_arm` (`vector_rank.is_some()`, including
+vector-scored `TextEdge` `edge_fact` hits), `PerHitExplain` (`#[non_exhaustive]`,
+extending [`0.8.8-explain-and-telemetry-adr.md`](0.8.8-explain-and-telemetry-adr.md)
+§A.4 Q1 specifically for `vector_cosine` under `Gate1-D10` while keeping
+[`EP-13-raw-arm-scores.md`](mcp-adapter/engine-proposals/EP-13-raw-arm-scores.md)
+`vector_distance`/`text_bm25` deferred) carries additive
+`vector_cosine: Option<f64>`, computed as finite `1.0 - vec_distance_cosine`
+clamped to `[-1.0, 1.0]` over uncentered f32 vectors in the same search snapshot
+(covering unit-normalized built-in embeddings as well as non-unit-norm
+test/unnormalized vectors without restoring custom production provider admission
+per `ADR-0.8.28`). Zero-norm, `NULL`, or `NaN` cosine distances and any hit with
+`vector_rank == None` (single- or multi-arm) report `None` (never `0.0`).
+`vec_distance_cosine` is not evaluated when `explain = false`, and `explain = true`
+preserves L2 ordering. `SearchHit`, `fathomdb-mcp` `PerHitOut`, and the
+HMAC-authenticated `EvidenceContributionV1` wire codec remain unchanged.
+
+Snapshot projection-generation status needed by `search(..., explain=true)`,
+`search_frozen(..., explain=true)`, `search_with_evidence`, and query-seeded
+`graph_expand` shares one unified snapshot boundary helper with
+`read_projection_generation_status` and reuses the engine's scope-partitioned
+`CachedProjectionGenerationStatus` cache across `Engine` and `ReaderWorkerPool`
+with monotonic cache-epoch guarding and per-connection `PRAGMA data_version`
+(`+ total_changes` on `Engine.connection`) invalidation, keeping steady-state
+`status_in_snapshot` work `O(1)` under default lifecycle views
+(`!include_superseded && !include_inactive`) while immediately observing
+internal and external SQLite mutations, projection publication, `runtime_state`
+changes, and valid-time membership boundaries.
 
 Compact ranked evidence is also opt-in and resolves under its authenticated
 frozen eligibility envelope to exact source revision, locator, hash, bytes or

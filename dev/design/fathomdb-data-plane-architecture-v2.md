@@ -3,13 +3,13 @@ title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
 implementation_status: active source authority for the integrated profile
-target_release: 0.8.31
+target_release: 0.8.32
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-11-22 0.8.31 workspace profile (13 members including fathomdb-inspector)
+last_reconciled: 2026-11-25 0.8.32 workspace profile (13 members including publishable fathomdb-mcp and fathomdb-inspector)
 ---
 
 # FathomDB data-plane architecture v2
@@ -43,10 +43,10 @@ duplicated liveness rules, or manual projection cleanup.
 The current Rust workspace has **thirteen** members: `fathomdb`, `fathomdb-sdk`,
 `fathomdb-engine`, `fathomdb-cli`, `fathomdb-query`, `fathomdb-schema`,
 `fathomdb-embedder-api`, `fathomdb-embedder`, `fathomdb-py`, `fathomdb-napi`,
-the private `fathomdb-mcp` binary, the internal `fathomdb-tc5-benchmark`, and
+the publishable `fathomdb-mcp` binary, the internal `fathomdb-tc5-benchmark`, and
 `fathomdb-inspector` (`src/inspector/`). The dedicated
 Rust application SDK is a peer of the Python and TypeScript SDKs, with the
-53 live governed operation endpoints across `Engine`, `read`, `graph`, `admin` and
+58 live governed operation endpoints across `Engine`, `read`, `graph`, `admin` and
 root-level `rerank`. The standalone `embed_batch_cls` and explicit `release_models` operations
 remain outside that signed map. Arguments and defaults follow the accepted
 [Rust SDK translations](../adr/ADR-0.8.27-rust-sdk-parity.md), including the
@@ -253,9 +253,9 @@ remain unchanged when evidence is omitted or false.
 ### Governed mutation path
 
 `Engine::actuate` remains the only actuation entry point and accepts one
-changed-in-place five-operation V1 grammar: canonical-node write, derived-node
-write, source-dependency registration, lifecycle transition, and provenance-
-bearing derived-edge write. The writer validates the complete prospective
+changed-in-place six-operation V1 grammar: canonical-node write, derived-node
+write, source-dependency registration, lifecycle transition, provenance-
+bearing derived-edge write, and operational `PutLatestState` upsert. The writer validates the complete prospective
 batch before effects, so an edge may name endpoints later in the batch but a
 missing final endpoint refuses the whole operation.
 
@@ -388,7 +388,21 @@ these generic constraints outside the Engine.
 
 0.8.25 structural explanation covers included results, retrieval/reranking
 contributions, fallback/degraded state, projection/graph origin,
-dependency/lifecycle status, and privacy-safe operation correlation. Expanded
+dependency/lifecycle status, and privacy-safe operation correlation. In 0.8.32
+(`Gate1-D10`, extending `0.8.8-explain-and-telemetry-adr.md` §A.4 Q1
+specifically for `vector_cosine`), `PerHitExplain` additionally exposes raw
+pre-RRF `vector_cosine: Option<f64>` (`1.0 - vec_distance_cosine` on uncentered
+f32 vectors; `Some` iff scored by `execute_vector_arm` / `vector_rank.is_some()`,
+`None` on zero-norm/`NULL`/`NaN` or vector-absent hits, finite clamped to
+`[-1.0, 1.0]`) while keeping `SearchHit`, `EvidenceContributionV1`, and
+`fathomdb-mcp` `PerHitOut` unchanged. Pooled reader explanation/evidence and
+query-seeded graph expansion (`search(..., explain=true)`,
+`search_frozen(..., explain=true)`, `search_with_evidence`, and query-seeded
+`graph_expand`) share one unified snapshot boundary helper and reuse the
+scope-partitioned projection-generation status cache with monotonic
+cache-epoch guarding and per-connection `PRAGMA data_version` (`+ total_changes`
+on `Engine.connection`) invalidation so steady-state `status_in_snapshot`
+queries stay `O(1)` under default lifecycle views. Expanded
 exclusion/not-selected explanation is a later profile.
 Semantic entailment and answer correctness remain external.
 

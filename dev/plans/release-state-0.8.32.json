@@ -68,13 +68,15 @@
     {
       "slice": 40,
       "short": "MCP-RW",
-      "title": "Atomic governed write + latest_state checkpoint seam + EP-07/EP-01 (Pin C), production read+write fathomdb-mcp (allow_writes: false default, per-store opt-in + bound scope, AC32-MCP-SAFETY-01..09), and 3-channel packaging",
+      "title": "Atomic governed write + latest_state checkpoint seam + EP-07/EP-01 (Pin C), Gate1-D9 reopen cursor & per-class projection namespace, production read+write fathomdb-mcp + 3-channel packaging, and Gate1-D10 cached pooled-reader projection status & PerHitExplain.vector_cosine",
       "depends_on": [
         20
       ],
       "status": "NOT_STARTED",
       "sha": null,
       "design_refs": [
+        "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
+        "dev/plans/0.8.32/features/slice-40/plan.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
@@ -193,6 +195,12 @@
         "id": "Gate1-D9",
         "topic": "0.8.31 reported bugs: empty-DB reopen cursor regression (Bug 1) and per-class projection namespace (Bug 2)",
         "ruling": "Option B2-strict approved (2026-11-25): fix Bug 1 (fold _fathomdb_commit_timestamps & _fathomdb_projection_terminal into load_next_cursor + authoritative_boundary + data_plane_integrity AdminSchema/OpStore terminal handling) and Bug 2 (upgrade _fathomdb_projection_registry in unreleased Schema 39 to PRIMARY KEY(entity_class, name) + strictly typed ProjectionTarget on configure_projections drop and ProjectionDelta.{built,dropped,deferred} across Rust/Python/TS with zero bare-string shims) in Slice 40 before shipping 0.8.32.",
+        "source": "dev/plans/0.8.32/features/slice-40/plan.md"
+      },
+      {
+        "id": "Gate1-D10",
+        "topic": "Uncached status_in_snapshot latency in explained/evidence/frozen search & query-seeded graph_expand, plus raw pre-RRF vector_cosine on PerHitExplain",
+        "ruling": "Option 2 approved (2026-11-25): accept both into 0.8.32 Slice 40 (WP-40D) under full requirements/architecture/design review and TDD — (1) unify the snapshot boundary helper and share scope-partitioned CachedProjectionGenerationStatus across Engine and ReaderWorkerPool with monotonic cache-epoch guarding, per-connection PRAGMA data_version (+ total_changes on Engine.connection) invalidation in search(explain=true), search_frozen(explain=true), search_with_evidence, and query-seeded graph.expand, eliminating O(N) steady-state status_in_snapshot scans; (2) extend dev/design/0.8.8-explain-and-telemetry-adr.md §A.4 Q1 specifically for additive PerHitExplain.vector_cosine: Option<f64> (1.0 - vec_distance_cosine on uncentered f32 vectors; Some iff scored by execute_vector_arm / vector_rank.is_some(), None on zero-norm/NULL/NaN or vector-absent hits, finite clamped to [-1.0, 1.0], zero SQL cost when explain=false, L2 ordering unchanged) across Rust/SDK/Python/TypeScript while leaving SearchHit, EvidenceContributionV1, fathomdb-mcp PerHitOut, EP-13 vector_distance/text_bm25, and governed-surface pin counts unchanged.",
         "source": "dev/plans/0.8.32/features/slice-40/plan.md"
       }
     ],

@@ -114,6 +114,27 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
 - `sqlite_master` completeness audit, read-visibility triggers, and paired
   `v0.8.31` vs. `0.8.32` latency/RSS regression gate pass (verifying single-
   scope fast path preserves `0.8.30`/`0.8.31` latency).
+- **Cached projection-generation status across pooled readers (`Gate1-D10`)**:
+  `search(..., explain=true)`, `search_frozen(..., explain=true)`,
+  `search_with_evidence`, and query-seeded `graph.expand` share one unified
+  snapshot boundary helper and reuse the scope-partitioned
+  projection-generation status cache with monotonic cache-epoch guarding and
+  per-connection `PRAGMA data_version` (`+ total_changes` on `Engine.connection`)
+  invalidation so declaring a vector projection never triggers an `O(N)`
+  full-table `status_in_snapshot` completion scan per steady-state query
+  (including when opened with `use_default_embedder = false`).
+- **Raw pre-RRF vector cosine similarity (`PerHitExplain.vector_cosine`,
+  `Gate1-D10`)**: extend `dev/design/0.8.8-explain-and-telemetry-adr.md`
+  §A.4 Q1 specifically for additive `vector_cosine: Option<f64>` (true cosine
+  similarity `1.0 - vec_distance_cosine` on uncentered f32 vectors,
+  populated iff scored by `execute_vector_arm` / `vector_rank.is_some()`,
+  including vector-scored `TextEdge` `edge_fact` hits; strictly `None` on
+  zero-norm/`NULL`/`NaN` or vector-absent hits; finite clamped to
+  `[-1.0, 1.0]`; zero `vec_distance_cosine` cost when `explain = false`;
+  unchanged L2 ordering) on `#[non_exhaustive]` `PerHitExplain` across Rust,
+  SDK, Python, and TypeScript while keeping `SearchHit`,
+  `EvidenceContributionV1`, `fathomdb-mcp` `PerHitOut`, and `EP-13`'s
+  `vector_distance`/`text_bm25` unchanged.
 
 ### 6. Contributor & agent ergonomics and targeted engine hotspot splits
 

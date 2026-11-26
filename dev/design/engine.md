@@ -1,7 +1,7 @@
 ---
 title: Engine Subsystem Design
 date: 2026-09-17
-target_release: 0.8.28
+target_release: 0.8.32
 desc: Current open, connection, write, projection, cursor, identity, and close design
 blast_radius: fathomdb-engine runtime/writer/reader; interfaces/*.md; requirements and acceptance engine intersections
 status: ACTIVE
@@ -17,11 +17,15 @@ Public language spelling remains in `dev/interfaces/`; error variants remain in
 
 ## Open path
 
-Public 0.8.28 open is fresh-only. A missing or zero-length path is bootstrapped
-directly to schema 37. A nonempty database is accepted only when its
-`PRAGMA user_version` is exactly 37; every other version returns
-`IncompatibleSchemaVersion` before product mutation. Public open does not run
-an in-place migration ladder.
+Public 0.8.32 open is fresh-only (with opt-in `OpenOptions::create_if_missing`
+defaulting to `true`; setting `false` refuses missing or zero-length paths with
+`DatabaseNotFound` before embedder/CUDA initialization and without creating
+lock/database files). A missing or zero-length path (when `create_if_missing`
+is `true`) is bootstrapped directly to schema 39. A nonempty database is
+accepted only when its `PRAGMA user_version` is exactly 39; every other version
+returns `IncompatibleSchemaVersion` before product mutation. Public open does
+not run an in-place migration ladder (offline Schema 38 → 39 upgrades run via
+`fathomdb migrate`).
 
 Admission canonicalizes the database namespace, acquires the persistent
 sidecar lock, configures SQLite for WAL operation without
@@ -60,7 +64,16 @@ The live engine has three connection roles:
   shared `commit_gate`; and
 - `ReaderWorkerPool` owns multiple read connections and executes read work in
   DEFERRED transactions rather than behind the primary writer mutex. Each
-  worker keeps its connection for life. Dispatch hands a read to an idle
+  worker keeps its connection for life and tracks its own per-connection
+  `PRAGMA data_version` alongside a shared `CachedProjectionGenerationStatus`
+  carrier guarded by a monotonic cache-epoch counter (`Gate1-D10`, paired with
+  `(data_version, total_changes)` tracking on `Engine.connection`) so
+  `search(..., explain=true)`, `search_frozen(..., explain=true)`,
+  `search_with_evidence`, and query-seeded `graph_expand` share one unified
+  snapshot boundary helper and hit the scope-partitioned status cache in `O(1)`
+  at steady state without cross-connection cache thrash or stale concurrent
+  overwrites while still invalidating immediately on internal, projection, or
+  external writes. Dispatch hands a read to an idle
   worker when one is waiting, and waits on the round-robin worker only when
   every worker is busy, so a slow read does not delay reads while another
   worker is idle
@@ -84,10 +97,11 @@ Canonical node and edge identity has two forms:
   position and is also the current row-identity carrier.
 
 Callers do not supply a separate canonical `row_id`. Anonymous inserts may
-leave `logical_id` null. For governed rows, the active uniqueness constraint is
-on `logical_id` alone, separately for nodes and edges; `kind` is payload
-classification, not part of identity. A new revision may therefore change
-kind while superseding the prior active revision with the same logical ID.
+leave `logical_id` null. For governed rows in Schema 39, the active uniqueness
+constraint is on `(scope, logical_id)` (default single-scope `scope = ''`),
+separately for nodes and edges; `kind` is payload classification, not part of
+identity. A new revision may therefore change kind while superseding the prior
+active revision with the same `(scope, logical_id)`.
 
 Supersession appends the new physical revision and marks the previous active
 revision inactive in the same transaction. Edges reference logical endpoint
@@ -136,11 +150,11 @@ only when the owning projection generation records a successful current
 outcome. Failed or stale work is explicit state, not silent eligibility.
 
 Dense rows share the engine-created runtime-dimension `vector_default` vec0
-table with 64-row chunks and native lifecycle/validity metadata. Authority and
+table with 64-row chunks and native `scope`, lifecycle, and validity metadata. Authority and
 recovery metadata live in `_fathomdb_vector_rows`, the projection registry, and
 generation tables. `_fathomdb_vector_spans` records UTF-8 head coverage per
 vector row; vector IDs need not equal canonical cursors. The current design does not create one vector table per
-kind; `source_type` and `kind` distinguish governed rows inside the shared
+kind; `scope`, `source_type`, and `kind` distinguish governed rows inside the shared
 projection.
 
 Projection workers may compute concurrently, but their commits are ordered by
@@ -190,8 +204,8 @@ new stores to Autonomous; an explicit conflicting request refuses open.
 [`Explicit maintenance`](explicit-maintenance-erasure/contract.md) owns queue,
 exclusive-window, durable-debt and fence semantics. Its owned maintenance handle
 excludes ordinary readers/writers/admin/projection work; closing it releases
-temporary ownership without forgiving activated debt. Current storage is format37
-for both policies, with no migration or immediate-revocation/deadline guarantee.
+temporary ownership without forgiving activated debt. Current storage is Schema 39
+for both policies, with no migration-on-open or immediate-revocation/deadline guarantee.
 
 The reader pool remains eight dedicated workers and is not controlled by
 either executor setting. The primary writer and projection `commit_gate`
@@ -260,12 +274,13 @@ the same one-deadline rule. Cleanup does not replace the original open error.
 
 Historical dedicated-writer-thread, caller `row_id`, per-kind vector-table,
 single-cursor-per-batch, restore, and public migration-on-open descriptions are
-retained in Git history but are not current 0.8.28 authority.
+retained in Git history but are not current 0.8.32 authority.
 
-## Transactional visibility coalescing (format37)
+## Transactional visibility coalescing
 
 The [technical successor ADR](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
-owns the exact57-trigger manifest and outer writer admission inventory. An owned
+and `TABLE_MANIFEST` in `fathomdb-schema` own the visibility-trigger manifest
+and outer writer admission inventory. An owned
 IMMEDIATE canonical/projection transaction arms the persisted integer marker,
 retains fresh fence reads and mapping cleanup, and atomically advances the
 checked generation/random nonce while clearing the marker before commit.

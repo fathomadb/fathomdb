@@ -143,6 +143,44 @@ pub(crate) fn effective_runtime_configuration() -> RuntimeConfiguration {
 
 const MAX_SAFE_INTEGER: u64 = (1_u64 << 53) - 1;
 
+/// Declared SQLite WAL durability sync mode (`ADR-0.8.32`).
+///
+/// - [`Self::Normal`] (default): `PRAGMA synchronous = NORMAL`. Guarantees zero
+///   database corruption and atomic prefix recovery to the last flushed or
+///   checkpointed WAL frame; un-checkpointed commits buffered in volatile caches
+///   at power loss may roll back atomically as a contiguous suffix.
+/// - [`Self::Full`] (opt-in): `PRAGMA synchronous = FULL`. Issues per-commit
+///   WAL `fsync` (`SQLITE_SYNC_FULL`) for strict zero loss of client-acknowledged
+///   commits on an `fsync`/`FLUSH`/`FUA`-honoring storage stack.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum SyncMode {
+    /// `PRAGMA synchronous = NORMAL` — checkpoint-bounded prefix-recovery default.
+    #[default]
+    Normal,
+    /// `PRAGMA synchronous = FULL` — strict per-commit WAL `fsync` durability.
+    Full,
+}
+
+impl SyncMode {
+    /// SQLite `PRAGMA synchronous` keyword (`"NORMAL"` or `"FULL"`).
+    #[must_use]
+    pub const fn as_pragma(&self) -> &'static str {
+        match self {
+            Self::Normal => "NORMAL",
+            Self::Full => "FULL",
+        }
+    }
+
+    /// Canonical lowercase wire spelling (`"normal"` or `"full"`).
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Normal => "normal",
+            Self::Full => "full",
+        }
+    }
+}
+
 /// Requested per-engine settings. `None` selects each documented default; an
 /// omitted physical-erasure policy honors the persisted policy on reopen.
 ///
@@ -153,6 +191,10 @@ const MAX_SAFE_INTEGER: u64 = (1_u64 << 53) - 1;
 pub struct EngineConfig {
     /// Fresh-store policy request; omitted on reopen honors persisted policy.
     pub physical_erasure_policy: Option<super::PhysicalErasurePolicy>,
+    /// WAL durability sync mode (`ADR-0.8.32`); `None` resolves to
+    /// [`SyncMode::Normal`]. Applied to both the writer and projection/runtime
+    /// connections at open.
+    pub sync_mode: Option<SyncMode>,
     /// Projection orchestration threads, `1..=64`; default `2`.
     pub scheduler_runtime_threads: Option<u64>,
     /// Provider dispatch workers, `1..=64`; default `5`.
@@ -189,6 +231,13 @@ impl EngineConfig {
     #[must_use]
     pub fn with_scope_policy(mut self, scope_policy: crate::scope::ScopePolicy) -> Self {
         self.scope_policy = scope_policy;
+        self
+    }
+
+    /// Builder helper setting [`Self::sync_mode`].
+    #[must_use]
+    pub fn with_sync_mode(mut self, sync_mode: SyncMode) -> Self {
+        self.sync_mode = Some(sync_mode);
         self
     }
 
@@ -253,6 +302,7 @@ impl Error for EngineConfigurationError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ResolvedRuntimeConfiguration {
+    pub(crate) sync_mode: SyncMode,
     pub(crate) scheduler_runtime_threads: usize,
     pub(crate) embedder_pool_size: usize,
     pub(crate) embedder_call_timeout_ms: u64,
@@ -265,6 +315,7 @@ pub(crate) struct ResolvedRuntimeConfiguration {
 
 impl ResolvedRuntimeConfiguration {
     pub(crate) fn resolve(requested: &EngineConfig) -> Result<Self, EngineConfigurationError> {
+        let sync_mode = requested.sync_mode.unwrap_or_default();
         let scheduler = checked_value(
             "scheduler_runtime_threads",
             requested.scheduler_runtime_threads,
@@ -322,6 +373,7 @@ impl ResolvedRuntimeConfiguration {
             .validated()
             .map_err(|reason| EngineConfigurationError::ScopePolicy { reason })?;
         Ok(Self {
+            sync_mode,
             scheduler_runtime_threads,
             embedder_pool_size,
             embedder_call_timeout_ms,

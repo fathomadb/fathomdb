@@ -587,3 +587,17 @@ fn per_hit_explain_vector_cosine_surface() {
     let field_accessor: fn(&fathomdb_sdk::PerHitExplain) -> Option<f64> = |p| p.vector_cosine;
     let _ = field_accessor;
 }
+
+#[test]
+fn sync_mode_and_open_options_surface() {
+    use fathomdb_sdk::SyncMode;
+    let _: fn(OpenOptions, SyncMode) -> OpenOptions = OpenOptions::with_sync_mode;
+    let _: fn(EngineConfig, SyncMode) -> EngineConfig = EngineConfig::with_sync_mode;
+    assert_eq!(SyncMode::default(), SyncMode::Normal);
+    assert_eq!(SyncMode::Normal.as_pragma(), "NORMAL");
+    assert_eq!(SyncMode::Full.as_pragma(), "FULL");
+    assert_eq!(SyncMode::Normal.as_str(), "normal");
+    assert_eq!(SyncMode::Full.as_str(), "full");
+    let opts = OpenOptions::default().with_sync_mode(SyncMode::Full);
+    assert_eq!(opts.config.sync_mode, Some(SyncMode::Full));
+}

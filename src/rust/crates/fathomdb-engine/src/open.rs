@@ -1059,6 +1059,7 @@ impl Engine {
             runtime_embedder.is_some(),
             query_stop_words.sha256(),
             config.physical_erasure_policy,
+            resolved_config.sync_mode,
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
             Arc::clone(&managed_connections),
@@ -1361,6 +1362,7 @@ impl Engine {
                         || edge_history_enqueued
                         || database_has_pending_projection_work(
                             &canonical_path,
+                            opened.engine.resolved_config.sync_mode,
                             #[cfg(any(test, feature = "test-hooks"))]
                             &opened.engine.managed_connections,
                         )
@@ -1397,6 +1399,7 @@ impl Engine {
         provider_attached: bool,
         stop_words_sha256: &str,
         physical_policy: Option<PhysicalErasurePolicy>,
+        sync_mode: SyncMode,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
@@ -1460,7 +1463,7 @@ impl Engine {
             .pragma_update(None, "journal_mode", "WAL")
             .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
         connection
-            .pragma_update(None, "synchronous", "NORMAL")
+            .pragma_update(None, "synchronous", sync_mode.as_pragma())
             .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
         #[cfg(feature = "test-hooks")]
         record_writer_pragma_witness_for_test(&connection);

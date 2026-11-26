@@ -60,6 +60,7 @@ pub(super) fn engine_config_from_py(
         if !matches!(
             name.as_str(),
             "physical_erasure_policy"
+                | "sync_mode"
                 | "scheduler_runtime_threads"
                 | "embedder_pool_size"
                 | "embedder_call_timeout_ms"
@@ -86,6 +87,16 @@ pub(super) fn engine_config_from_py(
                 _ => None,
             },
             "autonomous or explicit_maintenance",
+        )?,
+        sync_mode: optional_engine_config_string(
+            config,
+            "sync_mode",
+            |raw| match raw {
+                "normal" => Some(fathomdb_engine::SyncMode::Normal),
+                "full" => Some(fathomdb_engine::SyncMode::Full),
+                _ => None,
+            },
+            "normal or full",
         )?,
         scheduler_runtime_threads: optional_engine_config_value(
             config,

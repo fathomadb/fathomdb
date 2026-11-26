@@ -437,6 +437,7 @@ def test_engine_config_has_exactly_the_known_fields() -> None:
         "query_stop_words",
         "physical_erasure_policy",
         "scope_policy",
+        "sync_mode",
     }
 
 

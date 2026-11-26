@@ -386,6 +386,7 @@ async fn sc10_embedded_register_engine_rejects_policy_conflicts_leaving_engine_u
             eager: false,
             allow_writes: false,
             scope: None,
+            sync_mode: None,
             allowed_kinds: None,
             allowed_node_kinds: None,
             allowed_edge_kinds: None,
@@ -507,4 +508,204 @@ fn valid_read_only_and_read_write_scoped_configs_parse_cleanly() {
         cfg.stores["rw_struct"].scope,
         Some(ScopePolicy::read_write(["alpha", "shared"], "alpha"))
     );
+}
+
+#[test]
+fn sync_mode_startup_conflicts_sc03_sc05_sc06_and_invalid_values() {
+    let dir = tempfile::tempdir().unwrap();
+    let root_dir = dir.path().join("root");
+    fs::create_dir(&root_dir).unwrap();
+
+    // Invalid string or wrong type fails fast at config parse
+    for bad in [json!("off"), json!("FULL"), json!(2), json!(true), json!(null)] {
+        assert_startup_conflict(
+            dir.path(),
+            &json!({
+                "stores": {
+                    "rw": {
+                        "path": "rw.sqlite",
+                        "allow_writes": true,
+                        "scope": "alpha",
+                        "sync_mode": bad
+                    }
+                }
+            }),
+            &["sync_mode"],
+        );
+    }
+
+    // SC-03: explicit sync_mode (both "normal" and "full") on allow_writes: false fails fast
+    for mode in ["normal", "full"] {
+        assert_startup_conflict(
+            dir.path(),
+            &json!({
+                "stores": {
+                    "ro": {
+                        "path": "ro.sqlite",
+                        "allow_writes": false,
+                        "sync_mode": mode
+                    }
+                }
+            }),
+            &["sync_mode"],
+        );
+    }
+
+    // SC-05: sync_mode placed on roots entry fails fast
+    assert_startup_conflict(
+        dir.path(),
+        &json!({
+            "roots": [{"path": root_dir.to_string_lossy(), "sync_mode": "full"}]
+        }),
+        &["sync_mode"],
+    );
+
+    // SC-06: canonical aliases with conflicting sync_mode fail fast
+    let db = dir.path().join("shared.sqlite");
+    fs::write(&db, b"").unwrap();
+    assert_startup_conflict(
+        dir.path(),
+        &json!({
+            "stores": {
+                "a": {
+                    "path": "shared.sqlite",
+                    "allow_writes": true,
+                    "scope": "alpha",
+                    "sync_mode": "normal"
+                },
+                "b": {
+                    "path": "./shared.sqlite",
+                    "allow_writes": true,
+                    "scope": "alpha",
+                    "sync_mode": "full"
+                }
+            }
+        }),
+        &["stores"],
+    );
+
+    // Valid write-enabled stores accept "normal" and "full"
+    let ok_cfg = Config::from_json_str(
+        &json!({
+            "stores": {
+                "rw_normal": {
+                    "path": "rw_normal.sqlite",
+                    "allow_writes": true,
+                    "scope": "alpha",
+                    "sync_mode": "normal"
+                },
+                "rw_full": {
+                    "path": "rw_full.sqlite",
+                    "allow_writes": true,
+                    "scope": "alpha",
+                    "sync_mode": "full"
+                }
+            }
+        })
+        .to_string(),
+        dir.path(),
+    )
+    .unwrap();
+    assert_eq!(ok_cfg.stores["rw_normal"].sync_mode, Some(fathomdb_sdk::SyncMode::Normal));
+    assert_eq!(ok_cfg.stores["rw_full"].sync_mode, Some(fathomdb_sdk::SyncMode::Full));
+    assert_eq!(ok_cfg.resolve("rw_normal").unwrap().sync_mode, fathomdb_sdk::SyncMode::Normal);
+    assert_eq!(ok_cfg.resolve("rw_full").unwrap().sync_mode, fathomdb_sdk::SyncMode::Full);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn sc10_hosted_store_policy_validates_sync_mode_against_host_engine() {
+    use fathomdb_sdk::SyncMode;
+
+    let dir = tempfile::tempdir().unwrap();
+    let db_normal = dir.path().join("host-normal.sqlite");
+    let db_full = dir.path().join("host-full.sqlite");
+
+    let eng_normal = Arc::new(
+        Engine::open(
+            &db_normal,
+            OpenOptions::default().with_scope_policy(ScopePolicy::single("alpha")),
+        )
+        .unwrap(),
+    );
+    let eng_full = Arc::new(
+        Engine::open(
+            &db_full,
+            OpenOptions::default()
+                .with_scope_policy(ScopePolicy::single("alpha"))
+                .with_sync_mode(SyncMode::Full),
+        )
+        .unwrap(),
+    );
+
+    let adapter = Adapter::new(Config::default()).unwrap();
+
+    // Host engine opened with Normal, hosted policy asks for Full -> PolicyConflict
+    let err = adapter
+        .register_engine_with_policy(
+            "mismatch_full",
+            eng_normal.clone(),
+            HostedStorePolicy {
+                allow_writes: true,
+                scope: Some(ScopePolicy::single("alpha")),
+                sync_mode: SyncMode::Full,
+                ..HostedStorePolicy::default()
+            },
+        )
+        .unwrap_err();
+    assert!(
+        matches!(err, AdapterError::PolicyConflict(ref msg) if msg.contains("sync_mode")),
+        "got {err:?}"
+    );
+
+    // Host engine opened with Full, hosted policy defaults to Normal -> PolicyConflict
+    let err = adapter
+        .register_engine_with_policy(
+            "mismatch_normal",
+            eng_full.clone(),
+            HostedStorePolicy {
+                allow_writes: true,
+                scope: Some(ScopePolicy::single("alpha")),
+                ..HostedStorePolicy::default()
+            },
+        )
+        .unwrap_err();
+    assert!(
+        matches!(err, AdapterError::PolicyConflict(ref msg) if msg.contains("sync_mode")),
+        "got {err:?}"
+    );
+
+    // Read-only hosted policy with non-default SyncMode::Full -> PolicyConflict
+    let err = adapter
+        .register_engine_with_policy(
+            "ro_full",
+            eng_full.clone(),
+            HostedStorePolicy {
+                allow_writes: false,
+                sync_mode: SyncMode::Full,
+                ..HostedStorePolicy::default()
+            },
+        )
+        .unwrap_err();
+    assert!(
+        matches!(err, AdapterError::PolicyConflict(ref msg) if msg.contains("sync_mode")),
+        "got {err:?}"
+    );
+
+    // Matching write-enabled SyncMode::Full succeeds!
+    adapter
+        .register_engine_with_policy(
+            "ok_full",
+            eng_full.clone(),
+            HostedStorePolicy {
+                allow_writes: true,
+                scope: Some(ScopePolicy::single("alpha")),
+                sync_mode: SyncMode::Full,
+                ..HostedStorePolicy::default()
+            },
+        )
+        .unwrap();
+
+    adapter.shutdown().await;
+    eng_normal.close().unwrap();
+    eng_full.close().unwrap();
 }

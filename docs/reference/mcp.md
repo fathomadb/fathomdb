@@ -56,6 +56,7 @@ Unknown keys and the removed evaluation key `"write"` are rejected fail-closed.
 | `eager` | bool | `false` | Open at launch (at most one when `max_open_stores == 1`, `SC-07`). |
 | `allow_writes` | bool | `false` | Enables `actuate` and `put_latest_state` for this store; requires writable `scope` (`SC-01`, `SC-02`). |
 | `scope` | string or `{read: string[], write?: string}` or null | `null` | Caller `ScopePolicy`. String shorthand `"alpha"` maps to `read_write(["alpha"], "alpha")` when `allow_writes: true` or `read_only(["alpha"])` when `allow_writes: false`. |
+| `sync_mode` | `"normal"` or `"full"` | omitted (`"normal"`) | WAL durability sync mode (`OpenOptions::with_sync_mode`, `ADR-0.8.32` `#101`); permitted only on write-enabled stores (`allow_writes: true`, `SC-03`; forbidden on `roots`, `SC-05`; conflicting values across canonical aliases fail under `SC-06`). |
 | `allowed_kinds` | string[] or null | `null` | Optional write-only allowlist of canonical node and edge kinds (`SC-03`). |
 | `allowed_node_kinds` | string[] or null | `null` | Optional write-only allowlist of canonical node kinds (`SC-03`). |
 | `allowed_edge_kinds` | string[] or null | `null` | Optional write-only allowlist of canonical edge kinds (`SC-03`). |
@@ -67,14 +68,14 @@ Unknown keys and the removed evaluation key `"write"` are rejected fail-closed.
 | --- | --- |
 | `SC-01` | `allow_writes: true` with `scope` null, omitted, or empty `""` |
 | `SC-02` | `allow_writes: true` with a read-only `scope` grant (`write` omitted/null) |
-| `SC-03` | `allow_writes: false` with `scope.write`, `allowed_*`, or `create: true` |
+| `SC-03` | `allow_writes: false` with `scope.write`, `allowed_*`, `create: true`, or explicit `sync_mode` |
 | `SC-04` | Legacy evaluation key `"write"` present |
-| `SC-05` | `roots` auto-discovery paired with write enablement |
-| `SC-06` | Two store names resolving (via canonical path or symlink) to the same database file with incompatible settings, or any duplicate alias where either enables `allow_writes: true` |
+| `SC-05` | `roots` auto-discovery paired with write enablement (`allow_writes`, `write`, `create`, `scope`, or `sync_mode`) |
+| `SC-06` | Two store names resolving (via canonical path or symlink) to the same database file with incompatible settings (`scope`/`eager`/`create`/`sync_mode`), or any duplicate alias where either enables `allow_writes: true` |
 | `SC-07` | Multiple `eager: true` stores when `max_open_stores == 1` |
 | `SC-08` | Malformed or contradictory `scope` grammar (empty/duplicate tokens, wildcard `"*"`, write scope not in read scopes, control/NUL bytes, bounds exceeded) |
 | `SC-09` | Non-addressable `default_store`, `search_mode: "hybrid"` with `use_default_embedder: false`, or `run_limit_ms < call_deadline_ms` |
-| `SC-10` | Embedded `Adapter::register_engine[_with_policy]` conflicts with configured `stores[name]` or host `engine.config().scope_policy` (`AdapterError::PolicyConflict`, leaving the host engine untouched) |
+| `SC-10` | Embedded `Adapter::register_engine[_with_policy]` conflicts with configured `stores[name]`, host `engine.config().scope_policy`, or host `engine.config().sync_mode.unwrap_or_default()` (`AdapterError::PolicyConflict`, leaving the host engine untouched) |
 
 ## Tool surface
 

@@ -160,6 +160,7 @@ pub(crate) fn projection_dispatcher_loop(
     }
     let connection = match open_runtime_connection(
         &shared.path,
+        shared.sync_mode,
         #[cfg(any(test, feature = "test-hooks"))]
         ManagedConnectionCategory::ProjectionDispatcher,
         #[cfg(any(test, feature = "test-hooks"))]
@@ -375,6 +376,7 @@ pub(crate) fn projection_worker_loop(
     }
     let mut connection = match open_runtime_connection(
         &shared.path,
+        shared.sync_mode,
         #[cfg(any(test, feature = "test-hooks"))]
         ManagedConnectionCategory::ProjectionWorker,
         #[cfg(any(test, feature = "test-hooks"))]
@@ -1262,10 +1264,12 @@ fn next_pending_projection_jobs(
 
 pub(crate) fn database_has_pending_projection_work(
     path: &Path,
+    sync_mode: SyncMode,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
 ) -> rusqlite::Result<bool> {
     let connection = open_runtime_connection(
         path,
+        sync_mode,
         #[cfg(any(test, feature = "test-hooks"))]
         ManagedConnectionCategory::RuntimeProbe,
         #[cfg(any(test, feature = "test-hooks"))]

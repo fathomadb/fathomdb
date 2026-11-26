@@ -174,3 +174,48 @@ test("provenance zero disables pruning while a positive cap consumes rows", asyn
   assert.ok(counts[0] <= 2, `positive cap should prune: ${counts[0]}`);
   assert.ok(counts[1] >= 30, `zero cap should retain: ${counts[1]}`);
 });
+
+test("syncMode accepts normal, full, and omission while rejecting invalid values before creating a database", async () => {
+  for (const invalid of ["off", "FULL", "extra", "", 1, true, null]) {
+    const path = freshDbPath();
+    await assert.rejects(
+      Engine.open(path, { engineConfig: { syncMode: invalid } as unknown as EngineConfig }),
+      (error: unknown) => error instanceof TypeError,
+      `syncMode=${String(invalid)}`,
+    );
+    assert.equal(existsSync(path), false, `invalid syncMode=${String(invalid)} created a database`);
+  }
+
+  for (const invalid of ["off", "FULL", ""]) {
+    const path = freshDbPath();
+    await assert.rejects(
+      Promise.resolve().then(() =>
+        native.Engine.open(path, { engineConfig: { syncMode: invalid as "normal" } }),
+      ),
+    );
+    assert.equal(existsSync(path), false, `invalid native syncMode=${invalid} created a database`);
+  }
+
+  const omitted = await native.Engine.open(freshDbPath());
+  try {
+    assert.equal(omitted.requestedEngineConfigForTest?.().syncMode, undefined);
+  } finally {
+    await omitted.close();
+  }
+
+  const path = freshDbPath();
+  for (const mode of ["full", "normal"] as const) {
+    const engine = await Engine.open(path, { engineConfig: { syncMode: mode } });
+    try {
+      assert.equal(engine.config.syncMode, mode);
+    } finally {
+      await engine.close();
+    }
+    const nativeEngine = await native.Engine.open(path, { engineConfig: { syncMode: mode } });
+    try {
+      assert.equal(nativeEngine.requestedEngineConfigForTest?.().syncMode, mode);
+    } finally {
+      await nativeEngine.close();
+    }
+  }
+});

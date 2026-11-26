@@ -48,7 +48,7 @@ fathomdb-mcp --config <path.json> --check-config
 
 | Key | Type | Default | Rule |
 | --- | --- | --- | --- |
-| `stores` | object `name → {path, create?, eager?, allow_writes?, scope?, allowed_kinds?, allowed_node_kinds?, allowed_edge_kinds?, allowed_collections?}` | `{}` | Explicit entries. `path` absolute or relative to the config file. `create` (default `false`; requires `allow_writes: true`, `SC-03`) passes `OpenOptions.create_if_missing` (`EP-07`), mapping `DatabaseNotFound` to `unavailable/missing_file` with no check-then-open race. `eager` opens at launch. `allow_writes` (default `false`) enables governed write tools for this store when paired with a non-empty writable `scope` (`SC-01`, `SC-02`). `scope` accepts either a single-scope string shorthand (e.g. `"alpha"`, expanding to `read_write(["alpha"], "alpha")` when `allow_writes: true` or `read_only(["alpha"])` when `allow_writes: false`) or `{read: [...], write?: "..."}`. `allowed_kinds`, `allowed_node_kinds`, `allowed_edge_kinds`, and `allowed_collections` are optional write-only constraint allowlists (`SC-03` rejects them when `allow_writes: false`). |
+| `stores` | object `name → {path, create?, eager?, allow_writes?, scope?, sync_mode?, allowed_kinds?, allowed_node_kinds?, allowed_edge_kinds?, allowed_collections?}` | `{}` | Explicit entries. `path` absolute or relative to the config file. `create` (default `false`; requires `allow_writes: true`, `SC-03`) passes `OpenOptions.create_if_missing` (`EP-07`), mapping `DatabaseNotFound` to `unavailable/missing_file` with no check-then-open race. `eager` opens at launch. `allow_writes` (default `false`) enables governed write tools for this store when paired with a non-empty writable `scope` (`SC-01`, `SC-02`). `scope` accepts either a single-scope string shorthand (e.g. `"alpha"`, expanding to `read_write(["alpha"], "alpha")` when `allow_writes: true` or `read_only(["alpha"])` when `allow_writes: false`) or `{read: [...], write?: "..."}`. `sync_mode` (`"normal"` default or `"full"`, `ADR-0.8.32` `#101`) selects `OpenOptions::with_sync_mode` on write-enabled stores (`SC-03` rejects explicit `sync_mode` when `allow_writes: false`; `SC-05` rejects `sync_mode` on `roots`; `SC-06` rejects conflicting `sync_mode` across canonical path aliases). `allowed_kinds`, `allowed_node_kinds`, `allowed_edge_kinds`, and `allowed_collections` are optional write-only constraint allowlists (`SC-03` rejects them when `allow_writes: false`). |
 | `roots` | array of `{path, suffix?}` | `[]` | `path` (absolute or relative to the config file) must be an existing directory. Every regular file directly in it ending in `suffix` (default `.sqlite`) whose name without the suffix matches the store-name grammar is addressable by that name. No recursion; symlinked files are not addressable. Auto-discovered `roots` entries are always strictly read-only (`SC-05` rejects pairing `roots` with write enablement). An explicit `stores` name wins over a root name. |
 | `default_store` | string or null | null | Session default when a call omits `store`. Must be addressable (`SC-09`). |
 | `allow_writes` | bool | false | Global write posture flag (default `false`). Cannot be paired with `roots` (`SC-05`); per-store writes still require explicit per-store `allow_writes: true` and a non-empty writable `scope`. The legacy evaluation key `"write"` is rejected fail-fast (`SC-04`). |
@@ -78,14 +78,14 @@ files touched), `Config::load` / `Config::from_json_str` / `Config::validate`,
 
 - **`SC-01`:** `allow_writes: true` with `scope: null`, omitted, or empty `""`.
 - **`SC-02`:** `allow_writes: true` paired with a read-only `scope` grant (`write` omitted/null).
-- **`SC-03`:** `allow_writes: false` paired with write-grant `scope.write`, `allowed_*`, or `create: true`.
+- **`SC-03`:** `allow_writes: false` paired with write-grant `scope.write`, `allowed_*`, `create: true`, or explicit `sync_mode`.
 - **`SC-04`:** Legacy evaluation key `"write"` present (alone or with `"allow_writes"`).
-- **`SC-05`:** `roots` auto-discovery paired with write enablement.
-- **`SC-06`:** Duplicate store aliases resolving via canonical path or symlink to the same database file with incompatible settings OR where either entry enables `allow_writes: true`.
+- **`SC-05`:** `roots` auto-discovery paired with write enablement (including `allow_writes`, `write`, `create`, `scope`, or `sync_mode`).
+- **`SC-06`:** Duplicate store aliases resolving via canonical path or symlink to the same database file with incompatible settings (`scope`/`eager`/`create`/`sync_mode`) OR where either entry enables `allow_writes: true`.
 - **`SC-07`:** Multiple `eager: true` stores when `max_open_stores == 1`.
 - **`SC-08`:** Contradictory or malformed `scope` policy grammar (empty/duplicate tokens, wildcard `"*"`, write scope absent from read scopes, NUL/control bytes, exceeding bounds).
 - **`SC-09`:** Non-addressable `default_store`, `search_mode: "hybrid"` with `use_default_embedder: false`, or `run_limit_ms < call_deadline_ms`.
-- **`SC-10`:** Embedded `Adapter::register_engine[_with_policy]` conflicts with configured `stores[name]` or host `engine.config().scope_policy` (returns `AdapterError::PolicyConflict`, leaving the hosted engine untouched).
+- **`SC-10`:** Embedded `Adapter::register_engine[_with_policy]` conflicts with configured `stores[name]`, host `engine.config().scope_policy`, or host `engine.config().sync_mode.unwrap_or_default()` (returns `AdapterError::PolicyConflict`, leaving the hosted engine untouched).
 
 ## 3. Common call arguments and envelope
 
@@ -665,7 +665,8 @@ is crate-private.
 - **`Adapter::register_engine(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>) -> Result<(), AdapterError>`** and **`Adapter::register_engine_with_policy(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>, policy: HostedStorePolicy) -> Result<(), AdapterError>`.**
   Serves a host-owned open engine under `name`. `register_engine` delegates to
   `register_engine_with_policy` with the default read-only `HostedStorePolicy`.
-  Validates `policy` against `engine.config().scope_policy` and any configured
+  Validates `policy` against `engine.config().scope_policy`,
+  `engine.config().sync_mode.unwrap_or_default()`, and any configured
   filesystem `stores[name]` (`SC-10`) before touching the engine. Errors:
   `AdapterError::BadStoreName` for a name outside the grammar,
   `AdapterError::DuplicateStore` for a hosted name already registered, and
@@ -677,9 +678,10 @@ is crate-private.
   - When `telemetry_dir` is set, a sink `<dir>/<name>.<pid>.1.jsonl` is
     enabled on it, replacing any sink the host enabled.
   - Its search results carry `continuation_exact: false`.
-- **`HostedStorePolicy`.** Public struct (`allow_writes`, `scope`,
+- **`HostedStorePolicy`.** Public struct (`allow_writes`, `scope`, `sync_mode`,
   `allowed_kinds`, `allowed_node_kinds`, `allowed_edge_kinds`,
-  `allowed_collections`, `Default` = read-only).
+  `allowed_collections`, `Default` = read-only with `SyncMode::Normal`; builder
+  `with_sync_mode`).
 - **`Adapter::connection(&self) -> edge::FathomServer`.** A server handler for
   one MCP connection, with its own session (default store, scope-keyed
   continuations and response ids). Serve it with rmcp's `ServiceExt::serve` on

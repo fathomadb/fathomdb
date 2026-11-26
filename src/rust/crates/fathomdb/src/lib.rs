@@ -204,9 +204,10 @@ pub use fathomdb_engine::{
     StoredHeadCoverageCounts, StoredHeadCoverageFraction, StoredHeadCoverageProfile,
     StoredHeadCoverageUnavailableReason, StoredHeadCoverageV1, StructuralDegradationCodeV1,
     StructuralDependencyStateV1, StructuralInclusionStateV1, StructuralInclusionV1,
-    StructuralLifecycleStateV1, StructuralProjectionOriginV1, Subscription, TraceArtifactClassV1,
-    TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection,
-    VisibilityStateV1, WriteProvenanceV1, WriteReceipt, EVIDENCE_RESOLVE_MANY_MAX,
+    StructuralLifecycleStateV1, StructuralProjectionOriginV1, Subscription, SyncMode,
+    TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1,
+    TraversalDirection, VisibilityStateV1, WriteProvenanceV1, WriteReceipt,
+    EVIDENCE_RESOLVE_MANY_MAX,
 };
 pub use fathomdb_engine::{
     CudaPoolMode, CudaPoolSettingConflict, CudaPoolSettingValue, PoolSettingSource,

@@ -237,6 +237,16 @@ is added.
   shared-store applications opt into caller isolation at open via
   `OpenOptions::with_scope_policy(...)` or `EngineConfig::with_scope_policy(...)`
   (`engine.config().scope_policy` reflects the open-time policy).
+- **Declared WAL durability sync mode (`SyncMode`, 0.8.32):** `fathomdb_sdk`
+  re-exports `SyncMode::{Normal, Full}` (`as_pragma()` / `as_str()`), configured
+  via `OpenOptions::with_sync_mode(...)` or `EngineConfig::with_sync_mode(...)`
+  (`engine.config().sync_mode` retains the open-time request). `None` resolves
+  to `SyncMode::Normal` (`PRAGMA synchronous = NORMAL`, checkpoint-bounded
+  atomic prefix recovery); opt-in `SyncMode::Full` sets `PRAGMA synchronous =
+  FULL` (per-commit WAL `fsync`, strict zero loss of client-acknowledged commits
+  on a compliant local POSIX storage stack) on both writer and
+  projection/runtime connections. See
+  [Operations — concurrency and durability limits](../operations/index.md#concurrency-and-durability-limits).
 - **`ScopePolicy` exports:** `ScopePolicy` (`Unscoped`,
   `Scoped { read_scopes, write_scope }`, `single`, `read_only`, `read_write`,
   `is_unscoped`, `read_scopes`, `write_scope`), `ScopePolicyError`,

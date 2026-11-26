@@ -102,11 +102,23 @@ These are the only allowed differences from the Python and TypeScript SDKs:
 `OpenOptions { config: EngineConfig, use_default_embedder: bool, create_if_missing: bool }`
 implements `Default`, which gives the default `EngineConfig` (including `scope_policy:
 ScopePolicy::Unscoped`, the single-scope/single-agent default binding
-`scope = ""`), `use_default_embedder = false`, and `create_if_missing = true`.
+`scope = ""`, and `sync_mode: None`, resolving to `SyncMode::Normal`),
+`use_default_embedder = false`, and `create_if_missing = true`.
 `OpenOptions::with_scope_policy(self, policy: ScopePolicy) -> Self`,
-`OpenOptions::with_create_if_missing(self, create_if_missing: bool) -> Self`, and
-`EngineConfig::with_scope_policy(self, policy: ScopePolicy) -> Self` configure
-multi-agent caller-scope isolation and existing-database-only opens. `EngineConfig`
+`OpenOptions::with_create_if_missing(self, create_if_missing: bool) -> Self`,
+`OpenOptions::with_sync_mode(self, sync_mode: SyncMode) -> Self`,
+`EngineConfig::with_scope_policy(self, policy: ScopePolicy) -> Self`, and
+`EngineConfig::with_sync_mode(self, sync_mode: SyncMode) -> Self` configure
+multi-agent caller-scope isolation, existing-database-only opens, and WAL
+durability sync mode (`SyncMode::{Normal, Full}`, re-exported at the crate
+root; `ADR-0.8.32` `#101`). `SyncMode::Normal` (default, `PRAGMA synchronous =
+NORMAL`) guarantees zero corruption and checkpoint-bounded atomic prefix
+recovery; opt-in `SyncMode::Full` (`PRAGMA synchronous = FULL`) issues
+per-commit WAL `fsync` on both writer and projection/runtime connections for
+strict zero loss of client-acknowledged commits on an `fsync`/`FLUSH`/`FUA`-honoring
+local POSIX storage stack (network filesystems lacking `flock`/`fsync`,
+flush-ignoring caches, silent media corruption, and `.lock` bypass fall outside
+automatic open recovery). `EngineConfig`
 is the core struct, re-exported: its fields, ranges, and defaults are already
 identical across the three SDKs.
 

@@ -119,6 +119,18 @@ CATALOG: tuple[KnobEntry, ...] = (
         ),
     ),
     KnobEntry(
+        name="sync_mode",
+        classification=KnobClass.HELD_CONSTANT,
+        call_path=None,
+        witness=None,
+        reason=(
+            "WAL durability sync mode (0.8.32 Slice 50, ADR-0.8.32 #101). Selects "
+            "SQLite PRAGMA synchronous (NORMAL default vs FULL per-commit fsync); "
+            "it changes durability/latency semantics, never retrieval results, so "
+            "EARP holds it constant at the library default."
+        ),
+    ),
+    KnobEntry(
         name="rerank_depth",
         classification=KnobClass.SEMANTIC,
         call_path="Engine.search(rerank_depth=)",

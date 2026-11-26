@@ -46,6 +46,7 @@ cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 | GPU pool cap (0.8.28) | `cuda_pool_max_size` | `cudaPoolMaxSize` | `33,554,432..` bytes | `FATHOMDB_POOL_MAXSIZE`, else 1/20 of device memory (3 GiB on the AGX Orin 64 GB) | The pool's cap; it serves about a third of it on JetPack 6. |
 | GPU pool release threshold (0.8.28) | `cuda_pool_release_threshold` | `cudaPoolReleaseThreshold` | `"0"`, `"max"` | `FATHOMDB_POOL_RELEASE_THRESHOLD`, else `"0"` | `"0"`: freed GPU memory returns to the system automatically. `"max"`: it stays reserved while any FathomDB model is open in the process and is returned when the last one closes. |
 | Caller scope policy (0.8.32) | `scope_policy` | `scopePolicy` | `ScopePolicy` (`unscoped`, `single`, `read_only`/`readOnly`, `read_write`/`readWrite`) | `ScopePolicy.unscoped()` | Selects single-scope default (`scope = ""`) or opts a multi-agent handle into enforced read visibility and write authority. |
+| WAL durability sync mode (0.8.32) | `sync_mode` | `syncMode` | `"normal"`, `"full"` (`SyncMode::{Normal, Full}` in Rust) | `"normal"` | Configures `PRAGMA synchronous` (`NORMAL` default or `FULL` per-commit WAL `fsync`) on both writer and projection/runtime connections. |
 
 ## Single-scope default and `ScopePolicy` (0.8.32, Schema 39)
 
@@ -93,6 +94,27 @@ An explicit `"autonomous"` or `"explicit_maintenance"` request on reopen must
 match the persisted policy or open is refused. It cannot be switched at runtime.
 See [maintenance](../operations/erasure.md#schedule-an-explicit-maintenance-window)
 for queueing, exclusive windows and durable incomplete outcomes.
+
+### WAL durability sync mode (`sync_mode` / `syncMode`, 0.8.32)
+
+`sync_mode` (Python/Rust) / `syncMode` (TypeScript) is fixed per open handle and
+is not persisted in the database file; `None` / `undefined` resolves to
+`"normal"` (`SyncMode::Normal`). It applies to **both** the primary writer
+connection and all background projection-worker/runtime connections:
+
+- **`"normal"` / `SyncMode::Normal` (default, `PRAGMA synchronous = NORMAL`):**
+  Guarantees zero database corruption and atomic prefix recovery to the last
+  flushed or checkpointed WAL frame on unclean shutdown or power loss.
+  Un-checkpointed commits buffered in volatile caches at power loss may roll
+  back atomically as a contiguous suffix.
+- **`"full"` / `SyncMode::Full` (opt-in, `PRAGMA synchronous = FULL`):**
+  Issues per-commit WAL `fsync` (`SQLITE_SYNC_FULL`) for strict zero loss of
+  every client-acknowledged commit on a local POSIX filesystem over an
+  `fsync`/`FLUSH`/`FUA`-honoring block device, trading higher unbatched
+  single-row commit latency (amortized on multi-row batches).
+- Invalid string values fail closed before touching any database or `.lock`
+  file. See [Operations — concurrency and durability limits](../operations/index.md#concurrency-and-durability-limits)
+  for declared storage and non-recoverable fault boundaries.
 
 The three GPU pool settings take effect only on AArch64 Linux CUDA builds;
 elsewhere they are validated, read back and held to the rule below, but do

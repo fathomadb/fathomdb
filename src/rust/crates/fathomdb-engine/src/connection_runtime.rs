@@ -203,6 +203,7 @@ pub(crate) fn sqlite_windows_path_has_trailing_dot_or_space(path: &Path) -> bool
 
 pub(crate) fn open_runtime_connection(
     path: &Path,
+    sync_mode: SyncMode,
     #[cfg(any(test, feature = "test-hooks"))] category: ManagedConnectionCategory,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
 ) -> rusqlite::Result<Connection> {
@@ -214,11 +215,14 @@ pub(crate) fn open_runtime_connection(
         managed_connections,
     )?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
+    connection.pragma_update(None, "synchronous", sync_mode.as_pragma())?;
     // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `secure_delete=ON` at
     // EVERY open. The projection/vector-rewrite runtime connection performs
     // DELETEs (shadow-table rewrites), so its freed pages must be scrubbed too;
     // setting the pragma only on the writer left a GDPR-erasure leak here.
     connection.pragma_update(None, "secure_delete", "ON")?;
+    #[cfg(feature = "test-hooks")]
+    record_runtime_pragma_witness_for_test(&connection, category);
     Ok(connection)
 }
 
@@ -517,6 +521,7 @@ impl Engine {
         let _operation = self.ensure_open()?;
         let connection = open_runtime_connection(
             &self.path,
+            self.resolved_config.sync_mode,
             #[cfg(any(test, feature = "test-hooks"))]
             ManagedConnectionCategory::RuntimeProbe,
             #[cfg(any(test, feature = "test-hooks"))]
@@ -528,13 +533,54 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         Ok(value != 0)
     }
+
+    /// Slice 50 (`AC32-SYNC-02`) — reports the effective `PRAGMA synchronous`
+    /// integer (`1` = `NORMAL`, `2` = `FULL`) observed on a freshly opened
+    /// projection/runtime connection (`open_runtime_connection`).
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn runtime_synchronous_pragma_for_test(&self) -> Result<i64, EngineError> {
+        let _operation = self.ensure_open()?;
+        let connection = open_runtime_connection(
+            &self.path,
+            self.resolved_config.sync_mode,
+            #[cfg(any(test, feature = "test-hooks"))]
+            ManagedConnectionCategory::RuntimeProbe,
+            #[cfg(any(test, feature = "test-hooks"))]
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        connection
+            .pragma_query_value(None, "synchronous", |row| row.get::<_, i64>(0))
+            .map_err(|_| EngineError::Storage)
+    }
 }
 
 #[cfg(feature = "test-hooks")]
 pub(super) fn record_writer_pragma_witness_for_test(connection: &Connection) {
+    record_pragma_witness_for_role(connection, "writer");
+}
+
+#[cfg(feature = "test-hooks")]
+fn record_runtime_pragma_witness_for_test(
+    connection: &Connection,
+    category: ManagedConnectionCategory,
+) {
+    let role = match category {
+        ManagedConnectionCategory::Writer => "writer",
+        ManagedConnectionCategory::ReaderWorker => "reader_worker",
+        ManagedConnectionCategory::ProjectionDispatcher => "projection_dispatcher",
+        ManagedConnectionCategory::ProjectionWorker => "projection_worker",
+        ManagedConnectionCategory::RuntimeProbe => "runtime_probe",
+    };
+    record_pragma_witness_for_role(connection, role);
+}
+
+#[cfg(feature = "test-hooks")]
+fn record_pragma_witness_for_role(connection: &Connection, role: &str) {
     let observation = (|| -> rusqlite::Result<serde_json::Value> {
         Ok(serde_json::json!({
-            "role": "writer",
+            "role": role,
             "journal_mode": connection.pragma_query_value(
                 None,
                 "journal_mode",

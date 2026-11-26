@@ -29,6 +29,7 @@ fn requested_configuration_is_retained_without_setter_mutation() {
         cuda_pool_release_threshold: None,
         query_stop_words: None,
         physical_erasure_policy: None,
+        sync_mode: None,
         scope_policy: fathomdb_engine::ScopePolicy::default(),
     };
     let opened = Engine::open_with_choice_and_config(

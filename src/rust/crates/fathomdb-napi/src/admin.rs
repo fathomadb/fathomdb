@@ -59,6 +59,8 @@ pub async fn admin_configure(
 pub struct EngineConfig {
     /// Persisted autonomous or explicit_maintenance scheduling policy.
     pub physical_erasure_policy: Option<String>,
+    /// WAL durability sync mode (`"normal"` or `"full"`).
+    pub sync_mode: Option<String>,
     pub embedder_pool_size: Option<f64>,
     pub scheduler_runtime_threads: Option<f64>,
     pub provenance_row_cap: Option<f64>,
@@ -215,6 +217,14 @@ impl EngineConfig {
                         &raw,
                         "autonomous or explicit_maintenance",
                     )),
+                })
+                .transpose()?,
+            sync_mode: self
+                .sync_mode
+                .map(|raw| match raw.as_str() {
+                    "normal" => Ok(fathomdb_engine::SyncMode::Normal),
+                    "full" => Ok(fathomdb_engine::SyncMode::Full),
+                    _ => Err(invalid_config_string("sync_mode", &raw, "normal or full")),
                 })
                 .transpose()?,
             embedder_pool_size: checked_config_number(

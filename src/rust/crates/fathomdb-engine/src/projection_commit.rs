@@ -779,6 +779,7 @@ impl Engine {
         };
         let mut connection = open_runtime_connection(
             &self.projection_runtime.shared.path,
+            self.projection_runtime.shared.sync_mode,
             ManagedConnectionCategory::ProjectionWorker,
             &self.projection_runtime.shared.managed_connections,
         )

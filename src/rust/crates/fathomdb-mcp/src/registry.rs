@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
-use fathomdb_sdk::{read, Engine, OpenOptions, ScopePolicy};
+use fathomdb_sdk::{read, Engine, OpenOptions, ScopePolicy, SyncMode};
 use tokio::sync::{watch, Notify, OwnedSemaphorePermit, Semaphore};
 
 use crate::config::{canonical_scope_key, validate_hosted_policy, Config, HostedStorePolicy};
@@ -156,7 +156,7 @@ pub(crate) struct Admission<'a> {
 pub(crate) type ProgressFn = Arc<dyn Fn(String) + Send + Sync>;
 
 enum Source {
-    Managed { path: PathBuf, create: bool },
+    Managed { path: PathBuf, create: bool, sync_mode: SyncMode },
     Hosted,
 }
 
@@ -508,8 +508,13 @@ impl Registry {
                 "store {name:?} collides with configured filesystem stores[{name:?}]"
             )));
         }
-        let validated_scope = validate_hosted_policy(name, &policy, &engine.config().scope_policy)
-            .map_err(RegisterError::PolicyConflict)?;
+        let validated_scope = validate_hosted_policy(
+            name,
+            &policy,
+            &engine.config().scope_policy,
+            engine.config().sync_mode.unwrap_or_default(),
+        )
+        .map_err(RegisterError::PolicyConflict)?;
         let store_policy = StorePolicy::from_parts(
             policy.allow_writes,
             validated_scope,
@@ -590,7 +595,11 @@ impl Registry {
                         resolution.allowed_collections,
                     );
                     Slot::new(
-                        Source::Managed { path: resolution.path, create: resolution.create },
+                        Source::Managed {
+                            path: resolution.path,
+                            create: resolution.create,
+                            sync_mode: resolution.sync_mode,
+                        },
                         policy,
                         cap,
                     )
@@ -961,10 +970,10 @@ impl Registry {
         }
         let registry = self.this();
         let slot = inner.slots.get_mut(name).expect("slot exists");
-        let Source::Managed { path, create } = &slot.source else {
+        let Source::Managed { path, create, sync_mode } = &slot.source else {
             unreachable!("hosted slots are always ready");
         };
-        let (path, create) = (path.clone(), *create);
+        let (path, create, sync_mode) = (path.clone(), *create, *sync_mode);
         let scope = slot.policy.scope.clone();
         slot.phase = if slot.epoch > 0 { Phase::Reopening } else { Phase::Opening };
         slot.attempt += 1;
@@ -990,7 +999,7 @@ impl Registry {
             let hooks = registry.hooks.clone();
             let task_name = name.clone();
             let opened = tokio::task::spawn_blocking(move || {
-                open_store(&task_name, &path, create, scope, next_epoch, &config, &hooks)
+                open_store(&task_name, &path, create, scope, sync_mode, next_epoch, &config, &hooks)
             })
             .await
             .unwrap_or_else(|_| Err(ToolError::panic()));
@@ -1192,11 +1201,13 @@ async fn wait_idle(load: &Load) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn open_store(
     name: &str,
     path: &Path,
     create: bool,
     scope: ScopePolicy,
+    sync_mode: SyncMode,
     epoch: u64,
     config: &Config,
     hooks: &Hooks,
@@ -1204,8 +1215,10 @@ fn open_store(
     hooks.before_open(name);
     // EP-07: atomic lock-before-embedder `create_if_missing` enforced inside
     // `fathomdb-engine` (`DatabaseNotFound` -> `unavailable/missing_file`).
-    let mut options =
-        OpenOptions::default().with_create_if_missing(create).with_scope_policy(scope);
+    let mut options = OpenOptions::default()
+        .with_create_if_missing(create)
+        .with_scope_policy(scope)
+        .with_sync_mode(sync_mode);
     options.use_default_embedder = config.use_default_embedder;
     let engine = Engine::open(path, options).map_err(|error| {
         let mapped = ToolError::from_open(name, &error);

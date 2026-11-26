@@ -29,6 +29,7 @@ impl Engine {
                         }
                     },
                 ),
+                sync_mode: requested.sync_mode.map(|mode| mode.as_str().to_string()),
                 embedder_pool_size: requested.embedder_pool_size.map(|value| value as f64),
                 scheduler_runtime_threads: requested
                     .scheduler_runtime_threads

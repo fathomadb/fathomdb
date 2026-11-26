@@ -83,6 +83,7 @@ mod tests {
             requested.set_item("embedder_call_timeout_ms", 2_001).unwrap();
             requested.set_item("provenance_row_cap", 0).unwrap();
             requested.set_item("slow_threshold_ms", 7).unwrap();
+            requested.set_item("sync_mode", "full").unwrap();
             assert_eq!(
                 engine_config_from_py(Some(&requested)).unwrap(),
                 RustEngineConfig {
@@ -96,6 +97,7 @@ mod tests {
                     cuda_pool_release_threshold: None,
                     query_stop_words: None,
                     physical_erasure_policy: None,
+                    sync_mode: Some(fathomdb_engine::SyncMode::Full),
                     scope_policy: fathomdb_engine::ScopePolicy::default(),
                 }
             );

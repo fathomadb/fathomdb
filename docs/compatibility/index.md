@@ -154,6 +154,25 @@ chained `37 -> 38 -> 39`) upgrade explicitly offline through
 [CLI reference](../reference/cli.md)). Pre-37 formats have no in-place upgrade
 path.
 
+## Storage stack and durability boundary (0.8.32)
+
+Automatic `Engine::open` WAL recovery assumes a **local POSIX filesystem**
+(e.g. `ext4` with barriers / `data=ordered`) over a block device that honors
+`fsync` / `FLUSH` / `FUA` write barriers, with single-Engine-per-file sidecar
+`.lock` exclusion:
+
+- `SyncMode::Normal` (default, `PRAGMA synchronous = NORMAL`) guarantees zero
+  corruption and checkpoint-bounded atomic prefix recovery (un-checkpointed
+  volatile-cache commits may roll back atomically as a contiguous suffix on
+  power loss).
+- `SyncMode::Full` (opt-in, `PRAGMA synchronous = FULL`) issues per-commit WAL
+  `fsync` on writer and projection/runtime connections for strict zero loss of
+  client-acknowledged commits on compliant storage.
+- **Excluded from automatic open recovery:** Network filesystems without
+  reliable `flock`/`fsync`, flush-ignoring write-back caches, silent hardware
+  media corruption, and processes bypassing `.lock` (see
+  [Operations — concurrency and durability limits](../operations/index.md#concurrency-and-durability-limits)).
+
 ## Versioning — two axes
 
 The `0.8.32` documentation target uses two-axis versioning (`W = 0.8.32`,

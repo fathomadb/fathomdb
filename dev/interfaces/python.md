@@ -162,6 +162,17 @@ engine-owned knobs from `design/engine.md` in snake_case:
 - `scope_policy`: optional `ScopePolicy` (`None` defaults to
   `ScopePolicy.unscoped()` for single-scope/single-agent databases; 0.8.32
   Slice 20)
+- `sync_mode`: optional `Literal["normal", "full"] | None` (`None` resolves to
+  `"normal"` / `PRAGMA synchronous = NORMAL`; `"full"` sets `PRAGMA synchronous
+  = FULL` on both writer and projection/runtime connections; 0.8.32 Slice 50,
+  `ADR-0.8.32` `#101`). `"normal"` guarantees zero corruption and
+  checkpoint-bounded atomic prefix recovery (un-checkpointed volatile-cache
+  commits may roll back atomically on power loss); `"full"` guarantees strict
+  zero loss of client-acknowledged commits on an `fsync`/`FLUSH`/`FUA`-honoring
+  local POSIX storage stack. Network filesystems lacking `flock`/`fsync`,
+  flush-ignoring caches, silent media corruption, and `.lock` bypass fall
+  outside automatic `Engine.open` recovery. Invalid values raise `ValueError`
+  before touching any database or lock file.
 
 The keyword form and `EngineConfig` object form are equivalent. Python
 executor usage remains caller-owned and is not an engine config field.

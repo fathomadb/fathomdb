@@ -9,7 +9,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use fathomdb_sdk::{ScopePolicy, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES};
+use fathomdb_sdk::{ScopePolicy, SyncMode, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES};
 use serde_json::{Map, Value};
 
 use crate::names::validate_store_name;
@@ -44,6 +44,8 @@ pub struct HostedStorePolicy {
     pub allow_writes: bool,
     /// Optional caller-scope policy asserted against `engine.config().scope_policy`.
     pub scope: Option<ScopePolicy>,
+    /// WAL durability sync mode asserted against `engine.config().sync_mode.unwrap_or_default()`.
+    pub sync_mode: SyncMode,
     /// Optional write-only allowlist of canonical node & edge kinds.
     pub allowed_kinds: Option<Vec<String>>,
     /// Optional write-only allowlist of canonical node kinds.
@@ -52,6 +54,15 @@ pub struct HostedStorePolicy {
     pub allowed_edge_kinds: Option<Vec<String>>,
     /// Optional write-only allowlist of `latest_state` operational collections.
     pub allowed_collections: Option<Vec<String>>,
+}
+
+impl HostedStorePolicy {
+    /// Builder helper setting [`Self::sync_mode`].
+    #[must_use]
+    pub fn with_sync_mode(mut self, sync_mode: SyncMode) -> Self {
+        self.sync_mode = sync_mode;
+        self
+    }
 }
 
 /// One explicit `stores` entry. `path` is absolute after parsing.
@@ -67,6 +78,8 @@ pub struct StoreEntry {
     pub allow_writes: bool,
     /// Optional caller-scope isolation policy bound when opening this store.
     pub scope: Option<ScopePolicy>,
+    /// Optional WAL durability sync mode (write-enabled stores only; `None` defaults to `Normal`).
+    pub sync_mode: Option<SyncMode>,
     /// Optional write-only allowlist of canonical node & edge kinds.
     pub allowed_kinds: Option<Vec<String>>,
     /// Optional write-only allowlist of canonical node kinds.
@@ -101,6 +114,8 @@ pub struct Resolution {
     pub allow_writes: bool,
     /// Optional caller-scope isolation policy bound when opening this store.
     pub scope: Option<ScopePolicy>,
+    /// Effective WAL durability sync mode (`SyncMode::Normal` when omitted).
+    pub sync_mode: SyncMode,
     /// Optional write-only allowlist of canonical node & edge kinds.
     pub allowed_kinds: Option<Vec<String>>,
     /// Optional write-only allowlist of canonical node kinds.
@@ -230,6 +245,7 @@ const STORE_ENTRY_KEYS: &[&str] = &[
     "eager",
     "allow_writes",
     "scope",
+    "sync_mode",
     "allowed_kinds",
     "allowed_node_kinds",
     "allowed_edge_kinds",
@@ -416,6 +432,7 @@ impl Config {
                 entry.allow_writes,
                 entry.create,
                 entry.scope.as_ref(),
+                entry.sync_mode,
                 entry.allowed_kinds.as_deref(),
                 entry.allowed_node_kinds.as_deref(),
                 entry.allowed_edge_kinds.as_deref(),
@@ -455,6 +472,7 @@ impl Config {
             allow_writes: bool,
             create: bool,
             eager: bool,
+            sync_mode: SyncMode,
             scope_key: String,
         }
 
@@ -464,6 +482,7 @@ impl Config {
                          allow_writes: bool,
                          create: bool,
                          eager: bool,
+                         sync_mode: SyncMode,
                          scope: Option<&ScopePolicy>|
          -> Result<(), ConfigError> {
             let canon = canonical_target_path(path);
@@ -472,6 +491,7 @@ impl Config {
                 allow_writes,
                 create,
                 eager,
+                sync_mode,
                 scope_key: canonical_scope_key(scope),
             };
             if let Some(existing) = by_canon.get(&canon) {
@@ -485,10 +505,11 @@ impl Config {
                 if existing.scope_key != current.scope_key
                     || existing.eager != current.eager
                     || existing.create != current.create
+                    || existing.sync_mode != current.sync_mode
                 {
                     return Err(ConfigError::new(format!(
                         "stores: {:?} and {:?} resolve to the same database file with \
-                         incompatible policy settings (scope/eager/create)",
+                         incompatible policy settings (scope/eager/create/sync_mode)",
                         existing.name, current.name
                     )));
                 }
@@ -505,6 +526,7 @@ impl Config {
                 entry.allow_writes,
                 entry.create,
                 entry.eager,
+                entry.sync_mode.unwrap_or_default(),
                 entry.scope.as_ref(),
             )?;
         }
@@ -520,7 +542,15 @@ impl Config {
                     continue;
                 }
                 if validate_store_name(name).is_ok() && is_regular_file(&entry.path()) {
-                    check(name.to_string(), &entry.path(), false, false, false, None)?;
+                    check(
+                        name.to_string(),
+                        &entry.path(),
+                        false,
+                        false,
+                        false,
+                        SyncMode::Normal,
+                        None,
+                    )?;
                 }
             }
         }
@@ -543,6 +573,7 @@ impl Config {
                 eager: entry.eager,
                 allow_writes: entry.allow_writes,
                 scope: entry.scope.clone(),
+                sync_mode: entry.sync_mode.unwrap_or_default(),
                 allowed_kinds: entry.allowed_kinds.clone(),
                 allowed_node_kinds: entry.allowed_node_kinds.clone(),
                 allowed_edge_kinds: entry.allowed_edge_kinds.clone(),
@@ -558,6 +589,7 @@ impl Config {
                     eager: false,
                     allow_writes: false,
                     scope: None,
+                    sync_mode: SyncMode::Normal,
                     allowed_kinds: None,
                     allowed_node_kinds: None,
                     allowed_edge_kinds: None,
@@ -592,24 +624,37 @@ impl Config {
 }
 
 /// Validate a [`HostedStorePolicy`] against `SC-01`, `SC-02`, `SC-03`, `SC-08`, and
-/// `SC-10` (comparing against `host_scope` from `engine.config().scope_policy`).
+/// `SC-10` (comparing against `host_scope` from `engine.config().scope_policy` and
+/// `host_sync_mode` from `engine.config().sync_mode.unwrap_or_default()`).
 pub(crate) fn validate_hosted_policy(
     name: &str,
     policy: &HostedStorePolicy,
     host_scope: &ScopePolicy,
+    host_sync_mode: SyncMode,
 ) -> Result<ScopePolicy, String> {
     let prefix = format!("hosted.{name}");
+    let requested_sync = (policy.sync_mode != SyncMode::Normal).then_some(policy.sync_mode);
     validate_store_policy(
         &prefix,
         policy.allow_writes,
         false,
         policy.scope.as_ref(),
+        requested_sync,
         policy.allowed_kinds.as_deref(),
         policy.allowed_node_kinds.as_deref(),
         policy.allowed_edge_kinds.as_deref(),
         policy.allowed_collections.as_deref(),
     )
     .map_err(|error| error.message)?;
+
+    if policy.sync_mode != host_sync_mode {
+        return Err(format!(
+            "{prefix}.sync_mode: hosted store sync_mode ({:?}) does not match host engine's \
+             effective SyncMode ({:?})",
+            policy.sync_mode.as_str(),
+            host_sync_mode.as_str()
+        ));
+    }
 
     let host_canon = canonicalize_scope_policy(host_scope, &format!("{prefix}.host_scope"))
         .map_err(|error| error.message)?;
@@ -661,6 +706,7 @@ fn validate_store_policy(
     allow_writes: bool,
     create: bool,
     scope: Option<&ScopePolicy>,
+    sync_mode: Option<SyncMode>,
     allowed_kinds: Option<&[String]>,
     allowed_node_kinds: Option<&[String]>,
     allowed_edge_kinds: Option<&[String]>,
@@ -710,10 +756,15 @@ fn validate_store_policy(
             )));
         }
     } else {
-        // SC-03: allow_writes: false rejects create: true and write scope grants
+        // SC-03: allow_writes: false rejects create: true, explicit sync_mode, and write scope grants
         if create {
             return Err(ConfigError::new(format!(
                 "{prefix}.create: create: true requires allow_writes: true"
+            )));
+        }
+        if sync_mode.is_some() {
+            return Err(ConfigError::new(format!(
+                "{prefix}.sync_mode: sync_mode requires allow_writes: true"
             )));
         }
         if let Some(policy) = scope {
@@ -999,6 +1050,18 @@ fn parse_store_scope(
     }
 }
 
+fn parse_store_sync_mode(
+    value: Option<&Value>,
+    field: &str,
+) -> Result<Option<SyncMode>, ConfigError> {
+    match value {
+        None => Ok(None),
+        Some(Value::String(mode)) if mode == "normal" => Ok(Some(SyncMode::Normal)),
+        Some(Value::String(mode)) if mode == "full" => Ok(Some(SyncMode::Full)),
+        Some(_) => Err(ConfigError::new(format!("{field}: must be \"normal\" or \"full\""))),
+    }
+}
+
 fn parse_stores(
     value: Option<&Value>,
     base_dir: &Path,
@@ -1006,7 +1069,7 @@ fn parse_stores(
     let Some(value) = value else { return Ok(BTreeMap::new()) };
     let Value::Object(entries) = value else {
         return Err(ConfigError::new(
-            "stores: must be an object of name -> {path, create?, eager?, allow_writes?, scope?, allowed_kinds?}",
+            "stores: must be an object of name -> {path, create?, eager?, allow_writes?, scope?, sync_mode?, allowed_kinds?}",
         ));
     };
     let mut stores = BTreeMap::new();
@@ -1044,6 +1107,8 @@ fn parse_stores(
             .map_err(|error| ConfigError::new(format!("stores.{name}.{error}")))?;
         let scope =
             parse_store_scope(entry.get("scope"), allow_writes, &format!("stores.{name}.scope"))?;
+        let sync_mode =
+            parse_store_sync_mode(entry.get("sync_mode"), &format!("stores.{name}.sync_mode"))?;
         let allowed_kinds = optional_string_vec(entry, "allowed_kinds", &prefix)?;
         let allowed_node_kinds = optional_string_vec(entry, "allowed_node_kinds", &prefix)?;
         let allowed_edge_kinds = optional_string_vec(entry, "allowed_edge_kinds", &prefix)?;
@@ -1057,6 +1122,7 @@ fn parse_stores(
                 eager,
                 allow_writes,
                 scope,
+                sync_mode,
                 allowed_kinds,
                 allowed_node_kinds,
                 allowed_edge_kinds,
@@ -1078,7 +1144,7 @@ fn parse_roots(value: Option<&Value>, base_dir: &Path) -> Result<Vec<Root>, Conf
             return Err(ConfigError::new(format!("roots[{index}]: must be an object")));
         };
         // SC-05: explicit fail-fast message when write keys are placed on roots
-        for forbidden in ["allow_writes", "write", "create", "scope"] {
+        for forbidden in ["allow_writes", "write", "create", "scope", "sync_mode"] {
             if entry.contains_key(forbidden) {
                 return Err(ConfigError::new(format!(
                     "roots[{index}].{forbidden}: auto-discovered roots are strictly read-only"

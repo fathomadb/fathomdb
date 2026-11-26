@@ -76,7 +76,12 @@ handle.
 - `**engine_config` — per-knob keyword arguments (see
   [config](config.md)), including `scope_policy: ScopePolicy | None = None`
   (defaults to `ScopePolicy.unscoped()` for single-scope/single-agent
-  databases; opt into `ScopePolicy` for multi-agent stores). Mutually exclusive
+  databases; opt into `ScopePolicy` for multi-agent stores) and
+  `sync_mode: Literal["normal", "full"] | None = None` (defaults to `"normal"` /
+  `PRAGMA synchronous = NORMAL` checkpoint-bounded atomic prefix recovery;
+  opt-in `"full"` sets `PRAGMA synchronous = FULL` per-commit WAL `fsync` on
+  both writer and projection/runtime connections; invalid values raise
+  `ValueError` before opening any database or lock file). Mutually exclusive
   with `config`.
 
 Raises `EngineError` subclasses on failure: `DatabaseLockedError`,

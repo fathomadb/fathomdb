@@ -107,6 +107,9 @@ class EngineConfig:
     #: Persisted erasure scheduling; None honors reopen policy and defaults new
     #: stores to autonomous. Explicit maintenance never means immediate revocation.
     physical_erasure_policy: Literal["autonomous", "explicit_maintenance"] | None = None
+    #: WAL durability sync mode (ADR-0.8.32); ``None`` resolves to ``"normal"``
+    #: (``PRAGMA synchronous = NORMAL``); ``"full"`` sets ``PRAGMA synchronous = FULL``.
+    sync_mode: Literal["normal", "full"] | None = None
     embedder_pool_size: int | None = None
     scheduler_runtime_threads: int | None = None
     provenance_row_cap: int | None = None

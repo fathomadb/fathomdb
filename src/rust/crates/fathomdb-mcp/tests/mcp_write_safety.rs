@@ -890,3 +890,50 @@ async fn ac32_mcp_safety_09_forbidden_operator_escape_hatches_always_refused() {
     }
     harness.shutdown().await;
 }
+
+/// AC32-SYNC-01/02: Write-enabled MCP store with `sync_mode: "full"` opens and
+/// writes cleanly with `PRAGMA synchronous = FULL` (`2`).
+#[tokio::test(flavor = "multi_thread")]
+async fn ac32_sync_mode_full_write_enabled_mcp_store_opens_and_writes_cleanly() {
+    let fixture = Fixture::new();
+    let db = fixture.path("rw-full.sqlite");
+    seed_scoped_with_collection(&db, "alpha", "ckpt");
+    let harness = Harness::start(fixture.config(json!({
+        "stores": {
+            "rw": {
+                "path": "rw-full.sqlite",
+                "allow_writes": true,
+                "scope": "alpha",
+                "sync_mode": "full"
+            }
+        }
+    })))
+    .await;
+
+    let res = harness
+        .ok(
+            "put_latest_state",
+            json!({
+                "store": "rw",
+                "operation_id": "op-sync-full-1",
+                "collection": "ckpt",
+                "record_key": "k-full",
+                "payload_json": r#"{"step":42}"#
+            }),
+        )
+        .await;
+    assert_eq!(res["outcome"], "committed");
+    harness.shutdown().await;
+
+    let verify = Engine::open(
+        &db,
+        OpenOptions::default()
+            .with_scope_policy(ScopePolicy::single("alpha"))
+            .with_sync_mode(fathomdb_sdk::SyncMode::Full),
+    )
+    .unwrap();
+    assert_eq!(verify.config().sync_mode, Some(fathomdb_sdk::SyncMode::Full));
+    let state = read::operational_state(&verify, "ckpt", "k-full", None).unwrap();
+    assert!(state.is_some(), "sync_mode=full write must persist cleanly");
+    verify.close().unwrap();
+}

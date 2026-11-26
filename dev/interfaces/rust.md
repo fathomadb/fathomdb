@@ -92,10 +92,35 @@ and native-width capacity overflow return
 SQLite mode failures retain `EngineOpenError::RuntimeConfiguration`.
 
 Since 0.8.28 Slice 41 phase 2, `EngineConfig` also has
-`query_stop_words: Option<QueryStopWords>` (§ Query stop words), and since
+`query_stop_words: Option<QueryStopWords>` (§ Query stop words), since
 0.8.32 Slice 20 it carries `scope_policy: ScopePolicy` (plus builder
 `EngineConfig::with_scope_policy(self, ScopePolicy) -> Self`, defaulting to
-`ScopePolicy::Unscoped` for single-scope/single-agent databases). `EngineConfig`
+`ScopePolicy::Unscoped` for single-scope/single-agent databases), and since
+0.8.32 Slice 50 (`ADR-0.8.32` `#101`) it carries `sync_mode: Option<SyncMode>`
+(plus builder `EngineConfig::with_sync_mode(self, SyncMode) -> Self`, where
+`None` resolves to `SyncMode::Normal`). `SyncMode` is re-exported on `fathomdb`
+(`SyncMode::Normal` [default, `PRAGMA synchronous = NORMAL`, `as_str() == "normal"`,
+`as_pragma() == "NORMAL"`] and `SyncMode::Full` [opt-in, `PRAGMA synchronous = FULL`,
+`as_str() == "full"`, `as_pragma() == "FULL"`]) and is applied to both the primary
+writer connection and every projection-worker/runtime connection on open and reopen:
+
+- **`SyncMode::Normal` (default):** Guarantees zero database corruption and
+  atomic prefix recovery to the last flushed/checkpointed WAL frame on unclean
+  shutdown or power loss; un-checkpointed commits buffered in volatile caches at
+  power loss may roll back atomically as a contiguous suffix, never partially or
+  out of order.
+- **`SyncMode::Full` (opt-in):** Issues per-commit WAL `fsync`
+  (`SQLITE_SYNC_FULL`), guaranteeing strict zero loss of client-acknowledged
+  commits alongside zero corruption on a local POSIX filesystem (e.g. `ext4`
+  with barriers/`data=ordered`) over an `fsync`/`FLUSH`/`FUA`-honoring block
+  device.
+- **Declared storage/fault boundaries:** Network filesystems lacking reliable
+  `flock`/`fsync`, write-back caches ignoring `FLUSH`/`FUA`, silent hardware
+  media corruption returning bad sectors without I/O error, and external
+  processes bypassing the sidecar `.lock` fall outside automatic `Engine::open`
+  recovery and require `fathomdb recover` or rebuild/restore from backup.
+
+`EngineConfig`
 is not `#[non_exhaustive]`, so a downstream struct literal that does not end
 in `..EngineConfig::default()` stops compiling when a field is added; pre-1.0
 this is accepted. `EngineConfigurationError` is `#[non_exhaustive]` since

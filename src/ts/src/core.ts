@@ -99,6 +99,11 @@ import { SearchExpandResult, GraphEvidenceResolveRequestV1, ResolvedGraphEvidenc
 export interface EngineConfig {
   /** Persisted scheduling. Unset honors reopen policy; new stores default autonomous. */
   readonly physicalErasurePolicy?: "autonomous" | "explicit_maintenance";
+  /**
+   * WAL durability sync mode (`ADR-0.8.32`). `undefined` resolves to `"normal"`
+   * (`PRAGMA synchronous = NORMAL`); `"full"` sets `PRAGMA synchronous = FULL`.
+   */
+  readonly syncMode?: "normal" | "full";
   readonly embedderPoolSize?: number;
   readonly schedulerRuntimeThreads?: number;
   readonly provenanceRowCap?: number;
@@ -296,6 +301,7 @@ export const ENGINE_CONFIG_LIMITS = {
 
 const ENGINE_CONFIG_STRINGS = {
   physicalErasurePolicy: ["autonomous", "explicit_maintenance"],
+  syncMode: ["normal", "full"],
   cudaPool: ["auto", "on", "off"],
   cudaPoolReleaseThreshold: ["0", "max"],
 } as const;

@@ -270,6 +270,9 @@ def test_installed_all_five_values_reach_native_open(tmp_path: Path) -> None:
         ({"provenance_row_cap": 2**53}, ValueError),
         ({"provenance_row_cap": 2**200}, ValueError),
         ({"slow_threshold_ms": 1.5}, TypeError),
+        ({"sync_mode": "off"}, ValueError),
+        ({"sync_mode": "FULL"}, ValueError),
+        ({"sync_mode": 2}, ValueError),
         ({"unknown": 1}, TypeError),
     ],
 )
@@ -280,3 +283,66 @@ def test_native_open_validates_before_filesystem(
     with pytest.raises(error_type):
         engine_module._NativeEngine.open(str(path), config=cast(Any, config))
     assert not path.exists()
+
+
+@pytest.mark.parametrize("sync_mode", [None, "normal", "full"])
+def test_sync_mode_forwards_and_round_trips_on_config(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, sync_mode: str | None
+) -> None:
+    captured: list[dict[str, object]] = []
+
+    class Native:
+        @staticmethod
+        def open(
+            _path: str,
+            *,
+            use_default_embedder: bool,
+            config: dict[str, object],
+            create_if_missing: bool = True,
+        ) -> object:
+            assert not use_default_embedder
+            assert create_if_missing is True
+            captured.append(config)
+            return object()
+
+    monkeypatch.setattr(engine_module, "_NativeEngine", Native)
+    if sync_mode is None:
+        opened = Engine.open(str(tmp_path / "sync-omitted.sqlite"))
+        assert opened.config.sync_mode is None
+        assert captured[-1]["sync_mode"] is None
+    else:
+        cfg = EngineConfig(sync_mode=cast(Any, sync_mode))
+        by_cfg = Engine.open(str(tmp_path / f"sync-cfg-{sync_mode}.sqlite"), config=cfg)
+        by_kw = Engine.open(
+            str(tmp_path / f"sync-kw-{sync_mode}.sqlite"), sync_mode=sync_mode
+        )
+        assert by_cfg.config.sync_mode == sync_mode
+        assert by_kw.config == cfg
+        assert captured[-2]["sync_mode"] == sync_mode
+        assert captured[-1]["sync_mode"] == sync_mode
+
+
+@pytest.mark.parametrize("bad_mode", ["off", "FULL", "extra", "", 1, True])
+def test_invalid_sync_mode_fails_before_native_open(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bad_mode: object
+) -> None:
+    class Native:
+        @staticmethod
+        def open(*_args: object, **_kwargs: object) -> object:
+            raise AssertionError("invalid sync_mode reached native open")
+
+    monkeypatch.setattr(engine_module, "_NativeEngine", Native)
+    path = tmp_path / "invalid-sync.sqlite"
+    with pytest.raises(ValueError):
+        Engine.open(str(path), sync_mode=bad_mode)
+    assert not path.exists()
+
+
+def test_installed_sync_mode_normal_and_full_open_cleanly(tmp_path: Path) -> None:
+    path = tmp_path / "sync-installed.sqlite"
+    for mode in ("full", "normal"):
+        opened = Engine.open(str(path), sync_mode=mode)
+        try:
+            assert opened.config.sync_mode == mode
+        finally:
+            opened.close()

@@ -3,7 +3,7 @@
 
 use fathomdb_engine::{
     EngineConfig, Filter, GraphSeedMode, Predicate, PropertyPredicate, ReadView, ScopePolicy,
-    SearchFilter, SnippetOptions, TraversalDirection, DEFAULT_GRAPH_SEED_K,
+    SearchFilter, SnippetOptions, SyncMode, TraversalDirection, DEFAULT_GRAPH_SEED_K,
 };
 
 use crate::error::Result;
@@ -46,6 +46,13 @@ impl OpenOptions {
     #[must_use]
     pub fn with_create_if_missing(mut self, create_if_missing: bool) -> Self {
         self.create_if_missing = create_if_missing;
+        self
+    }
+
+    /// Set the WAL durability sync mode on [`Self::config`].
+    #[must_use]
+    pub fn with_sync_mode(mut self, sync_mode: SyncMode) -> Self {
+        self.config.sync_mode = Some(sync_mode);
         self
     }
 }

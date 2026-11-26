@@ -165,6 +165,15 @@ is built-in default or none, with no caller-provider injection.
   storing `scope = ""`). Multi-agent or shared stores opt into isolation via
   `ScopePolicy` (`single`, `read_only`, `read_write`) and
   `EngineConfig::with_scope_policy` (`EngineConfig` remains non-`#[non_exhaustive]`).
+- **Declared WAL durability sync mode (`SyncMode`, 0.8.32):** `fathomdb`
+  re-exports `SyncMode::{Normal, Full}` (`as_pragma()` / `as_str()`), configured
+  via `EngineConfig.sync_mode: Option<SyncMode>` or
+  `EngineConfig::with_sync_mode(SyncMode)`. `None` resolves to
+  `SyncMode::Normal` (`PRAGMA synchronous = NORMAL` — zero corruption and
+  checkpoint-bounded atomic prefix recovery); opt-in `SyncMode::Full` configures
+  `PRAGMA synchronous = FULL` (per-commit WAL `fsync`, strict zero loss of
+  client-acknowledged commits on an `fsync`/`FLUSH`/`FUA`-honoring local POSIX
+  storage stack) on both writer and projection/runtime connections.
 - **Facade exports & accessor:** `fathomdb` re-exports `ScopePolicy`,
   `ScopePolicyError`, `MAX_READ_SCOPES` (`32`), and `MAX_SCOPE_TOKEN_BYTES`
   (`128`); `Engine::scope_policy(&self) -> &ScopePolicy` inspects the bound

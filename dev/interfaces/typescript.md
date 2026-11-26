@@ -1867,6 +1867,23 @@ members), opt-in agent search hints across `search`, `searchFrozen`, and
   `FrozenReadError`). `Engine.open` admits committed Schema `39` only; offline
   upgrade (`38 -> 39`, plus chained `37 -> 38 -> 39`) stays CLI-only.
 
+## Declared WAL durability `syncMode` (0.8.32 Slice 50, ADR-0.8.32 #101)
+
+- `EngineConfig.syncMode?: "normal" | "full"` (`undefined` resolves to
+  `"normal"` / `PRAGMA synchronous = NORMAL`; `"full"` configures `PRAGMA
+  synchronous = FULL` on both the writer and projection/runtime connections).
+- `"normal"` (default) guarantees zero corruption and checkpoint-bounded atomic
+  prefix recovery (un-checkpointed commits buffered in volatile caches at power
+  loss may roll back atomically as a contiguous suffix). `"full"` (opt-in)
+  issues per-commit WAL `fsync` for strict zero loss of client-acknowledged
+  commits on a local POSIX filesystem (`ext4` with barriers/`data=ordered`) over
+  an `fsync`/`FLUSH`/`FUA`-honoring block device. Network filesystems lacking
+  reliable `flock`/`fsync`, write-back caches ignoring `FLUSH`/`FUA`, silent
+  media corruption, and processes bypassing `.lock` fall outside automatic
+  `Engine.open` recovery.
+- Invalid values reject with `TypeError` (or `InvalidArgumentError` at the
+  native boundary) before touching any database or lock file.
+
 ## Opt-in bulk write mode (0.8.32 Slice 30, Pin B)
 
 - **Strict defaults preserved:** `engine.write(batch?)` stays strictly

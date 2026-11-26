@@ -809,6 +809,7 @@ interface NativeCounterSnapshot {
 
 interface NativeEngineConfig {
   physicalErasurePolicy?: "autonomous" | "explicit_maintenance";
+  syncMode?: "normal" | "full";
   embedderPoolSize?: number;
   schedulerRuntimeThreads?: number;
   provenanceRowCap?: number;

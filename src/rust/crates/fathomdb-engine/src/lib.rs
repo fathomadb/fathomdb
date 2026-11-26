@@ -400,7 +400,7 @@ pub use rerank::{rerank_fused, try_rerank_fused};
 pub use rerank::{rerank_passages, RerankPassagesError};
 pub use runtime_configuration::{
     configure_runtime, EngineConfig, EngineConfigurationError, RuntimeConfiguration,
-    RuntimeConfigurationError, RuntimeSqliteMode,
+    RuntimeConfigurationError, RuntimeSqliteMode, SyncMode,
 };
 use runtime_configuration::{
     configure_runtime_for_open, effective_runtime_configuration, ResolvedRuntimeConfiguration,

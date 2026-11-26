@@ -84,7 +84,13 @@ Open or create a FathomDB database at `path`.
     zero-length paths with `DatabaseNotFoundError` without creating a file.
   - `engineConfig` (`EngineConfig`) — engine knobs in camelCase, including
     optional `scopePolicy?: ScopePolicy` (defaults to `ScopePolicy.unscoped()`
-    for single-scope/single-agent databases). See [config](config.md).
+    for single-scope/single-agent databases) and optional
+    `syncMode?: "normal" | "full"` (defaults to `"normal"` / `PRAGMA
+    synchronous = NORMAL` checkpoint-bounded atomic prefix recovery; opt-in
+    `"full"` sets `PRAGMA synchronous = FULL` per-commit WAL `fsync` on both
+    writer and projection/runtime connections; invalid values reject with
+    `TypeError` before touching any database or lock file). See
+    [config](config.md).
   - `scopePolicy` (`ScopePolicy`) — top-level shorthand for
     `engineConfig.scopePolicy` (mutually exclusive with `engineConfig.scopePolicy`;
     passing both throws `TypeError`).

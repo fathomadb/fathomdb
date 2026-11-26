@@ -201,6 +201,7 @@ pub(crate) struct ProjectionRuntimeState {
 
 pub(crate) struct ProjectionRuntimeShared {
     pub(crate) path: PathBuf,
+    pub(crate) sync_mode: SyncMode,
     pub(crate) worker_count: usize,
     pub(crate) admission_capacity: usize,
     pub(crate) has_embedder: bool,
@@ -497,6 +498,7 @@ impl ProjectionRuntime {
         };
         let shared = Arc::new(ProjectionRuntimeShared {
             path,
+            sync_mode: config.sync_mode,
             worker_count: config.scheduler_runtime_threads,
             admission_capacity: config.projection_admission_capacity,
             has_embedder: embedder.is_some(),

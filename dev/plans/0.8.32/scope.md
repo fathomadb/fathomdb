@@ -135,6 +135,56 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
   SDK, Python, and TypeScript while keeping `SearchHit`,
   `EvidenceContributionV1`, `fathomdb-mcp` `PerHitOut`, and `EP-13`'s
   `vector_distance`/`text_bm25` unchanged.
+- **Engine query scaling, purge-lineage hardening, artifact-scoped evidence
+  `property_predicates`, and partitioned frozen-read additive stability
+  (`Gate1-D11`, Slice 41, `ADR-0.8.32` `#103`)**:
+  - **Purge lineage & shared-bucket receipt hardening (`#268`)**: verify
+    `actuate -> transition("deleted") + purge() -> actuate` across sole-node
+    and trailing-cursor purges (in-process and reopened) and narrow
+    `purge_inner` actuation-receipt redaction so purging one `logical_id`
+    redacts only that entity's receipt references without over-redacting
+    surviving sibling entities sharing a `source_id` bucket (while preserving
+    full source redaction on `erase_source`).
+  - **Zero-schema-change FTS/evidence & `read.get` `O(N)` elimination
+    (`#267` Parts 1 & 2, Option 2B)**: eliminate the verified `O(N)`
+    hotspots in FTS-only / evidence search (decouple ranking-contribution
+    capture from full `explain=true` when `include_explanation=false`; enable
+    `search_index.kind = ?` prefiltering, FTS5 `ORDER BY rank` streaming /
+    deferred body hydration, guarded unconfigured-vector `fts_only_limit`
+    capping, and post-truncation importance/confidence hydration when
+    `!importance_enabled`; skip the internal `canonical_nodes` scan in
+    `empty_physical_fast_path` when no node vector arm is declared or
+    enrolled; replace `WHERE scope != ''` full-index scan in
+    `store_single_unscoped` with `EXISTS` range probes; `O(1)` short-circuit
+    `detect_vector_soft_fallback`; replace `SELECT COUNT(*)` snapshot pins in
+    `frozen_read::mint_inner` and `graph_expand/execution.rs`, short-circuit
+    `historical_dense_incomplete` when `query_vector.is_none()`, and eliminate
+    duplicate `source_body` SHA-256) and rewrite `read.get` / `read.get_many`
+    with `include_superseded=true` using `UNION ALL` over existing
+    `canonical_nodes_scope_logical_{active,sup}_idx` with Rust-side
+    max-`write_cursor` tiebreaking and `has_source_dependencies`-gated
+    eligibility SQL.
+  - **Artifact-scoped `SearchFilter.property_predicates` on evidence
+    `source_filter` (`#269` Option A, amending `ADR-0.8.25` `#48`)**: clear
+    `source_filter.property_predicates` alongside `kind`/`source_type` across
+    `authorize_source_access`, `query_graph_evidence_batch`, and
+    `resolve_graph_evidence` while keeping `attributes`, lifecycle/validity,
+    dependency closures, and Schema 39 `ScopePredicate` strictly
+    source-enforced, clarifying `trace_dependency`, and documenting
+    intentional `GraphArm` `SearchHit.source_id` vs. `ResolvedEvidenceV1.source_id`
+    semantics.
+  - **Partitioned Schema 39 frozen-read additive stability (`#267` Part 3,
+    `ADR-0.8.32` `#103`)**: extend unreleased Schema 39 in place with
+    `_fathomdb_scope_visibility_watermarks` (`WITHOUT ROWID`) and
+    `(global_struct_gen, global_struct_nonce)` on
+    `_fathomdb_read_visibility_state`, classify all 20 trigger tables,
+    generalize `VisibilityCoalescingGuard` across non-`AdminSchema` batches
+    without deadlocking `projection_terminal`, implement `ReadSurface`-aware
+    `validate_snapshot` with compact `0x53 0x39` wire tags (`492`–`556 B` vs.
+    `1,024 B` cap) and universal `serving_digest`, and remove `fathomdb-mcp`
+    global `minted_state` pre-gates in favor of `MR-070.2`-compliant frozen
+    SDK probes — leaving `scripts/governed-surface-pin.json` (`58` ops / `97`
+    allowlist) strictly unchanged.
 
 ### 6. Contributor & agent ergonomics and targeted engine hotspot splits
 

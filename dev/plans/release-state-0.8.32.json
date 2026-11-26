@@ -86,12 +86,30 @@
       "evidence": "WP-40A1..WP-40D + FIX-1..FIX-2 (2baaa08b9) landed at b095700c9; full unconfined agent-verify.sh EXIT 0 (246/249 suites passed, 3 platform-skipped, 0 failed, 0 security violations), mkdocs build --strict EXIT 0 (0 warnings), independent pro adversarial reviews VERDICT: APPROVE across plan, WP-40A..C+FIX-1, Gate1-D10 Phase 1/2, and WP-40D+FIX-1."
     },
     {
+      "slice": 41,
+      "short": "ENGINE-QUERY-AND-EVIDENCE-HARDENING",
+      "title": "Purge-lineage & shared-bucket receipt hardening (#268), FTS/evidence & read.get(include_superseded) O(N) elimination (#267 Parts 1 & 2, Option 2B), artifact-scoped property_predicates on evidence source_filter (#269 Option A), and Schema 39 partitioned frozen-read additive stability (#267 Part 3, ADR #103)",
+      "depends_on": [
+        40
+      ],
+      "status": "IN_PROGRESS",
+      "sha": null,
+      "design_refs": [
+        "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
+        "dev/plans/0.8.32/features/slice-41/frozen-read-stability-experiment.md",
+        "dev/plans/0.8.32/features/slice-41/plan.md",
+        "dev/plans/0.8.32/plan.md",
+        "dev/plans/0.8.32/scope.md"
+      ]
+    },
+    {
       "slice": 50,
       "short": "DURABILITY-AND-FUZZ",
       "title": "Internal fathomdb.logical-export/v1 backup/restore/rebuild proof, SyncMode::{Normal, Full} + disposable QEMU/KVM dm-flakey power-loss campaign, isolated fuzz/ workspace (7 targets), and leak/state-machine checks",
       "depends_on": [
         30,
-        40
+        40,
+        41
       ],
       "status": "NOT_STARTED",
       "sha": null,
@@ -139,11 +157,12 @@
     40
   ],
   "remaining_ladder": [
+    41,
     50,
     60,
     70
   ],
-  "next_slice": 50,
+  "next_slice": 41,
   "decisions": {
     "ruled": [
       {
@@ -205,6 +224,12 @@
         "topic": "Uncached status_in_snapshot latency in explained/evidence/frozen search & query-seeded graph_expand, plus raw pre-RRF vector_cosine on PerHitExplain",
         "ruling": "Option 2 approved (2026-11-25): accept both into 0.8.32 Slice 40 (WP-40D) under full requirements/architecture/design review and TDD — (1) unify the snapshot boundary helper and share scope-partitioned CachedProjectionGenerationStatus across Engine and ReaderWorkerPool with monotonic cache-epoch guarding, per-connection PRAGMA data_version (+ total_changes on Engine.connection) invalidation in search(explain=true), search_frozen(explain=true), search_with_evidence, and query-seeded graph.expand, eliminating O(N) steady-state status_in_snapshot scans; (2) extend dev/design/0.8.8-explain-and-telemetry-adr.md §A.4 Q1 specifically for additive PerHitExplain.vector_cosine: Option<f64> (1.0 - vec_distance_cosine on uncentered f32 vectors; Some iff scored by execute_vector_arm / vector_rank.is_some(), None on zero-norm/NULL/NaN or vector-absent hits, finite clamped to [-1.0, 1.0], zero SQL cost when explain=false, L2 ordering unchanged) across Rust/SDK/Python/TypeScript while leaving SearchHit, EvidenceContributionV1, fathomdb-mcp PerHitOut, EP-13 vector_distance/text_bm25, and governed-surface pin counts unchanged.",
         "source": "dev/plans/0.8.32/features/slice-40/plan.md"
+      },
+      {
+        "id": "Gate1-D11",
+        "topic": "Slice 41 engine query, evidence, purge-lineage, and frozen-read additive stability hardening (#267, #268, #269)",
+        "ruling": "Approved (2026-11-26): insert Slice 41 (ENGINE-QUERY-AND-EVIDENCE-HARDENING) between Slices 40 and 50 under full per-stage adversarial review (ADR -> Requirements/AC -> Architecture -> Design -> TDD RED/GREEN -> Code Review) with (1) Option A for #269: clear SearchFilter.property_predicates on evidence source_filter across authorize_source_access, query_graph_evidence_batch, and resolve_graph_evidence while retaining source-enforced attributes and Schema 39 ScopePredicate, clarifying trace_dependency, and documenting intentional GraphArm SearchHit.source_id vs. ResolvedEvidenceV1.source_id (amending ADR-0.8.25 #48); (2) Option 2B for #267 Part 2: fix read.get/read.get_many(include_superseded=true) via zero-schema-change UNION ALL across canonical_nodes_scope_logical_{active,sup}_idx, dropping SQL ORDER BY write_cursor (max-write_cursor tiebreak in Rust), and gating read_eligibility_sql on has_source_dependencies, alongside the verified FTS-only/evidence O(N) hotspot fixes (#267 Part 1) and #268 purge-lineage regression tests + narrowing purge_inner receipt redaction so single-node purge does not over-redact surviving siblings in a shared source_id bucket; (3) do not defer #267 Part 3: adopt ADR-0.8.32 #103 (accepted, grounded by empirical experiments) extending unreleased Schema 39 in place with _fathomdb_scope_visibility_watermarks (WITHOUT ROWID) + global_struct_gen/nonce, ReadSurface-aware validate_snapshot (universal serving_digest + 0x53 0x39 surface tags), full 20-table trigger classification, generalized non-deadlocking coalescing (including record_lifecycle::transition), and fathomdb-mcp pre-gate/epoch-rejection removal with MR-070.2-compliant frozen SDK drift probing (including resolve_graph_evidence and freshly minted contexts), keeping scripts/governed-surface-pin.json strictly unchanged at 58 ops / 97 allowlist.",
+        "source": "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md"
       }
     ],
     "unruled": [

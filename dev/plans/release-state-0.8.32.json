@@ -72,15 +72,18 @@
       "depends_on": [
         20
       ],
-      "status": "NOT_STARTED",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "b095700c9",
       "design_refs": [
         "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
         "dev/plans/0.8.32/features/slice-40/plan.md",
+        "dev/plans/0.8.32/features/slice-40/wp-40d-design.md",
+        "dev/plans/0.8.32/features/slice-40/status.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
-      ]
+      ],
+      "evidence": "WP-40A1..WP-40D + FIX-1..FIX-2 (2baaa08b9) landed at b095700c9; full unconfined agent-verify.sh EXIT 0 (246/249 suites passed, 3 platform-skipped, 0 failed, 0 security violations), mkdocs build --strict EXIT 0 (0 warnings), independent pro adversarial reviews VERDICT: APPROVE across plan, WP-40A..C+FIX-1, Gate1-D10 Phase 1/2, and WP-40D+FIX-1."
     },
     {
       "slice": 50,
@@ -132,15 +135,15 @@
   "landed": [
     10,
     20,
-    30
+    30,
+    40
   ],
   "remaining_ladder": [
-    40,
     50,
     60,
     70
   ],
-  "next_slice": 40,
+  "next_slice": 50,
   "decisions": {
     "ruled": [
       {

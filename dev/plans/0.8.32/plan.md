@@ -18,9 +18,9 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 40** (`MCP-RW`) — Atomic governed write + latest_state checkpoint seam + EP-07/EP-01 (Pin C), Gate1-D9 reopen cursor & per-class projection namespace, production read+write fathomdb-mcp + 3-channel packaging, and Gate1-D10 cached pooled-reader projection status & PerHitExplain.vector_cosine
+**IMMEDIATE NEXT: Slice 50** (`DURABILITY-AND-FUZZ`) — Internal fathomdb.logical-export/v1 backup/restore/rebuild proof, SyncMode::{Normal, Full} + disposable QEMU/KVM dm-flakey power-loss campaign, isolated fuzz/ workspace (7 targets), and leak/state-machine checks
 
-**Remaining ladder:** 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**Remaining ladder:** 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
 ## Goal and scope
 

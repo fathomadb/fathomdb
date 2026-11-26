@@ -409,3 +409,27 @@ erased, transitioned, or closure-barrier-blocked artifacts to
 - **Offline Schema `38 -> 39` & chained `37 -> 39` migration:** Handled strictly
   offline by `fathomdb migrate` (never on `Engine::open`), including offline
   reshape of legacy 7-column `vec0` tables into 8-column `scope TEXT` tables.
+
+## Evidence source authorization and `GraphArm` provenance contract (0.8.32 Slice 41)
+
+- **Artifact-scoped `propertyPredicates` (`ADR-0.8.32 #103` §2.1):**
+  `ReadContextV1.eligibility.propertyPredicates` remains part of canonical
+  `ReadContextV1` wire encoding and `context_digest` HMAC authentication inside
+  `FrozenReadContextV1`, ranked evidence (`fdbev1.`), and graph evidence
+  (`fdbgev1.`) tokens. During evidence source authorization (`searchWithEvidence`,
+  `resolveEvidence`, `resolveEvidenceMany`, `graphExpand(includeEvidence: true)`,
+  and `resolveGraphEvidence`), `propertyPredicates` is cleared on the canonical
+  source filter alongside `kind` and `sourceType` so only target artifacts are
+  required to match domain property predicates, while `attributes`,
+  `createdAfter`, `status`, `ReadView` validity/lifecycle, dependency closures,
+  and Schema 39 `ScopePolicy` remain strictly source-enforced (failing closed
+  with `FDB_EVIDENCE` / `evidence_unavailable`).
+- **`traceDependency` symmetric endpoint visibility:** Unchanged; both root and
+  counterpart revisions must satisfy the full `ReadContextV1.eligibility`
+  (including `kind`, `sourceType`, and `propertyPredicates`).
+- **`GraphArm` `SearchHit.sourceId` vs. `ResolvedEvidenceV1.sourceId`
+  (`ADR-0.8.32 #103` §2.2):** For `branch == "graph_arm"` hits,
+  `SearchHit.sourceId` intentionally reports the traversed edge's legacy
+  `sourceId`, while `ResolvedEvidenceV1.sourceId` resolves the returned node
+  artifact's own canonical provenance source and
+  `projectionOrigin.graphOrigin` identifies the terminal edge revision.

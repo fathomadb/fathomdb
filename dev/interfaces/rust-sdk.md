@@ -834,3 +834,25 @@ exact three namespaces `admin`, `graph`, and `read` unchanged) and re-exports
   in-process `fetch_max` generation-regression guard (`FrozenRead`). Append-only
   `operational_mutations` writes may advance `canonical_write_boundary` without
   advancing `generation`.
+
+## Artifact-scoped evidence `property_predicates` and `GraphArm` provenance (0.8.32 Slice 41)
+
+- **Artifact-scoped `SearchFilter.property_predicates` on evidence resolution
+  (`ADR-0.8.32 #103` §2.1):** On `Engine::search_with_evidence`,
+  `Engine::resolve_evidence`, `Engine::resolve_evidence_many`,
+  `graph::expand(include_evidence = true)`, and `Engine::resolve_graph_evidence`,
+  `SearchFilter.property_predicates` constrains the target artifact (cleared on
+  the canonical source authorization filter alongside `kind` and `source_type`)
+  while remaining authenticated in `ReadContextV1` / `FrozenReadContextV1`.
+  Access-bearing `attributes`, `created_after`, `status`, `ReadView`
+  validity/lifecycle, `source_dependencies` closures, and Schema 39
+  `ScopePolicy` remain strictly enforced on canonical sources, failing closed
+  with non-disclosing `EvidenceErrorReasonV1::EvidenceUnavailable`.
+- **`Engine::trace_dependency` symmetry:** Unchanged; both root and counterpart
+  endpoints must satisfy the full `ReadContextV1.eligibility` including `kind`,
+  `source_type`, and `property_predicates`.
+- **`GraphArm` `SearchHit.source_id` vs. `ResolvedEvidenceV1.source_id`
+  (`ADR-0.8.32 #103` §2.2):** On `GraphArm` hits, `SearchHit.source_id` carries
+  the traversed edge's legacy `source_id`, while `ResolvedEvidenceV1.source_id`
+  resolves the returned node artifact's own canonical provenance source (with
+  the terminal edge revision recorded on `EvidenceProjectionOriginV1.graph_origin`).

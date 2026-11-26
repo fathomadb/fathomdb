@@ -574,12 +574,14 @@ fn authorize_source_access(
     stored: &StoredEvidence,
     eligibility: &SearchFilter,
 ) -> Result<(), EngineError> {
-    // A source is a separately authorized canonical artifact. Domain-oriented
-    // kind/source-type constraints select the returned artifact, while access-
-    // bearing metadata and declared attributes constrain both artifact and bytes.
+    // A source is a separately authorized canonical artifact. Artifact-scoped
+    // selectors (kind, source_type, property_predicates) select the returned
+    // artifact, while access-bearing attributes, metadata, lifecycle, and
+    // scope constrain both artifact and canonical source bytes (ADR-0.8.32 #103).
     let mut source_filter = eligibility.clone();
     source_filter.kind = None;
     source_filter.source_type = None;
+    source_filter.property_predicates.clear();
     if !text_hit_passes_filter(
         connection,
         stored.source_cursor,

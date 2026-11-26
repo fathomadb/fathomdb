@@ -1048,3 +1048,6 @@ required-features = ["operator", "test-hooks"]
 [[test]]
 name = "slice41_query_scale"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "slice41_evidence_property_predicates"

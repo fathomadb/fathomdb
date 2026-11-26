@@ -91,7 +91,17 @@ is built-in default or none, with no caller-provider injection.
   properties into `canonical_property_values` (returned on `NodeRecord` and
   `SearchHit`).
 - `SearchFilter.property_predicates` adds typed inline property predicates
-  (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`) alongside `attributes`.
+  (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`) alongside `attributes`. In frozen
+  evidence flows (`search_with_evidence`, `resolve_evidence`,
+  `resolve_evidence_many`, `graph_expand(include_evidence = true)`,
+  `resolve_graph_evidence`), `property_predicates` is artifact-scoped (cleared
+  on canonical source authorization alongside `kind` and `source_type`) while
+  access-bearing `attributes`, lifecycle, dependency closures, and `ScopePolicy`
+  remain source-enforced; `trace_dependency` retains symmetric endpoint
+  enforcement across the full `ReadContextV1.eligibility`. On `GraphArm` hits,
+  `SearchHit.source_id` preserves the traversed edge's `source_id` while
+  `ResolvedEvidenceV1.source_id` reports the returned node artifact's canonical
+  provenance source.
 - `ProjectionSpec` adds `entity_class` (`Node` or `Edge` projection targeting)
   and `vector_kinds` (opt-in custom node kinds enrolled in `_fathomdb_vector_kinds`
   alongside the 7 built-in defaults; reserved `"edge_fact"` is rejected).

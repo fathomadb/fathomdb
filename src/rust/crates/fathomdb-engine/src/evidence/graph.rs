@@ -223,6 +223,7 @@ fn query_graph_evidence_batch(
     let mut source_filter = frozen.context.eligibility.clone();
     source_filter.kind = None;
     source_filter.source_type = None;
+    source_filter.property_predicates.clear();
     let source_filter = if history_as_of.is_some() {
         append_node_eligibility_sql_historical(connection, Some(&source_filter), "sn", &mut params)
             .map_err(|_| EngineError::Storage)?
@@ -991,6 +992,7 @@ pub(crate) fn resolve_graph_evidence(
     let mut source_filter = frozen.context.eligibility.clone();
     source_filter.kind = None;
     source_filter.source_type = None;
+    source_filter.property_predicates.clear();
     let source_eligible = if payload.historical {
         text_hit_passes_filter_historical(
             connection,

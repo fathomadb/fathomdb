@@ -849,7 +849,16 @@ population source yet — vec0 TEXT metadata is not NULL-able), so a
 `attributes` is ordered AND equality over declared `filterable` projections;
 its values are canonical text, so projected string `"1"` and number `1` both
 match `"1"`. `propertyPredicates` adds closed typed predicates (`eq`, `ne`,
-`lt`, `lte`, `gt`, `gte`) over materialized properties.
+`lt`, `lte`, `gt`, `gte`) over materialized properties. In frozen evidence
+resolution (`searchWithEvidence`, `resolveEvidence`, `resolveEvidenceMany`,
+`graph.expand(..., { includeEvidence: true })`, `resolveGraphEvidence`),
+`propertyPredicates` is artifact-scoped (like `kind` and `sourceType`) while
+`attributes`, lifecycle, dependency closures, and `ScopePolicy` remain
+source-enforced; `traceDependency` retains symmetric endpoint enforcement over
+the full `ReadContextV1.eligibility`. On `branch === "graph_arm"` hits,
+`SearchHit.sourceId` carries the traversed edge's `sourceId` while
+`ResolvedEvidenceV1.sourceId` resolves the returned node artifact's canonical
+provenance source.
 
 ### `SoftFallback`
 

@@ -74,6 +74,14 @@ predicates, ANDs every predicate, and treats projected string `"1"` and number
 `SearchFilter(attributes=(("priority", "1"),))`; TypeScript uses
 `{ attributes: [["priority", "1"]] }`.
 
+In frozen evidence resolution (`search_with_evidence`, `resolve_evidence`,
+`resolve_evidence_many`, and frozen graph evidence), `property_predicates` /
+`propertyPredicates` is artifact-scoped (like `kind` and `source_type`) so
+canonical source nodes do not need to duplicate derived-artifact properties,
+whereas access-bearing `attributes`, lifecycle, and `ScopePolicy` remain
+strictly enforced on both artifacts and canonical sources. See
+[Frozen evidence](frozen-evidence.md#evidence-eligibility-and-grapharm-source-identity).
+
 ### Python
 
 ```python

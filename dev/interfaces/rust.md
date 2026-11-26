@@ -2768,3 +2768,30 @@ compose orthogonally with world/validity time (`ReadView.valid_as_of` /
   `Engine::read_visibility_state(&self) -> Result<VisibilityStateV1, EngineError>`
   executes on one deferred reader transaction without acquiring the writer lock,
   applying the in-process `fetch_max` regression guard (`EngineError::FrozenRead`).
+
+## Artifact-scoped evidence `property_predicates` and `GraphArm` provenance (0.8.32 Slice 41)
+
+- **Evidence `source_filter` tiering (`ADR-0.8.32 #103` §2.1):** Across
+  `Engine::search_with_evidence`, `Engine::resolve_evidence`,
+  `Engine::resolve_evidence_many`, `Engine::graph_expand(include_evidence = true)`,
+  and `Engine::resolve_graph_evidence`, `SearchFilter.property_predicates` is
+  an artifact-scoped domain selector (cleared on `source_filter` alongside
+  `kind` and `source_type`) while remaining part of `ReadContextV1` canonical
+  encoding and `context_digest` HMAC authentication. Access-bearing
+  `attributes`, `created_after`, `status`, `ReadView` validity/lifecycle,
+  `source_dependencies` closures, and Schema 39 `ScopePolicy` / `ScopePredicate`
+  remain strictly enforced on both target artifacts and underlying canonical
+  sources; mismatches fail closed with non-disclosing
+  `EvidenceErrorReasonV1::EvidenceUnavailable`.
+- **`Engine::trace_dependency` symmetric endpoint visibility:** Unchanged by
+  `ADR-0.8.32 #103` §2.1. `trace_dependency` retains `ADR-0.8.25 #49` symmetric
+  enforcement, applying the full `ReadContextV1.eligibility` (including `kind`,
+  `source_type`, and `property_predicates`) to both `source_revision_id` and
+  `derived_revision_id` endpoints.
+- **`GraphArm` `SearchHit.source_id` vs. `ResolvedEvidenceV1.source_id`
+  (`ADR-0.8.32 #103` §2.2):** On `SoftFallbackBranch::GraphArm` hits,
+  `SearchHit.source_id` intentionally preserves the traversed edge's legacy
+  `source_id`, whereas `ResolvedEvidenceV1.source_id` (and `EvidenceRefV1`
+  resolution) resolves the returned node artifact's own canonical provenance
+  source, with `EvidenceProjectionOriginV1.graph_origin` identifying the
+  terminal edge revision separately.

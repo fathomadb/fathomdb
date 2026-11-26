@@ -1952,3 +1952,26 @@ members), opt-in agent search hints across `search`, `search_frozen`, and
   governed read returning frozen `VisibilityStateV1(schema_version, database_id,
   generation, nonce, canonical_write_boundary, projection_cursor)` from one
   deferred reader snapshot without acquiring the writer lock.
+
+## Artifact-scoped evidence `property_predicates` and `GraphArm` provenance (0.8.32 Slice 41)
+
+- **Artifact-scoped `SearchFilter.property_predicates` on evidence resolution
+  (`ADR-0.8.32 #103` §2.1):** Across `engine.search_with_evidence`,
+  `engine.resolve_evidence`, `engine.resolve_evidence_many`,
+  `graph.expand(..., include_evidence=True)`, and `engine.resolve_graph_evidence`,
+  `SearchFilter.property_predicates` constrains only the target artifact
+  (cleared on canonical source authorization alongside `kind` and `source_type`)
+  while remaining authenticated inside `FrozenReadContextV1`. Access-bearing
+  `attributes`, `created_after`, `status`, `ReadView` validity/lifecycle,
+  `source_dependencies` closures, and Schema 39 `ScopePolicy` remain strictly
+  enforced on canonical sources, raising non-disclosing
+  `EvidenceError("evidence_unavailable")` on mismatch.
+- **`engine.trace_dependency` symmetry:** Unchanged; both root and counterpart
+  endpoints continue to be checked against the full `ReadContextV1.eligibility`
+  including `kind`, `source_type`, and `property_predicates`.
+- **`GraphArm` `SearchHit.source_id` vs. `ResolvedEvidenceV1.source_id`
+  (`ADR-0.8.32 #103` §2.2):** On `branch == "graph_arm"` hits,
+  `SearchHit.source_id` intentionally retains the traversed edge's legacy
+  `source_id`, whereas `ResolvedEvidenceV1.source_id` resolves the returned
+  node artifact's own canonical provenance source (and
+  `projection_origin.graph_origin` identifies the terminal edge revision).

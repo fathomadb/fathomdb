@@ -91,7 +91,37 @@ checked independently while the stored canonical digest authenticates the whole
 source body; a digest of only the cited span is not a substitute. Forward and
 reverse traces retain exact revision ownership and nondisclosure rules. Empty
 locators may be accepted by writes/registration but are refused by trace's
-nonempty-range policy.
+nonempty-range policy. Unlike evidence resolution below, `trace_dependency` /
+`traceDependency` enforces the full `ReadContextV1.eligibility` (including
+`kind`, `source_type` / `sourceType`, and `property_predicates` /
+`propertyPredicates`) symmetrically on both root and counterpart endpoints.
+
+## Evidence eligibility and `GraphArm` source identity
+
+When resolving evidence (`search_with_evidence`, `resolve_evidence`,
+`resolve_evidence_many`, `graph.expand` with `include_evidence=True` /
+`includeEvidence: true`, and `resolve_graph_evidence` / `resolveGraphEvidence`),
+`ReadContextV1.eligibility` is tiered between the returned artifact and its
+underlying canonical source:
+
+- **Artifact-scoped selectors:** `kind`, `source_type` / `sourceType`, and
+  `property_predicates` / `propertyPredicates` constrain the returned artifact
+  only (they remain authenticated inside the frozen context digest, but the
+  canonical raw source node does not need to carry derived-artifact properties
+  such as extracted `confidence`).
+- **Source-enforced guards:** Access-bearing `attributes`, `created_after` /
+  `createdAfter`, `status`, `ReadView` validity and lifecycle, dependency
+  closures, and Schema 39 `ScopePolicy` remain strictly enforced on both the
+  returned artifact and its canonical source. Any mismatch fails closed with
+  non-disclosing `evidence_unavailable`.
+
+For `GraphArm` search hits (`branch == "graph_arm"`), `SearchHit.source_id` /
+`sourceId` intentionally reports the traversed edge's legacy `source_id`, while
+`ResolvedEvidenceV1.source_id` / `sourceId` resolves the returned node
+artifact's own canonical provenance source (and `projection_origin.graph_origin`
+/ `projectionOrigin.graphOrigin` separately identifies the terminal edge
+revision). Do not treat equality between `SearchHit.source_id` and
+`ResolvedEvidenceV1.source_id` as an invariant on `GraphArm` hits.
 
 ## Exact graph evidence
 

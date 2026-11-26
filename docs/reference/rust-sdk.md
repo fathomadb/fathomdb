@@ -136,7 +136,17 @@ is added.
   and indexed for declared filterable/searchable projections.
 - **Typed `SearchFilter.property_predicates`:** `SearchFilter` accepts
   `property_predicates` (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`) in addition to
-  `attributes`.
+  `attributes`. On frozen evidence resolution (`search_with_evidence`,
+  `resolve_evidence`, `resolve_evidence_many`, `graph::expand` with
+  `include_evidence = true`, and `resolve_graph_evidence`),
+  `property_predicates` constrains only the target artifact (cleared on
+  canonical source authorization alongside `kind` and `source_type`), whereas
+  `attributes`, lifecycle, dependency closures, and `ScopePolicy` remain
+  strictly source-enforced; `trace_dependency` retains symmetric endpoint
+  visibility over the full `ReadContextV1.eligibility`. On `GraphArm` hits,
+  `SearchHit.source_id` carries the traversed edge's `source_id` while
+  `ResolvedEvidenceV1.source_id` resolves the returned node artifact's canonical
+  provenance source.
 - **`ProjectionSpec` targeting and custom vector kinds:** `ProjectionSpec`
   adds `entity_class` (`Node` or `Edge`) and `vector_kinds` (opt-in custom node
   kinds enrolled in `_fathomdb_vector_kinds` alongside the 7 built-in defaults;

@@ -2225,9 +2225,14 @@ fn ac31_40_06_historical_frozen_evidence_enforces_inline_filterable_eligibility_
         )
     };
 
+    let src_good_props = BTreeMap::from([("tenant".into(), PropertyValue::String("acme".into()))]);
     let matching_props = BTreeMap::from([
         ("tenant".into(), PropertyValue::String("acme".into())),
         ("score".into(), PropertyValue::Int(50)),
+    ]);
+    let low_score_props = BTreeMap::from([
+        ("tenant".into(), PropertyValue::String("acme".into())),
+        ("score".into(), PropertyValue::Int(5)),
     ]);
     let mismatch_props = BTreeMap::from([
         ("tenant".into(), PropertyValue::String("other".into())),
@@ -2250,7 +2255,9 @@ fn ac31_40_06_historical_frozen_evidence_enforces_inline_filterable_eligibility_
                     ArtifactRevisionId::new("src-good-r1").unwrap(),
                     SourceVersionId::new("src-good-v1").unwrap(),
                 ),
-                properties: Some(matching_props.clone()),
+                // Decoupled (ADR-0.8.32 #103 §2.1): canonical source matches access-bearing
+                // `tenant="acme"` via properties while omitting `score` (and body has score=1).
+                properties: Some(src_good_props),
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("src-bad".into()),
@@ -2292,6 +2299,18 @@ fn ac31_40_06_historical_frozen_evidence_enforces_inline_filterable_eligibility_
                 properties: Some(matching_props.clone()),
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("target-low-score".into()),
+                kind: "claim".into(),
+                body: target_body_v1.into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_good("target-low-score-r1"),
+                properties: Some(low_score_props),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("target-bad-src".into()),
                 kind: "claim".into(),
                 body: target_body_v1.into(),
@@ -2316,6 +2335,21 @@ fn ac31_40_06_historical_frozen_evidence_enforces_inline_filterable_eligibility_
                 extractor_model_id: None,
                 temporal_fallback: None,
                 provenance: derived_good("edge-good-r1"),
+                properties: None,
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-low-score".into()),
+                kind: "weakly_supports".into(),
+                from: "root".into(),
+                to: "target-low-score".into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_good("edge-low-score-r1"),
                 properties: None,
             }),
             PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
@@ -2428,7 +2462,10 @@ fn ac31_40_06_historical_frozen_evidence_enforces_inline_filterable_eligibility_
         .freeze_read_context(&ReadContextV1::new(ReadView::default(), eligibility).unwrap())
         .unwrap();
 
-    // Target + source both match inline (properties > body) at c1 even though v1 was purged from cpv/ca.
+    // Target matches BOTH tenant="acme" and score>=40 via inline properties at c1, while canonical
+    // source `src-good` matches access-bearing tenant="acme" and omits `score` (body has score=1),
+    // proving artifact-scoped property_predicates under ADR-0.8.32 #103 §2.1 even after v1 was
+    // purged from active-only cpv/ca.
     let good_req = GraphExpandRequestV1::new(
         GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
         TraversalDirection::Outgoing,
@@ -2464,7 +2501,23 @@ fn ac31_40_06_historical_frozen_evidence_enforces_inline_filterable_eligibility_
         .unwrap();
     assert_eq!(resolved_edge.artifact_revision_id.as_str(), "edge-good-r1");
 
-    // Source revision at c1 fails inline eligibility (even though its v2 head matches!) -> fails closed!
+    // Target failing score >= 40 (even when backed by eligible src-good with tenant="acme") is
+    // excluded cleanly by target eligibility.
+    let low_score_req = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+        1,
+        50,
+        10_000,
+    )
+    .with_edge_kinds(vec!["weakly_supports".into()])
+    .with_evidence(true)
+    .with_as_of_write_cursor(c1);
+    let expanded_low = engine.graph_expand(&low_score_req).unwrap();
+    assert!(expanded_low.targets.is_empty());
+
+    // Source revision at c1 fails access-bearing tenant="acme" (even though its v2 head matches!) -> fails closed!
     let bad_src_req = GraphExpandRequestV1::new(
         GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
         TraversalDirection::Outgoing,

@@ -18,9 +18,9 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 41** (`ENGINE-QUERY-AND-EVIDENCE-HARDENING`) — Purge-lineage & shared-bucket receipt hardening (#268), FTS/evidence & read.get(include_superseded) O(N) elimination (#267 Parts 1 & 2, Option 2B), artifact-scoped property_predicates on evidence source_filter (#269 Option A), and Schema 39 partitioned frozen-read additive stability (#267 Part 3, ADR #103)
+**IMMEDIATE NEXT: Slice 50** (`DURABILITY-AND-FUZZ`) — Internal fathomdb.logical-export/v1 backup/restore/rebuild proof, SyncMode::{Normal, Full} + disposable QEMU/KVM dm-flakey power-loss campaign, isolated fuzz/ workspace (7 targets), and leak/state-machine checks
 
-**Remaining ladder:** 41 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**Remaining ladder:** 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
 ## Goal and scope
 

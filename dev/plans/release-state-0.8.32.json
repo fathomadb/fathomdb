@@ -92,15 +92,18 @@
       "depends_on": [
         40
       ],
-      "status": "IN_PROGRESS",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "4e76b8e60",
       "design_refs": [
         "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
         "dev/plans/0.8.32/features/slice-41/frozen-read-stability-experiment.md",
         "dev/plans/0.8.32/features/slice-41/plan.md",
+        "dev/plans/0.8.32/features/slice-41/design.md",
+        "dev/plans/0.8.32/features/slice-41/status.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
-      ]
+      ],
+      "evidence": "Stages 1-4 (78c88d14d, 0b8273690, d4cefbda4, 756c8d0e8) + WP-41A..WP-41D + FIX-1..FIX-2 (2039910c8) + 34-file 4-tier docs sync (40dbdfa0c) landed locally at 4e76b8e60; full unconfined agent-verify.sh EXIT 0 (246/249 suites passed, 3 platform-skipped, 0 failed, 0 security violations), mkdocs build --strict EXIT 0 (0 warnings), and all 5 independent pro adversarial review gates VERDICT: APPROVE (0 P1, 0 P2)."
     },
     {
       "slice": 50,
@@ -154,15 +157,15 @@
     10,
     20,
     30,
-    40
+    40,
+    41
   ],
   "remaining_ladder": [
-    41,
     50,
     60,
     70
   ],
-  "next_slice": 41,
+  "next_slice": 50,
   "decisions": {
     "ruled": [
       {

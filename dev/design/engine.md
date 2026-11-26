@@ -295,9 +295,9 @@ and outer writer admission inventory across all 20 trigger-bearing tables
 batches (canonical, `OpStore` `AppendOnlyLog`/`LatestState`, and mixed
 `[Node/Edge, OpStore]` batches retaining `('up_to_date', 'non_canonical')`
 terminal cursors and `advance_projection_cursor` without deadlocks), plus
-`actuate`, `record_lifecycle::transition`, `purge_inner`, `excise_source`, and
-`physical_erasure::sanitize_unit` (gated on `canonical_batch_has_no_custom_triggers`
-/ `guard_canonical_custom_triggers`), alongside `projection_commit` (gated on
+`actuate`, `record_lifecycle::transition`, `purge_inner`, and `excise_source`
+(gated on `canonical_batch_has_no_custom_triggers` /
+`guard_canonical_custom_triggers`), alongside `projection_commit` (gated on
 `projection_batch_has_no_custom_triggers` / `guard_projection_custom_triggers`,
 which additionally guards `vector_default`) — arms the persisted integer marker
 (`coalescing = 1`), retains fresh fence reads and mapping cleanup, explicitly
@@ -306,7 +306,13 @@ upserts only the touched `(scope, partition_kind)` rows in
 only on global structural mutations such as `mean_vec` pin or projection
 registry/generation changes), and atomically advances the checked global
 `_fathomdb_read_visibility_state.(generation, state_nonce)` while clearing the
-marker before commit. Raw uncoalesced (`coalescing = 0`) SQL triggers fail
+marker before commit. By contrast, `physical_erasure::{sanitize_unit,
+prepare_redacted, finalize}` run uncoalesced: `sanitize_unit` and
+`prepare_redacted` touch zero visibility-trigger tables (only
+`_fathomdb_erasure_requests`, FTS5 shadow tables, and `_fathomdb_open_state`),
+while `finalize` updates `_fathomdb_dependency_closures` under its scope-local
+`dc_au` trigger (`OLD.scope`/`NEW.scope` `scope_dependency` +
+`scope_destructive`). Raw uncoalesced (`coalescing = 0`) SQL triggers fail
 closed per table class (scope-local on scope-bearing tables; DB-wide
 `global_struct` on row-owned/global tables). Missing, malformed, or
 committed-armed state refuses writer/frozen binding admission. Native trigger

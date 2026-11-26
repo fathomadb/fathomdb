@@ -325,9 +325,9 @@ def run_diagnostic(
                 ]
             )
             delta_value = {
-                "built": list(delta.built),
-                "dropped": list(delta.dropped),
-                "deferred": list(delta.deferred),
+                "built": [target.name for target in delta.built],
+                "dropped": [target.name for target in delta.dropped],
+                "deferred": [target.name for target in delta.deferred],
                 "unchanged": delta.unchanged,
                 "vector_unsupported_kinds": list(delta.vector_unsupported_kinds),
             }

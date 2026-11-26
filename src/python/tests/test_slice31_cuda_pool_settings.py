@@ -62,8 +62,15 @@ def test_the_pool_settings_reach_the_native_open_and_read_back(
 
     class Native:
         @staticmethod
-        def open(_path: str, *, use_default_embedder: bool, config: dict[str, object]) -> object:
+        def open(
+            _path: str,
+            *,
+            use_default_embedder: bool,
+            config: dict[str, object],
+            create_if_missing: bool = True,
+        ) -> object:
             assert not use_default_embedder
+            assert create_if_missing is True
             calls.append(config)
             return object()
 

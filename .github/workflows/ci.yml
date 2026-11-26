@@ -814,6 +814,7 @@ jobs:
             dist/tests/functional-embed.test.js \
             dist/tests/release-surface.test.js \
             dist/tests/slice20c-flush-barrier.test.js \
+            dist/tests/slice40-wp40d.test.js \
             dist/tests/tc67-unsupported-vector-kind-report.test.js \
             dist/tests/use-default-embedder.test.js
           do

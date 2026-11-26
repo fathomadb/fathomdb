@@ -105,7 +105,11 @@ fn schema_39_admission_rejects_missing_schema_39_tables_and_columns() {
             "DROP TABLE _fathomdb_artifact_revisions;\
              CREATE TABLE _fathomdb_artifact_revisions(schema_version INTEGER NOT NULL, revision_id TEXT PRIMARY KEY NOT NULL, artifact_class TEXT NOT NULL, write_cursor INTEGER NOT NULL, artifact_role TEXT NOT NULL, completeness TEXT NOT NULL);",
         ),
-        ("drop-proj-class", "ALTER TABLE _fathomdb_projection_registry DROP COLUMN entity_class;"),
+        (
+            "drop-proj-class",
+            "DROP TABLE _fathomdb_projection_registry;\
+             CREATE TABLE _fathomdb_projection_registry(name TEXT PRIMARY KEY NOT NULL, roles TEXT NOT NULL, fts_tokenizer TEXT, vector_embedder TEXT, vector_declared INTEGER NOT NULL DEFAULT 0, source TEXT, vector_kinds TEXT);",
+        ),
         ("drop-proj-vkinds", "ALTER TABLE _fathomdb_projection_registry DROP COLUMN vector_kinds;"),
     ] {
         let target = clone(name);

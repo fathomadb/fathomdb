@@ -60,6 +60,7 @@ expected_gated_files=(
   src/ts/tests/functional-embed.test.ts
   src/ts/tests/release-surface.test.ts
   src/ts/tests/slice20c-flush-barrier.test.ts
+  src/ts/tests/slice40-wp40d.test.ts
   src/ts/tests/tc67-unsupported-vector-kind-report.test.ts
   src/ts/tests/use-default-embedder.test.ts
 )
@@ -68,7 +69,7 @@ mapfile -t actual_gated_files < <(
   find src/ts/tests -type f -name '*.test.ts' -exec grep -l 'FATHOMDB_SKIP_NETWORK_TESTS' {} + | sort
 )
 if [ "${actual_gated_files[*]}" = "${expected_gated_files[*]}" ]; then
-  pass "exactly the seven audited TypeScript files honor the network gate"
+  pass "exactly the eight audited TypeScript files honor the network gate"
 else
   fail "network-gated TypeScript files drifted: expected [${expected_gated_files[*]}], got [${actual_gated_files[*]}]"
 fi
@@ -130,12 +131,13 @@ else
     dist/tests/functional-embed.test.js
     dist/tests/release-surface.test.js
     dist/tests/slice20c-flush-barrier.test.js
+    dist/tests/slice40-wp40d.test.js
     dist/tests/tc67-unsupported-vector-kind-report.test.js
     dist/tests/use-default-embedder.test.js
   )
   mapfile -t actual_emitted_files < <(grep -oE 'dist/tests/[[:alnum:]_.-]+\.test\.js' <<<"$default_embedder_block" | sort -u)
   if [ "${actual_emitted_files[*]}" = "${expected_emitted_files[*]}" ]; then
-    pass "default-embedder CI job runs exactly the seven audited emitted TypeScript files"
+    pass "default-embedder CI job runs exactly the eight audited emitted TypeScript files"
   else
     fail "dedicated emitted TypeScript files drifted: expected [${expected_emitted_files[*]}], got [${actual_emitted_files[*]}]"
   fi

@@ -22,7 +22,14 @@ def test_open_forwards_all_requested_values_and_keeps_frozen_snapshot(
 
     class Native:
         @staticmethod
-        def open(path: str, *, use_default_embedder: bool, config: dict[str, int | None]) -> object:
+        def open(
+            path: str,
+            *,
+            use_default_embedder: bool,
+            config: dict[str, int | None],
+            create_if_missing: bool = True,
+        ) -> object:
+            assert create_if_missing is True
             calls.append((path, use_default_embedder, config))
             return object()
 
@@ -82,8 +89,15 @@ def test_explicit_zero_remains_distinct_from_omission(
 
     class Native:
         @staticmethod
-        def open(_path: str, *, use_default_embedder: bool, config: dict[str, int | None]) -> object:
+        def open(
+            _path: str,
+            *,
+            use_default_embedder: bool,
+            config: dict[str, int | None],
+            create_if_missing: bool = True,
+        ) -> object:
             assert not use_default_embedder
+            assert create_if_missing is True
             requests.append(config)
             return object()
 

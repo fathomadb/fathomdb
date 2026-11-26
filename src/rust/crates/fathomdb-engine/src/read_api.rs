@@ -507,17 +507,13 @@ impl Engine {
     ) -> Result<(String, Vec<String>), EngineError> {
         let _operation = self.ensure_open()?;
         let scope = self.scope_predicate();
-        let connection = open_managed_connection(
-            &self.path,
-            ManagedConnectionCategory::RuntimeProbe,
-            &self.managed_connections,
-        )
-        .map_err(|_| EngineError::Storage)?;
+        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_ref().ok_or(EngineError::Closing)?;
         let unique: Vec<&String> = {
             let mut seen = std::collections::HashSet::new();
             logical_ids.iter().filter(|id| seen.insert((*id).clone())).collect()
         };
-        let has_deps = dependency_closure::has_source_dependencies(&connection, &scope)
+        let has_deps = dependency_closure::has_source_dependencies(connection, &scope)
             .map_err(|_| EngineError::Storage)?;
         let (sql, binds) = build_read_get_by_id_sql(&unique, &view, &scope, has_deps);
         let mut statement = connection

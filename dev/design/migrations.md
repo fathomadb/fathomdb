@@ -13,25 +13,33 @@ This file owns internal fresh-bootstrap step authorship, its per-step event
 contract and the accretion guard. The old public migration loop is retained
 below as history; it is not current admission authority.
 
-## Current public boundary (0.8.28)
+## Current public boundary (0.8.32, Schema 39)
 
 The migration loop below is a locked historical implementation/design record.
-The 0.8.28 public runtime does not apply it to a nonempty earlier database.
-Public open accepts a missing/zero-length path and internally constructs the
-current schema at version 37; any nonempty database with another user version
-is refused before product mutation. There is no historical upgrade matrix,
-receipt conversion, or cross-version replay path.
+The public `Engine::open` runtime does not apply automatic migrations to a
+nonempty earlier database. Public open accepts a missing/zero-length path and
+internally constructs the current schema at version **39** (`38` in published
+`0.8.31`, `37` in `0.8.28`–`0.8.30`); any nonempty database with another
+`user_version` is refused before product mutation. Quiescent committed Schema
+38 stores (and chained Schema 37 stores) with no pending erasures upgrade
+strictly offline via `fathomdb migrate --backup-dir <dir> <db-path>` (`38 -> 39`
+and chained `37 -> 38 -> 39`); there is no automatic migration on `Engine::open`
+and no older historical upgrade matrix.
 
 Migration-step definitions and the accretion guard remain maintained developer
-contracts for schema authorship and fresh bootstrap construction. They do not
-override the public fresh-database admission rule in `design/engine.md` and the
-accepted 0.8.26 breaking-boundary ADR.
+contracts for schema authorship, fresh bootstrap construction, and explicit
+offline CLI upgrades. They do not override the public exact-schema admission
+rule in `design/engine.md` and the accepted breaking-boundary ADRs.
 
-Step37 adds the constrained `coalescing` column before replacing all57 visibility
-triggers. Historical step SQL generators remain unchanged; no earlier bootstrap
-step references the column. The [coalescing ADR](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
-owns layout, manifest, rollback and admission semantics. Format36 nonempty files
-are refused before WAL/setup mutation; this step is fresh construction only.
+In `0.8.32`, Step 39 (`S39-COMPOSITE`, `ADR #102` + `ADR #103`) introduces
+scope-leading composite `(scope, ...)` keys/indexes, 8-column `vec0` (`scope
+TEXT`), single-source `fathomdb_schema::TABLE_MANIFEST` (`36` tables: `31`
+regular + `5` virtual), `_fathomdb_scope_visibility_watermarks` (`WITHOUT
+ROWID`), `_fathomdb_read_visibility_state.{global_struct_gen,
+global_struct_nonce}`, and `60` classified visibility triggers across `20`
+trigger-bearing tables (superseding Step 37's `57`-trigger coalescing set in
+[ADR #70](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)). Historical
+step SQL generators remain accretion-guarded and unchanged.
 
 ## Ownership boundary
 

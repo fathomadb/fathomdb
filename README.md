@@ -29,14 +29,22 @@ business, knowledge management and personal agent examples.
   windows, and source-based erasure across records and their derived indexes.
 - **Provenance and dependencies:** versioned sources, immutable dependency
   edges, bounded dependency tracing, and atomic caller-decided actuation.
-- **Consistent reads:** authenticated frozen contexts, stable pagination,
-  source evidence resolution, and constrained graph expansion.
+- **Consistent reads:** authenticated frozen contexts with Schema 39 partitioned
+  additive stability (`ADR #103`), stable pagination, source evidence
+  resolution, and constrained graph expansion.
 - **Derived projections:** declarative text, vector, filter, and ranking
   configuration with readiness and runtime diagnostics.
-- **Scope isolation (0.8.32, Schema 39):** By default a FathomDB database is
-  single-scope / single-agent (`scope = ""`, `ScopePolicy.unscoped`); multi-agent
-  or shared-store deployments can opt into engine-enforced `ScopePolicy` read
-  and write boundaries.
+- **Bulk loading (`0.8.32` target):** strict endpoint validation remains the
+  default on `write` and `actuate`; opt-in `write_with_options` /
+  `writeWithOptions` (`bulk_non_strict`) supports out-of-order ingestion with
+  truthful `dangling_edge_endpoints` counts and read-only integrity verification.
+- **Scope isolation (`0.8.32` target, Schema 39):** By default a FathomDB
+  database is single-scope / single-agent (`scope = ""`,
+  `ScopePolicy.unscoped`); multi-agent or shared-store deployments can opt into
+  engine-enforced `ScopePolicy` read and write boundaries.
+- **MCP server (`0.8.32` target):** production stdio [`fathomdb-mcp`](docs/guides/mcp-server.md)
+  server (`allow_writes: false` default, opt-in per-store writes with bound
+  scope, startup conflict guards, and bounded read/evidence/graph/write tools).
 - **Operations:** a separate CLI (`doctor`, `recover`, and offline `migrate`
   for `38 -> 39` and chained `37 -> 38 -> 39` upgrades) for integrity
   inspection, schema upgrade, and explicit recovery.

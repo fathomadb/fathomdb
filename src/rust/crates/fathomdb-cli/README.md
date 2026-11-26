@@ -31,7 +31,7 @@ installable via `pip install 'fathomdb[cli]==0.8.31'` while keeping the base
 ```text
 fathomdb doctor <verb> [--json] [<db-path>]              # diagnostics / export / maintenance
 fathomdb recover --accept-data-loss [flags] <db-path>    # lossy repair
-fathomdb migrate --backup-dir <dir> [--json] <db-path>   # offline Schema 37 -> 38 upgrade
+fathomdb migrate --backup-dir <dir> [--json] <db-path>   # offline Schema 38 -> 39 (or chained 37 -> 38 -> 39) upgrade
 ```
 
 `doctor` contains diagnostics, exports and explicit maintenance. Ordinary-open
@@ -40,10 +40,11 @@ commands can initialize a missing database or start projection workers;
 lossy repair, which is why every invocation requires an
 explicit `--accept-data-loss` acknowledgement: without it the command refuses with
 `E_RECOVER_REQUIRES_ACCEPT_DATA_LOSS` and exits 70. There is no way to run a lossy workflow by
-accident. `migrate` performs an explicit offline Schema `37 -> 38` upgrade on a
-quiescent committed Schema 37 store with no pending erasures: it writes a
-SHA-256-verified backup under `--backup-dir`, executes the `37 -> 38` upgrade,
-and runs post-upgrade `check-integrity --full`.
+accident. `migrate` performs an explicit offline Schema `38 -> 39` (and chained
+`37 -> 38 -> 39`) upgrade on the `0.8.32` target line (published `0.8.31`
+upgraded `37 -> 38`) for a quiescent committed Schema 37 or Schema 38 store with
+no pending erasures: it writes a SHA-256-verified backup under `--backup-dir`,
+executes the upgrade, and runs post-upgrade `check-integrity --full`.
 
 Most `doctor` verbs take a database path. `gpu`, `reranker-gpu`, `platform`,
 `cuda-allocator`, `cuda-libraries` and `warm-cache` are database-free;
@@ -54,7 +55,7 @@ Most `doctor` verbs take a database path. `gpu`, `reranker-gpu`, `platform`,
 | Verb | What it does |
 | --- | --- |
 | `check-integrity` | Structural integrity check; reports typed findings with locators |
-| `data-plane-integrity` | Bounded dependency/projection checks through an immutable, exact-schema operator boundary |
+| `data-plane-integrity` | Bounded dependency/projection/edge checks (including `edge_endpoint_integrity`) through an immutable, exact-schema operator boundary |
 | `safe-export` | Materialise a safe export of the database |
 | `verify-embedder` | Confirm the embedder identity recorded in the database matches this build |
 | `trace` | Trace the resolution chain for a source reference |

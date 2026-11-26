@@ -107,9 +107,10 @@ provider retry; started failures/timeouts use the fixed retry ladder and may
 record a failed terminal. Closing cancels queued work; a provider still
 running after the shared 30-second drain budget yields `SchedulerError`.
 
-`EngineError` (Python) and `FathomDbError` (TypeScript) share **47** concrete
-leaf subclasses (**48** total shared error classes including the base class,
-matching Rust `fathomdb_sdk::ErrorKind::ALL`).
+`EngineError` (Python) and `FathomDbError` (TypeScript) share **48** concrete
+leaf subclasses (**49** total shared error classes including the base class,
+matching Rust `fathomdb_sdk::ErrorKind::ALL`, including `ScopeViolationError`
+and `DatabaseNotFoundError` in `0.8.32`).
 
 ## Caller scope isolation and D-01 nondisclosure (0.8.32)
 

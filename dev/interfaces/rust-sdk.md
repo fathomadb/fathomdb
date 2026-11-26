@@ -835,8 +835,21 @@ exact three namespaces `admin`, `graph`, and `read` unchanged) and re-exports
   `operational_mutations` writes may advance `canonical_write_boundary` without
   advancing `generation`.
 
-## Artifact-scoped evidence `property_predicates` and `GraphArm` provenance (0.8.32 Slice 41)
+## Artifact-scoped evidence `property_predicates`, `GraphArm` provenance, purge lineage, query scaling, and partitioned frozen reads (0.8.32 Slice 41)
 
+- **Shared-bucket `Engine::purge` receipt preservation (`WP-41A` / `#268`):**
+  Single-node `Engine::purge(logical_id)` narrows actuation receipt redaction to
+  purged entity/revision references rather than redacting the whole `source_id`
+  bucket, preserving idempotent `operation_id` replay for surviving sibling
+  entities sharing `source_id` (while `Engine::erase_source` continues redacting
+  the entire `source_id` bucket), and maintains monotonic cursor floors across
+  post-purge writes.
+- **Evidence `include_explanation = false` & `read::get`/`read::get_many(include_superseded = true)` (`WP-41B` / `#267`):**
+  `Engine::search_with_evidence` with `include_explanation = false` captures
+  lightweight `EvidenceContributionV1` without triggering `explain = true`
+  vector-cosine / status / `PerHitExplain` overhead. `read::get` and
+  `read::get_many` with `ReadView { include_superseded: true, .. }` use indexed
+  `SEARCH`-only lookup without scanning `canonical_nodes`.
 - **Artifact-scoped `SearchFilter.property_predicates` on evidence resolution
   (`ADR-0.8.32 #103` §2.1):** On `Engine::search_with_evidence`,
   `Engine::resolve_evidence`, `Engine::resolve_evidence_many`,

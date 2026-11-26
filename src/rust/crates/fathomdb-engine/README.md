@@ -32,13 +32,18 @@ process model layered on top:
 - **Records have a lifecycle.** `transition` and `purge` move and hard-erase governed nodes;
   `ReadView` selects existence and world-time validity for the read verbs.
 
-Public open in 0.8.31 creates missing/empty databases at schema
-38 and accepts only that exact schema for nonempty stores. It rejects
-incompatible versions; there is no
-automatic migration on `Engine::open`. Committed schema 37 stores upgrade
-offline via explicit `fathomdb migrate --backup-dir <dir> <db-path>` in
-`fathomdb-cli`; low-level migration helpers in `fathomdb-schema` serve
-internal/test/tooling uses, not an application-open upgrade contract.
+Public open on the `0.8.32` target line creates missing/empty databases at
+schema **39** (published `0.8.31` used schema **38**) and accepts only that
+exact schema for nonempty stores. It rejects incompatible versions; there is no
+automatic migration on `Engine::open`. Committed Schema 38 stores (and chained
+Schema 37 stores) upgrade offline via explicit
+`fathomdb migrate --backup-dir <dir> <db-path>` in `fathomdb-cli` (`38 -> 39`
+and chained `37 -> 38 -> 39`); low-level migration helpers in `fathomdb-schema`
+serve internal/test/tooling uses, not an application-open upgrade contract.
+Schema 39 adds opt-in `ScopePolicy` caller isolation (single-scope default
+`scope = ""`) and partitioned frozen-read additive stability (`ADR #103`) so
+disjoint-kind, disjoint-scope, and operational-store writes do not drift
+unrelated frozen read contexts.
 
 ## Install
 

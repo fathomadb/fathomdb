@@ -64,11 +64,16 @@ Every write field accepts both the camelCase and the snake_case spelling.
 
 ## What is on the surface
 
-- **Engine lifecycle** — `Engine.open`, `engine.close`, `engine.counters()`,
-  `engine.openReport()` (including `rerankerCompiled`, `cudaCompiled`, and
-  `rerankAvailable` capability booleans), and an event-subscriber seam.
-- **Writes** — `engine.write(batch)` of canonical nodes (`{ kind, body, sourceId, logicalId?,
-  state?, reason?, validFrom?, validUntil?, properties? }`) and edges (`{ edge: { kind, from, to, sourceId, properties? } }`).
+- **Engine lifecycle** — `Engine.open` (plus `0.8.32` target
+  `{ createIfMissing: false }` / `DatabaseNotFoundError`), `engine.close`,
+  `engine.counters()`, `engine.openReport()` (including `rerankerCompiled`,
+  `cudaCompiled`, and `rerankAvailable` capability booleans), and an
+  event-subscriber seam.
+- **Writes** — `engine.write(batch)` (plus `0.8.32` target opt-in
+  `engine.writeWithOptions(batch, WriteOptions.bulkNonStrict())` and
+  `ActuationOperationV1` `put_latest_state`) of canonical nodes (`{ kind, body,
+  sourceId, logicalId?, state?, reason?, validFrom?, validUntil?, properties? }`)
+  and edges (`{ edge: { kind, from, to, sourceId, properties? } }`).
 - **Search** — `engine.search(query, ...)` fuses FTS5 lexical retrieval with dense vector retrieval,
   with optional cross-encoder reranking, JSON/property filters, an explain sidecar, and opt-in
   agent search `hints` (`SearchResult.hints`). A `softFallback`
@@ -78,19 +83,20 @@ Every write field accepts both the camelCase and the snake_case spelling.
   `engine.resolveEvidenceMany` (`1..=50` refs with per-slot partial-result outcomes).
 - **Reads** — the `read` namespace: `read.get`, `read.getMany`, `read.list`, `read.collection`,
   `read.operationalCollections`, `read.operationalCollection`,
-  `read.crossedBoundarySince`, each taking a `ReadView` that selects existence state and world-time
-  validity where applicable.
+  `read.visibilityState` (`0.8.32` target), `read.crossedBoundarySince`, each
+  taking a `ReadView` that selects existence state and world-time validity where applicable.
 - **Graph** — `graph.neighbors`, `graph.searchExpand` for BFS expansion from search hits, and
   `graph.expand` with predicates and optional historical `asOfWriteCursor` / `asOfEpochMs`
   coordinates.
 - **Record lifecycle** — `engine.transition`, `engine.purge`, `engine.eraseSource`.
 - **Projections** — `engine.configureProjections`, declaring which fields are filterable,
   searchable or rankable; the engine owns every derived index.
-- **Caller scope isolation (0.8.32, Schema 39)** — single-scope / single-agent default
+- **Caller scope isolation (`0.8.32` target, Schema 39)** — single-scope / single-agent default
   (`ScopePolicy.unscoped()`), with opt-in `ScopePolicy.single` / `readOnly` / `readWrite` for
   multi-agent or shared stores (`ScopeViolationError` / `FDB_SCOPE_VIOLATION` on write refusal).
 - **Typed errors** — a leaf-class hierarchy under `FathomDbError`, so you can branch on
-  `InvalidFilterError` or `IllegalTransitionError` instead of matching on message strings.
+  `InvalidFilterError`, `ScopeViolationError`, `DatabaseNotFoundError`, or
+  `IllegalTransitionError` instead of matching on message strings.
 
 ## Physical erasure
 

@@ -29,10 +29,11 @@ fathomdb doctor data-plane-integrity \
   --json ./store.sqlite
 ```
 
-Omit `--check` to run all four checks in canonical order. To narrow the run,
+Omit `--check` to run all five checks in canonical order. To narrow the run,
 repeat `--check` with `dependency_chain`, `active_searchable_orphans`,
-`projection_generation`, or `mutation_readiness`. Bounds are 1–10,000 work
-units and 1–100 findings. A bounded or failed run returns no partial report.
+`projection_generation`, `mutation_readiness`, or `edge_endpoint_integrity`.
+Bounds are 1–10,000 work units and 1–100 findings. A bounded or failed run
+returns no partial report.
 
 The inspection process validates the request first, takes the existing product
 lock without changing its contents, checks the sidecars, then opens SQLite with
@@ -58,11 +59,12 @@ omits raw SQLite diagnostics and row content.
 The report is diagnostic evidence, not repair authorization. Use a separately
 reviewed recovery procedure if a finding requires mutation.
 
-## Upgrading a Schema 37 database before inspection
+## Upgrading a Schema 37 or 38 database before inspection
 
-In the 0.8.31 release line (Schema 38), `fathomdb doctor data-plane-integrity`
-and `Engine::open` both require `user_version == 38`. To upgrade an existing
-quiescent Schema 37 store before inspecting or opening it under 0.8.31, run the
+On the `0.8.32` target line (Schema 39; published `0.8.31` used Schema 38),
+`fathomdb doctor data-plane-integrity` and `Engine::open` both require
+`user_version == 39`. To upgrade an existing quiescent Schema 38 store (or
+chained Schema 37 store) before inspecting or opening it under `0.8.32`, run the
 offline migrate command:
 
 ```bash
@@ -72,7 +74,8 @@ fathomdb doctor check-integrity --full --json ./store.sqlite
 
 `fathomdb migrate` acquires the exclusive `.lock`, refuses pending erasures or
 genuinely dangling edge endpoints before mutating anything, writes a
-SHA-256-verified backup in `--backup-dir`, upgrades `37 -> 38` atomically in a
-single transaction, and runs post-upgrade `check-integrity --full`. See the
+SHA-256-verified backup in `--backup-dir`, upgrades `38 -> 39` (or chained
+`37 -> 38 -> 39`) atomically in a single transaction, and runs post-upgrade
+`check-integrity --full`. See the
 [CLI reference](../reference/cli.md#migrate-root) for full details and exit
 codes.

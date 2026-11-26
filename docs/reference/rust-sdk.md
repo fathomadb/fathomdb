@@ -216,7 +216,10 @@ is added.
   raw lengths `0` or `> 50` (`ErrorKind::InvalidArgument`), preserves duplicate
   order and arity, returns per-slot `EvidenceResolveManyItemV1::Resolved` or
   nondisclosing `EvidenceResolveManyItemV1::Refused` (`"/evidenceRefs/{i}"`),
-  and collapses frozen-context drift into whole-call `EvidenceUnavailable`.
+  and collapses whole-context frozen drift into whole-call `EvidenceUnavailable`
+  (under Schema 39 partitioned frozen reads, post-decode `Edge`/`GraphArm` slots
+  whose edge partition drifted instead fail closed per-slot while unaffected
+  node-only slots resolve).
 - **Opt-in search hints (`hints: bool`):** `SearchOptions.hints`,
   `FrozenSearchOptions.hints`, and `EvidenceSearchRequestV1::with_hints(bool)`
   default to `false` (`SearchResult.hints == None`). Setting `true` populates
@@ -239,11 +242,14 @@ is added.
   `is_unscoped`, `read_scopes`, `write_scope`), `ScopePolicyError`,
   `MAX_READ_SCOPES` (`32`), and `MAX_SCOPE_TOKEN_BYTES` (`128`). Invalid
   policies fail before file/lock open with `ErrorKind::InvalidArgument`.
-- **`ErrorKind::ScopeViolation`:** Added to `ErrorKind::ALL` (`48` total variants
-  = base `ErrorKind::Engine` + `47` leaf classes; `.name() == "ScopeViolationError"`),
-  returned on read-only handle mutation attempts while preserving D-01
-  nondisclosure on cross-scope endpoint/evidence lookups (`WriteValidation` /
-  `ReferenceUnavailable` / `EvidenceUnavailable`).
+- **`ErrorKind::ScopeViolation` & `ErrorKind::DatabaseNotFound`:** Added to
+  `ErrorKind::ALL` (`49` total variants = base `ErrorKind::Engine` + `48` leaf
+  classes; `.name() == "ScopeViolationError"` / `"DatabaseNotFoundError"`).
+  `ScopeViolation` is returned on read-only handle mutation attempts while
+  preserving D-01 nondisclosure on cross-scope endpoint/evidence lookups
+  (`WriteValidation` / `ReferenceUnavailable` / `EvidenceUnavailable`);
+  `DatabaseNotFound` is returned when `OpenOptions.create_if_missing == false`
+  opens a missing or zero-length path.
 - **`SearchExpandOptions.view`:** `SearchExpandOptions` gains `pub view:
   Option<ReadView>` and `.with_view(ReadView)`. `graph::search_expand` applies
   `options.view`; `Engine::search_expand_frozen` rejects `options.view.is_some()`
@@ -268,3 +274,31 @@ is added.
   After bulk loading, verify graph completeness read-only with
   `fathomdb doctor data-plane-integrity --check edge_endpoint_integrity` or
   `fathomdb doctor check-integrity`.
+
+## Partitioned frozen-read stability, purge lineage, and query scaling (0.8.32)
+
+- **Partitioned frozen-read additive stability (`ADR #103`):** Schema 39
+  `FrozenReadContextV1` tokens validate surface-selective partitioned watermarks
+  so disjoint-`kind` additive writes/actuations, `append_only_log` appends,
+  `latest_state` upserts (against canonical/search/evidence/graph surfaces),
+  disjoint-scope writes/lifecycle/erasure, and disjoint-`(scope, kind)`
+  background vector commits do not drift unrelated frozen contexts. Same-`(scope,
+  kind)` writes, graph-affecting edge writes, destructive mutations in `scope`,
+  dependency/closure changes in `scope`, and global structural changes fail
+  closed. In `Engine::resolve_evidence_many`, post-decode `Edge`/`GraphArm`
+  slots whose edge partition drifted return per-slot
+  `EvidenceResolveManyItemV1::Refused` (`EvidenceUnavailable`) while unaffected
+  node-only slots still resolve. Because disjoint kinds and scopes share the
+  FTS5 `search_index` table, raw FTS5 `bm25()` scores remain live corpus
+  statistics and are not frozen across concurrent additive writes.
+- **Shared-bucket `Engine::purge` receipt preservation (`WP-41A`):**
+  Single-node `Engine::purge(logical_id)` narrows actuation receipt redaction to
+  purged entity/revision references so surviving sibling entities sharing the
+  same `source_id` bucket keep their idempotent actuation receipts (while
+  `Engine::erase_source` continues redacting the entire `source_id` bucket), and
+  maintains monotonic cursor floors across post-purge writes.
+- **Query scaling (`WP-41B`):** `Engine::search_with_evidence` with
+  `include_explanation = false` tracks lightweight `EvidenceContributionV1`
+  without incurring `explain = true` cosine/status/`PerHitExplain` overhead.
+  `read::get` and `read::get_many` with `ReadView { include_superseded: true, .. }`
+  use indexed `SEARCH`-only lookup without scanning `canonical_nodes`.

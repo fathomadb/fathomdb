@@ -22,8 +22,9 @@ Read these first — this is where the current release actually lives.
     never infer it from a wildcard listing or hardcode a version
   - `plans/release-state-<version>.json` — machine state for the release; one
     writer only
-  - `plans/prompts/` — commission prompts and hand-offs, incl.
-    `plans/prompts/0.8.x-STEWARD-HANDOFF.md`
+  - `plans/prompts/` — durable role contracts and commission prompts, incl.
+    `plans/prompts/0.8.x-STEWARD-HANDOFF.md` and
+    `plans/prompts/0.8.x-RELEASE-ORCHESTRATOR-HANDOFF.md`
 - `steward/` Program Steward's append-only decision ledger and its discipline
 - `agent-tools/` executables agents invoke directly —
   `agent-tools/ledgerwrite`, `agent-tools/ledgerwatch`,
@@ -39,7 +40,9 @@ root.
 - [`architecture.md`](architecture.md) — the retained superseded 0.6.0
   architecture snapshot
 - [ADR decision index](adr/ADR-0.6.0-decision-index.md) and the accepted decisions it locates
-- `design/` subsystem design docs beneath the active architecture
+- [`design/README.md`](design/README.md) — live subsystem owner map and design
+  lifecycle policy beneath the active architecture, paired with the
+  [cross-cutting change checklist](design/cross-cutting-change-checklist.md)
 - `interfaces/` maintained, section-status-qualified interface contracts
 - `interface-inventory/` interface inventory artifacts
 - `roadmap/` implementation sequencing and planning
@@ -93,7 +96,9 @@ root.
 ## Inspector product area
 
 [Inspector engineering documentation](inspector/README.md) owns its needs,
-requirements, acceptance, design, reviews, [0.2.1 plan](inspector/plans/0.2.1/plan.md),
-and [roadmap](inspector/ROADMAP.md). Public prose lives in `docs/inspector/`
-and application source in `src/inspector/`. Inspector versioning is distinct
-from the FathomDB database release line.
+requirements, acceptance, [high-level design](inspector/design/high-level-design.md),
+reviews, [backlog](inspector/BACKLOG.md), and [roadmap](inspector/ROADMAP.md)
+(Inspector `0.3.0` is published alongside FathomDB `0.8.31` with integrated
+workspace packaging). Public prose lives in `docs/inspector/` and application
+source in `src/inspector/`. Inspector versioning is distinct from the FathomDB
+database release line.

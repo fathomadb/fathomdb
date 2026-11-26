@@ -47,7 +47,12 @@ redaction is validated before those closure records disappear. The returned
 counts describe only rows and projections owned by the requested source; the
 operation does not recursively erase the replacement bucket. The same holds for
 `purge`: a corrected logical id can be purged once deleted, and its completed
-correction closures are removed only after receipt redaction.
+correction closures are removed only after receipt redaction. When multiple
+entities share the same `source_id` bucket (`0.8.32`), `erase_source(source_id)`
+redacts every actuation receipt in that `source_id` bucket, whereas single-node
+`purge(logical_id)` narrows receipt redaction strictly to the purged entity's
+revision references so surviving sibling entities keep their idempotent
+actuation receipts.
 
 The call **does not report success on a partial erasure.** If the WAL checkpoint
 cannot complete — typically a concurrent reader pinning a snapshot — the verb
@@ -180,8 +185,8 @@ specific caller source.
 
 ## Schedule an explicit maintenance window
 
-New format-38 stores can opt into persisted
-explicit maintenance:
+New format-39 stores (`0.8.32` target; format-38 in published `0.8.31`) can opt
+into persisted explicit maintenance:
 
 ```python
 from secrets import token_hex
@@ -219,11 +224,13 @@ Handle close/drop releases temporary ownership but cannot forgive durable debt.
 Explicit reopen preserves policy/fences and performs no autonomous cleanup.
 
 Autonomous remains the default. Direct online erase/purge under explicit policy
-refuses `maintenance_required`; use the window's selected ticket. Format 38 is
-required for both profiles in `0.8.31`:
-quiescent committed Schema 37 stores with no pending erasures upgrade offline
-via `fathomdb migrate --backup-dir <dir> <db_path>`, while earlier stores are
-refused with no automatic migration or in-place opt-in. Finish/export older
+refuses `maintenance_required`; use the window's selected ticket. Format 39 is
+required for both profiles on the `0.8.32` target line (Format 38 in published
+`0.8.31`): quiescent committed Schema 38 stores (and chained Schema 37 stores)
+with no pending erasures upgrade offline via
+`fathomdb migrate --backup-dir <dir> <db_path>` (`38 -> 39` and chained
+`37 -> 38 -> 39`), while earlier stores are refused with no automatic migration
+or in-place opt-in. Finish/export older
 stores using their supported old product procedures. This API promises no
 immediate revocation, completion deadline, backup deletion or universal storage
 remanence. TypeScript uses camelCase methods and fields with the same outcome

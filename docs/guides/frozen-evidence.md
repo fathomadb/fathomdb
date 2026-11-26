@@ -170,10 +170,12 @@ non-frozen graph expansion if exact evidence is required.
 
 Graph evidence uses actual start-inclusive, end-exclusive validity for the
 target, winning edge, and canonical source. It refuses a frozen context whose
-view enables `includeOutOfWindow`; mint a normal frozen context instead. A
-database mutation after the context was minted is reported as frozen-state
-drift before provenance detail is inspected. Rerun the whole freeze, expand,
-and resolve sequence after any such mutation.
+view enables `includeOutOfWindow`; mint a normal frozen context instead. An
+affecting database mutation after the context was minted (see
+[Partitioned additive stability (Schema 39)](#partitioned-additive-stability-schema-39)
+below for which writes drift a graph surface and which disjoint writes stay
+stable) is reported as frozen-state drift before provenance detail is inspected.
+Rerun the whole freeze, expand, and resolve sequence after any such drift.
 
 Historical `graph.expand` requests (`as_of_write_cursor` / `asOfWriteCursor` or
 `as_of_epoch_ms` / `asOfEpochMs`) also support `include_evidence=True` /
@@ -191,7 +193,10 @@ revokes both minting and resolution with `evidence_unavailable`.
 When requested, both frozen search operations return a non-empty correlation
 identity. With local telemetry enabled it is the matching `q...` query identity;
 without telemetry it is an Engine-minted `x...` identity. Disabling explanation
-returns no sidecar and does not capture telemetry on these frozen paths.
+(`include_explanation=False` / `includeExplanation: false`) returns no sidecar,
+does not capture telemetry on these frozen paths, and skips full `explain=True`
+vector-cosine, dropped-edge, and projection-status overhead while still
+populating lightweight `EvidenceContributionV1` metadata.
 
 ## Drift and retry
 

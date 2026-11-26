@@ -1,6 +1,6 @@
 ---
 title: FathomDB Decision Index
-date: 2026-11-24
+date: 2026-11-26
 target_release: cross-release
 desc: Active and historical index for accepted, superseded, and deferred ADRs
 status: ACTIVE
@@ -16,7 +16,7 @@ release plan and board.
 Numbering preserves historical IDs `#1`–`#76` (with `#67` formatted for
 `ADR-0.8.28-vector-compatibility-open-policy.md`, the duplicate `#66` for
 `ADR-0.8.29-agent-hints-sidecar.md` reassigned to `#77`, previously
-unindexed ADRs assigned `#78`–`#98`, and `0.8.32` ADRs assigned `#99`–`#102`).
+unindexed ADRs assigned `#78`–`#98`, and `0.8.32` ADRs assigned `#99`–`#103`).
 
 ## Active / Governing ADRs
 

@@ -26,9 +26,11 @@ clarifies the earlier draft:
 
 Authoritative table split:
 
-- `append_only_log` collections store rows in `operational_mutations`.
+- `append_only_log` collections store rows in `operational_mutations` (scoped
+  by `scope` in Schema 39; single-scope default `scope = ""`).
 - `latest_state` collections store rows in `operational_state`, keyed by
-  `(collection_name, record_key)`.
+  `(scope, collection_name, record_key)` in Schema 39 (originally
+  `(collection_name, record_key)` in single-scope schemas `< 39`).
 
 Operational store data includes current operational state such as connector
 health, scheduler cursors, queue state, heartbeats, counters, singleton state
@@ -93,7 +95,7 @@ surface and reopens the op-store ADR.
 `latest_state` collections are authoritative current-state maps.
 
 - Each accepted write upserts exactly one row in `operational_state`, keyed by
-  `(collection_name, record_key)`.
+  `(scope, collection_name, record_key)` in Schema 39 (`scope = ""` by default).
 - The row in `operational_state` is the authoritative latest state.
 - There is no derived `operational_current` table and no background rebuild
   step for current-state reads.
@@ -117,6 +119,16 @@ When a caller submits "primary write + op-store row" together, the 0.6.0
 contract is atomic visibility: callers never observe the primary write without
 its same-batch op-store row.
 
+**Schema 39 / `ADR #103` visibility coalescing (0.8.32 Slice 41):** Under
+`VisibilityCoalescingGuard`, op-store writes advance only their partitioned
+visibility watermarks in `_fathomdb_scope_visibility_watermarks`:
+`append_only_log` appends advance `(scope, 'op_log:' || collection_name)` (zero
+drift on every frozen read surface, including `read.operational_state`), and
+`latest_state` upserts (including `ActuationOperationV1::PutLatestState`)
+advance `(scope, 'op_state')` (drifting frozen `read.operational_state`
+contexts while producing zero drift on canonical, search, evidence, graph, and
+trace frozen surfaces).
+
 ## Read-back contract (`read.collection` / `read.mutations` — Slice 30 / G3)
 
 The governed `read.collection` / `read.mutations` verbs read an
@@ -138,20 +150,19 @@ The contract:
 - each returned `OpStoreRow` carries `{ id, collection, record_key, op_kind,
   payload (the stored payload_json), schema_id, write_cursor }`.
 
-**Index-driven pagination (Slice 33 / G3 / F4-READ).** The read-back SELECT is
-`WHERE collection_name = ?1 AND id > ?2 ORDER BY id LIMIT ?3`. The step-13
-additive index `operational_mutations(collection_name, id)`
-(`operational_mutations_collection_id_idx`, `SCHEMA_VERSION 13`) makes this
-**index-driven**: `EXPLAIN QUERY PLAN` reports `SEARCH operational_mutations USING
-INDEX operational_mutations_collection_id_idx (collection_name=? AND id>?)` — no
-`SCAN`, no `USE TEMP B-TREE FOR ORDER BY`, and not the pre-step-13 id-PK walk
-(`SEARCH … USING INTEGER PRIMARY KEY (rowid>?)`). The leading `collection_name`
-equality fixes the index prefix and the trailing `id` serves **both** the
-`after_id` cursor range and `ORDER BY id`, so paginating one collection inside a
-genuine ~1M-row multi-collection log is **O(page)**, not O(rows-scanned). The
-EXPLAIN gate is pinned in `tests/pr_g3_read_collection.rs`. (This retires the
-earlier "cursor/limit hardening under a genuine ~1M-row log is a reserved
-follow-on" note.)
+**Index-driven pagination (Slice 33 / G3 / F4-READ; Schema 39 scoped index).**
+In Schema 39, the scoped read-back SELECT uses
+`WHERE scope IN (...) AND collection_name = ? AND id > ? ORDER BY id LIMIT ?`,
+backed by the scope-leading composite index
+`operational_mutations_scope_collection_id_idx` on
+`operational_mutations(scope, collection_name, id)` (replacing the pre-Schema-39
+`(collection_name, id)` index `operational_mutations_collection_id_idx`). For
+single-scope reads, `EXPLAIN QUERY PLAN` reports index-driven `SEARCH` with no
+table `SCAN` and no `USE TEMP B-TREE FOR ORDER BY`, so paginating one
+collection inside a genuine ~1M-row multi-collection log stays **O(page)**, not
+O(rows-scanned). The EXPLAIN gate is pinned in `tests/pr_g3_read_collection.rs`.
+(This retires the earlier "cursor/limit hardening under a genuine ~1M-row log
+is a reserved follow-on" note.)
 
 `read.mutations` is a mutation-log-oriented alias surface over the identical
 read-back. Both verbs land in **lockstep** across the Python and TypeScript SDKs.

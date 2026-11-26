@@ -88,7 +88,11 @@ denylist name).
 - `engine.purge(logicalId: string): Promise<void>` — irreversible hard-erase of
   a governed node across every row-owned target. DELETED-FIRST and IDEMPOTENT.
   **No restore counterpart exists on any surface.** A logical id remains
-  purgeable after a correction supersedes one of its revisions.
+  purgeable after a correction supersedes one of its revisions. Under `0.8.32`
+  Slice 41 (`WP-41A`), `purge` redacts only actuation receipts referencing the
+  purged entity/revision IDs, preserving surviving sibling receipts that share
+  the same `sourceId` bucket, and maintains monotonic cursor floors across
+  post-purge writes.
 - `engine.eraseSource(sourceId: string): Promise<EraseReport>` — erase every
   canonical row carrying `sourceId` plus its row-owned projections, then finish
   at rest (telemetry redaction + WAL truncation). The COMPANION to `purge`:
@@ -418,8 +422,11 @@ cursors use canonical unsigned decimal strings.
 Malformed requests and operation-ID conflict/erasure throw `ActuationError`
 with code `FDB_ACTUATION`, closed `reason`, and canonical RFC 6901 `fieldPath`.
 Database-dependent domain refusals are terminal receipts, not exceptions.
-Exact replay is idempotent; source erasure and purge make a matching operation
-ID permanently unusable without retaining its prior receipt content.
+Exact replay is idempotent; `eraseSource` redacts every receipt in the
+`sourceId` bucket to an opaque permanently reserved operation-ID tombstone,
+whereas single-node `purge` redacts only receipts referencing the purged
+entity/revision IDs (`WP-41A`), preserving surviving sibling receipts sharing
+`sourceId`.
 
 `sourceId` follows the Engine `SourceId` grammar rather than the generic
 content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
@@ -1038,15 +1045,15 @@ The 0.8.25 additions are `RuntimeConfigurationError`,
 request-facing payloads use stable `reason` and `fieldPath` properties except
 for runtime configuration, which exposes requested/effective modes and the
 optional SQLite code. In 0.8.32, `ScopeViolationError` (`code = "FDB_SCOPE_VIOLATION"`)
-is added (`47` concrete leaf classes beneath `FathomDbError`; `48` shared error
-classes total).
+and `DatabaseNotFoundError` (`code = "FDB_DATABASE_NOT_FOUND"`) are added (`48`
+concrete leaf classes beneath `FathomDbError`; `49` shared error classes total).
 
 TypeScript exports one catch-all base class, `FathomDbError`, and every
 concrete class in the `design/errors.md` matrix extends it. Open-time and
 runtime classes remain distinct, but callers can catch `FathomDbError` for
 both. `FathomDbPanicError` extends `Error`, **not** `FathomDbError`, and is
 deliberately outside the catch-all root — it is TS-only (the Python peer is
-PyO3's `PanicException`) and is therefore not one of the `47` shared leaf
+PyO3's `PanicException`) and is therefore not one of the `48` shared leaf
 classes.
 
 ⚠ `WriteValidationError` is **message-less** since decision #18: the envelope
@@ -1541,10 +1548,11 @@ Only mappings derived from the removed refused-open runtime state disappear.
 
 The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
 and [production design](../design/explicit-maintenance-erasure/production-design.md)
-own guarantees, scope, limits and recovery. Format 38 (format 37 in `0.8.28`–`0.8.30`)
-requires persisted policy metadata; `Engine.open` refuses prior formats before
-mutation with no automatic upgrade (committed Schema 37 stores upgrade offline
-via `fathomdb migrate`).
+own guarantees, scope, limits and recovery. Format 39 (format 38 in `0.8.31`,
+format 37 in `0.8.28`–`0.8.30`) requires persisted policy metadata; `Engine.open`
+refuses prior formats before mutation with no automatic upgrade (committed
+Schema 38 stores and chained Schema 37 stores upgrade offline via
+`fathomdb migrate`).
 `EngineConfig.physicalErasurePolicy` is `"autonomous"` or `"explicit_maintenance"`;
 unset honors reopen policy and defaults fresh stores to Autonomous. Mismatch
 refuses open. Explicit reopen never starts autonomous physical cleanup.
@@ -1899,8 +1907,21 @@ members), opt-in agent search hints across `search`, `searchFrozen`, and
   nonce, canonicalWriteBoundary, projectionCursor }` from one deferred reader
   snapshot without acquiring the writer lock.
 
-## Artifact-scoped evidence `propertyPredicates` and `GraphArm` provenance (0.8.32 Slice 41)
+## Artifact-scoped evidence `propertyPredicates`, `GraphArm` provenance, purge lineage, query scaling, and partitioned frozen reads (0.8.32 Slice 41)
 
+- **Shared-bucket `engine.purge` receipt preservation (`WP-41A` / `#268`):**
+  Single-node `engine.purge(logicalId)` narrows actuation receipt redaction to
+  purged entity/revision references rather than redacting the whole `sourceId`
+  bucket, preserving idempotent `operationId` replay for surviving sibling
+  entities sharing `sourceId` (while `engine.eraseSource` continues redacting
+  the entire `sourceId` bucket), and maintains monotonic cursor floors across
+  post-purge writes.
+- **Evidence `includeExplanation: false` & `read.get`/`read.getMany(..., { includeSuperseded: true })` (`WP-41B` / `#267`):**
+  `engine.searchWithEvidence` with `includeExplanation: false` captures
+  lightweight `EvidenceContributionV1` without triggering `explain: true`
+  vector-cosine / status / `PerHitExplain` overhead. `read.get` and
+  `read.getMany` with `{ includeSuperseded: true }` execute indexed
+  `SEARCH`-only SQL lookup without full-table scans.
 - **Artifact-scoped `SearchFilter.propertyPredicates` on evidence resolution
   (`ADR-0.8.32 #103` §2.1):** Across `engine.searchWithEvidence`,
   `engine.resolveEvidence`, `engine.resolveEvidenceMany`,

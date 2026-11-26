@@ -31,7 +31,7 @@ fathomdb doctor platform --json
 ## Root commands
 
 - `fathomdb doctor <verb> [--json] [<db_path>]` — diagnostics, integrity checks, exports, and maintenance
-- `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — explicit offline Schema 37 to Schema 38 upgrade with SHA-256-verified backup and full post-upgrade integrity check
+- `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — explicit offline Schema 38 to Schema 39 (and chained 37 -> 38 -> 39) upgrade with SHA-256-verified backup and full post-upgrade integrity check
 - `fathomdb recover --accept-data-loss [flags] <db_path>` — explicit lossy recovery operations
 
 ## Exit codes

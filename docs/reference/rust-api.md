@@ -109,16 +109,6 @@ is built-in default or none, with no caller-provider injection.
   `Engine::read_operational_collection_info` enumerate and inspect declared
   operational collections (conflicting `kind` re-registration is refused with
   `EngineError::WriteValidation`).
-- `Engine::read_visibility_state` returns `VisibilityStateV1` on one deferred
-  reader transaction without acquiring the writer lock (`EP-01`).
-- `Engine::open_with_choice_config_and_create` supports `create_if_missing: false`
-  (`EP-07`), failing with `EngineOpenError::DatabaseNotFound` under the sidecar
-  lock before CUDA/embedder setup and leaving no newly created `.lock` or
-  SQLite files behind.
-- `ActuationOperationV1::PutLatestState(LatestStateActuationV1)` atomically
-  upserts a schema-validated `latest_state` operational checkpoint inside
-  `Engine::actuate` under the opener-bound caller `scope`.
-
 - `Engine::write` validates every edge in the batch (including in-batch
   superseded edges and mixed-`source_id` batches) against active,
   non-superseded endpoint nodes (`state = 'active'`, `superseded_at IS NULL`),
@@ -207,6 +197,29 @@ is built-in default or none, with no caller-provider injection.
   `DataPlaneIntegrityCheckV1::EdgeEndpointIntegrity` (`"edge_endpoint_integrity"`)
   and `check_integrity` detect dangling (`dangling_edge_endpoint`) and
   cross-scope (`cross_scope_edge_endpoint`) active edges read-only.
+- **Visibility state, `create_if_missing`, and atomic `PutLatestState` (Pin C):**
+  `Engine::read_visibility_state` returns `VisibilityStateV1` on one deferred
+  reader transaction without acquiring the writer lock (`EP-01`).
+  `Engine::open_with_choice_config_and_create` supports
+  `create_if_missing: false` (`EP-07`), failing with
+  `EngineOpenError::DatabaseNotFound` under the sidecar lock before
+  CUDA/embedder setup and leaving no newly created `.lock` or SQLite files
+  behind. `ActuationOperationV1::PutLatestState(LatestStateActuationV1)`
+  atomically upserts a schema-validated `latest_state` operational checkpoint
+  inside `Engine::actuate` under the opener-bound caller `scope`.
+- **Shared-bucket `Engine::purge` receipt preservation (`WP-41A`):**
+  Single-node `Engine::purge(logical_id)` narrows actuation receipt redaction to
+  purged entity/revision references rather than redacting the entire `source_id`
+  bucket (preserving idempotent `operation_id` replay for surviving siblings
+  sharing `source_id`, while `Engine::erase_source` continues redacting the
+  whole `source_id` bucket), and maintains monotonic cursor floors across
+  post-purge writes.
+- **Query scaling (`WP-41B`):** `Engine::search_with_evidence` with
+  `include_explanation = false` captures lightweight `EvidenceContributionV1`
+  without triggering `explain = true` cosine/status/`PerHitExplain` overhead,
+  and `Engine::read_get` / `Engine::read_get_many` with
+  `ReadView { include_superseded: true, .. }` execute an indexed `SEARCH`-only
+  SQL lookup without full-table scans.
 
 ## Errors
 

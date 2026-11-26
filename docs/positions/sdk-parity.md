@@ -1,7 +1,11 @@
 # SDK Parity
 
 Python, TypeScript, and Rust (`fathomdb-sdk`) share the high-level application
-operation surface in 0.8.31. The CLI remains a separate operator surface.
+operation surface (`56` governed ops / `47` shared error classes in published
+`0.8.31`; `58` governed ops / `49` shared error classes on the `0.8.32`
+documentation target, adding `write_with_options`, `read.visibility_state`,
+`ScopeViolation`, and `DatabaseNotFound`). The CLI remains a separate operator
+surface.
 
 ## Shared behavior
 
@@ -16,8 +20,10 @@ The SDKs provide:
   `read.get_many` / `read.getMany` and `erase_source` / `eraseSource`;
 - equivalent error categories and structured payloads: Python uses
   `EngineError` subclasses, TypeScript uses `FathomDbError` subclasses, and
-  Rust uses one `Error` with an `ErrorKind` for each category. In 0.8.31 this
-  includes the three typed CUDA allocator and context errors;
+  Rust uses one `Error` with an `ErrorKind` for each category. Published
+  `0.8.31` includes the three typed CUDA allocator and context errors; the
+  `0.8.32` target adds `ScopeViolation` and `DatabaseNotFound` (`49` total
+  shared error classes = base + `48` leaf);
 - equivalent result shapes, including typed `SearchHit.id`.
 
 ## Language conventions and boundaries

@@ -10,6 +10,73 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
+Target release: `0.8.32` (pre-publish on `dev/0.8.32`; registry publication
+pending).
+
+### Added
+
+- **Schema 39 caller scope isolation (`ADR #102`):** Engine-enforced
+  `ScopePolicy` (`Unscoped` single-scope/single-agent default `scope = ""`,
+  opt-in `single`, `read_only`, `read_write`) across Rust (`fathomdb-sdk`,
+  `fathomdb`), Python, and TypeScript, backed by composite `(scope, ...)` keys
+  and indexes, 8-column `vec0` (`scope TEXT`), scoped triggers,
+  `ScopeViolationError` (`FDB_SCOPE_VIOLATION`), single-source
+  `fathomdb_schema::TABLE_MANIFEST` (`36` tables / `20` visibility-trigger
+  tables / `60` triggers), and offline `fathomdb migrate` (`38 -> 39` and
+  chained `37 -> 38 -> 39`).
+- **Opt-in bulk write mode (`ADR #100`):** `WriteOptions` /
+  `EndpointValidationMode::{Strict, BulkNonStrict}` and
+  `write_with_options` / `writeWithOptions` across all three SDKs (keeping
+  `write` and `actuate` strictly endpoint-validated), truthful
+  `WriteReceipt.dangling_edge_endpoints`, and read-only
+  `edge_endpoint_integrity` verification in `fathomdb doctor`.
+- **Production read+write `fathomdb-mcp` and Pin C engine primitives (`ADR #99`):**
+  Stdio MCP server (`allow_writes: false` default, per-store opt-in with bound
+  scope, `SC-01`–`SC-10` startup conflict guards, 7 read / 9 read+write tools),
+  `ActuationOperationV1::PutLatestState`, `read.visibility_state` /
+  `read.visibilityState` (`VisibilityStateV1`), `create_if_missing=False` /
+  `{ createIfMissing: false }` (`DatabaseNotFoundError` /
+  `FDB_DATABASE_NOT_FOUND`), and `PerHitExplain.vector_cosine`.
+- **Partitioned frozen-read additive stability (`ADR #103`):** Schema 39
+  `_fathomdb_scope_visibility_watermarks`, `_fathomdb_read_visibility_state`
+  `global_struct_gen`/`global_struct_nonce`, and `0x53 0x39` trailing
+  `SurfaceTags` on `FrozenReadContextV1` (`492 B` unscoped / `556 B` scoped) so
+  disjoint-`kind` additive writes, operational log/state writes, disjoint-scope
+  activity, and disjoint-`(scope, kind)` background vector commits produce zero
+  unintended drift while preserving fail-closed boundaries and per-slot
+  `resolve_evidence_many` refusal for drifted `Edge` / `GraphArm` slots.
+- **Governed surface & error parity:** `58` live governed operations (`97`
+  allowlist members) and `49` shared error classes (`1` base + `48` leaf,
+  adding `ScopeViolation` and `DatabaseNotFound`).
+
+### Changed
+
+- Bumped store `SCHEMA_VERSION` from **38** to **39** (`Engine::open` remains
+  exact-schema only; committed Schema 37/38 stores upgrade offline via
+  `fathomdb migrate`).
+- Made `SearchFilter.property_predicates` artifact-scoped on evidence source
+  authorization (`search_with_evidence`, `resolve_evidence`,
+  `resolve_evidence_many`, `graph.expand(include_evidence=True)`,
+  `resolve_graph_evidence`) while preserving strict source enforcement of
+  access-bearing `attributes`, lifecycle, closures, and `ScopePolicy`, and
+  keeping `trace_dependency` symmetric (`ADR #103` §2.1).
+- Decoupled lightweight `EvidenceContributionV1` tracking from `explain = true`
+  when `search_with_evidence(include_explanation = false)`, and optimized
+  `read.get` / `read.get_many(include_superseded = true)` onto indexed
+  `SEARCH`-only SQL lookup.
+
+### Fixed
+
+- Narrowed single-node `purge(logical_id)` actuation receipt redaction to
+  purged entity/revision references so surviving sibling entities sharing the
+  same `source_id` bucket retain their idempotent actuation receipts (while
+  `erase_source(source_id)` continues redacting the entire `source_id` bucket),
+  and hardened monotonic cursor floors across all erasure paths.
+
+### Removed
+
+- None.
+
 ## 0.8.31 — 2026-11-23
 
 **Published.** crates.io, PyPI (`fathomdb` and `fathomdb-cli`), npm `latest`,

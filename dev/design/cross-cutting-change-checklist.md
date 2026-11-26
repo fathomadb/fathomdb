@@ -14,18 +14,33 @@ map in [`README.md`](README.md) and the governing decisions in
 Whenever adding, renaming, or retiring a SQLite table, virtual table, trigger,
 or schema version:
 
-1. Update the schema DDL and `SCHEMA_VERSION` contract in
+1. Update the schema DDL, `SCHEMA_VERSION` contract, and single-source
+   `TABLE_MANIFEST` (`36` tables: `31` regular + `5` virtual; `20`
+   visibility-trigger tables / `60` triggers) in
    `src/rust/crates/fathomdb-schema/src/lib.rs` (additive-only when staying on
    the same schema version; never write `INSERT...SELECT` data migrations in
    managed-vec releases — enforced by `scripts/agent-lint-migrations.sh`).
-2. Classify every table in `ExportClass` / `TABLE_MANIFEST`
-   (`src/rust/crates/fathomdb-engine/src/export_manifest.rs`) so erasure
-   completeness, logical export, and `sqlite_master` audit tests
-   (`src/rust/crates/fathomdb-engine/tests/slice38_erasure_and_audit.rs`) cover
-   the new object with zero uncategorized tables.
-3. Update `dev/interfaces/wire.md` and `docs/compatibility/index.md` if the
+2. Keep `ExportClass` (`src/rust/crates/fathomdb-engine/src/export_manifest.rs`,
+   which inherits the table inventory directly from `fathomdb_schema::TABLE_MANIFEST`)
+   synchronized so erasure completeness, logical export, and `sqlite_master`
+   audit tests (`src/rust/crates/fathomdb-engine/tests/slice38_erasure_and_audit.rs`)
+   cover every object with zero uncategorized tables.
+3. Keep Schema 39 / `ADR #103` visibility and admission touchpoints
+   synchronized across crates:
+   - `_fathomdb_scope_visibility_watermarks` (`WITHOUT ROWID`) and
+     `_fathomdb_read_visibility_state.{global_struct_gen, global_struct_nonce}`;
+   - the 20-table / 60-trigger classification (`8` scope-bearing, `5`
+     row-owned, `7` global metadata);
+   - `VisibilityCoalescingGuard` / `VisibilityDelta`
+     (`canonical_batch_has_no_custom_triggers` vs.
+     `projection_batch_has_no_custom_triggers`);
+   - `ReadSurface` and `validate_on_open` in
+     `src/rust/crates/fathomdb-engine/src/frozen_read.rs`;
+   - `projection_generation.rs::bootstrap_is_fresh`;
+   - `src/inspector/src/admission.rs`.
+4. Update `dev/interfaces/wire.md` and `docs/compatibility/index.md` if the
    format boundary or migration note changes.
-4. Keep `scripts/check-public-doc-truth.py` `RELEASE_SCHEMAS` untouched until
+5. Keep `scripts/check-public-doc-truth.py` `RELEASE_SCHEMAS` untouched until
    the target release locks its `SCHEMA_VERSION` and publication truth flips.
 
 ## 2. Governed SDK operation parity and surface pin
@@ -38,8 +53,9 @@ error type across Rust, Python, and TypeScript:
 2. Update `src/conformance/governed-operation-parity.json` and
    `src/conformance/governed-surface-allowlist.json`.
 3. Only update `scripts/governed-surface-pin.json` after explicit HITL
-   pre-authorization for the exact surface delta; `core` (5) and
-   `recovery_denylist` (5) stay invariant.
+   pre-authorization for the exact surface delta (`58` live governed ops / `97`
+   allowlist members, `runtime_controls = 2`, `49` shared error classes = `1`
+   base + `48` leaf; `core = 5` and `recovery_denylist = 5` stay invariant).
 4. Update `dev/interfaces/{rust,rust-sdk,python,typescript}.md` and
    `docs/reference/{rust-sdk,rust-api,python-api,typescript-api,errors}.md`.
 5. Run `python3 scripts/check-sdk-surface-parity.py` and
@@ -57,7 +73,7 @@ distribution posture:
    code, and tool schema, and ensure no recovery-denylist or bulk escape hatches
    are exposed.
 3. Keep `src/rust/crates/fathomdb-mcp/Cargo.toml`, its `LICENSE` copy (required
-   by `scripts/check-license-consistency.sh` once `publish = true`), and
+   by `scripts/check-license-consistency.sh` since `publish = true`), and
    `AGENTS.md` / public docs aligned with actual publish posture.
 
 ## 4. Module-boundary splits and test relocations

@@ -21,6 +21,16 @@ their `BEGIN IMMEDIATE` commits are serialized by the shared `commit_gate`, so
 there is never more than one SQLite write transaction even though publication
 does not run on the primary writer connection.
 
+**Schema 39 / `ADR #103` partitioned visibility (0.8.32 Slice 41):** Background
+vector projection commits enter `VisibilityCoalescingGuard` when
+`projection_batch_has_no_custom_triggers` holds, advancing only the partitioned
+`(scope, 'vector_ready:' || kind)` and `(scope, 'vector_ready_all')` watermarks
+in `_fathomdb_scope_visibility_watermarks` so background vector publication for
+a disjoint `(scope, kind)` does not drift unrelated frozen read contexts.
+`global_struct_gen` / `global_struct_nonce` on `_fathomdb_read_visibility_state`
+advance only on structural changes such as `mean_vec` pin updates, projection
+registry/kind-enrolment changes, or generation transitions.
+
 The immutable serving generation binds declaration identity and membership.
 Jobs capture that generation, revalidate it before terminal/sidecar/vec0
 publication, and discard stale results after a generation transition. Receipt
@@ -46,7 +56,8 @@ pending cursors are correlation metadata, not a second work queue.
    batch
 
 Canonical and FTS visibility are immediate at write commit. Vector visibility
-is governed by terminal projection state.
+is governed by terminal projection state and tracked per `(scope, kind)` via
+`vector_ready:<kind>` / `vector_ready_all` watermarks in Schema 39.
 
 ## Terminal states
 

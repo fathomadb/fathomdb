@@ -15,8 +15,12 @@ If you are writing a Rust application against FathomDB, depend on this crate.
 
 ## Status: pre-1.0, beta
 
-The newest published crates.io release is **0.8.31**. Public contracts may
-change between micro releases.
+The newest published crates.io release is **0.8.31**. The `0.8.32` development
+target on `dev/0.8.32` adds Schema 39 opt-in `ScopePolicy` caller isolation
+(single-scope default), opt-in `Engine::write_with_options` (`bulk_non_strict`),
+`read::visibility_state`, `OpenOptions.create_if_missing` (`DatabaseNotFound`),
+`ActuationOperationV1::PutLatestState`, and partitioned frozen-read additive
+stability (`ADR #103`). Public contracts may change between micro releases.
 
 ## Install
 

@@ -350,7 +350,10 @@ touching edges (cascade-removed).
 already-purged id is a no-op success. A non-`l:` id raises
 `NotLifecycleAddressableError`.
 
-`purge` addresses one **governed** node. For anonymous content — rows
+`purge` addresses one **governed** node. Under `0.8.32` (`WP-41A`), single-node
+`purge` narrows actuation receipt redaction strictly to the purged entity's
+revision references so surviving sibling entities sharing the same `source_id`
+bucket retain their idempotent actuation receipts. For anonymous content — rows
 written with no `logical_id` — use `erase_source` below.
 
 ### `engine.erase_source(source_id: str) -> EraseReport`
@@ -378,7 +381,8 @@ The same source identity accepted by a write can be erased, including one with
 an embedded NUL; the call matches the full identity exactly.
 
 Returns an `EraseReport` with `source_ref`, `nodes_excised`, `edges_excised`,
-and `projections_invalidated`. Mirrored in TS as `engine.eraseSource(sourceId)`.
+`projections_invalidated`, and `completed_pending_erasure: bool`. Mirrored in
+TS as `engine.eraseSource(sourceId)`.
 
 See [Erasure](../operations/erasure.md) for what this does and does **not**
 guarantee, and for the non-PII `source_id` rule.
@@ -455,9 +459,11 @@ The public carrier family is `CanonicalHash`, `WholeBodySourceLocator`,
 Dependency requests use `SourceDependencyRegistrationV1`,
 `DependencySourceLookupV1`, and `DependencyDerivedLookupV1`. Actuation uses
 `ActuationBatchV1` / `ActuationOperationV1`; its operation set is canonical
-node put, derived node put, derived edge put, dependency registration, and
-lifecycle transition. Derived edges require both endpoints in the final active
-state of the complete batch, even when their node puts occur later.
+node put, derived node put, derived edge put, dependency registration,
+lifecycle transition, and (`0.8.32`) `PutLatestState` (`put_latest_state`
+checkpoint upsert into a `latest_state` operational collection). Derived edges
+require both endpoints in the final active state of the complete batch, even
+when their node puts occur later.
 Domain refusals are terminal receipts while malformed requests raise
 `ActuationError`. Closure reads use `ClosureLookupV1`, `ClosureStatusV1`, and
 `ClosureProofV1`.
@@ -572,17 +578,21 @@ through the ordinarily opened engine and may briefly take its connection lock.
 They do not configure, write, or schedule work, but do not promise a separately
 opened read-only SQLite mode.
 
-### `read.get(engine, logical_id: str) -> NodeRecord | None`
+### `read.get(engine, logical_id: str, *, view: ReadView | None = None) -> NodeRecord | None`
 
-Active-only point lookup by `logical_id` (active = `superseded_at IS NULL`). A
-superseded version is never returned. A missing or superseded id returns `None`
-— a **normal absence, not an exception** (a typed `NotFound` is a later-slice
-concern).
+Point lookup by `logical_id`. By default (`view=None`), lookups are active-only
+(`superseded_at IS NULL`, `state == "active"`), and a missing or superseded id
+returns `None` — a **normal absence, not an exception** (a typed `NotFound` is a
+later-slice concern). Pass `view=ReadView(include_superseded=True)` (or other
+`ReadView` relaxations) to inspect superseded/historical revisions via indexed
+`SEARCH`-only SQL lookup (`0.8.32`).
 
-### `read.get_many(engine, logical_ids: list[str]) -> list[NodeRecord | None]`
+### `read.get_many(engine, logical_ids: list[str], *, view: ReadView | None = None) -> list[NodeRecord | None]`
 
-Batched point lookup. Returns one slot per requested id, **in request order**;
-a missing/superseded id is `None` in its slot (partial result, never
+Batched point lookup with the same default active-only / optional `view`
+semantics (`ReadView(include_superseded=True)` uses indexed `SEARCH`-only
+lookup). Returns one slot per requested id, **in request order**; a
+missing/ineligible id is `None` in its slot (partial result, never
 all-or-nothing). `read.get` delegates to `read.get_many`.
 
 ### `read.collection(engine, collection, *, after_id=None, limit) -> list[OpStoreRow]`
@@ -975,10 +985,10 @@ Returned by `graph.search_expand`. `all_logical_ids` contains the
 
 ## Errors
 
-`fathomdb.errors` exports `EngineError` (the catch-all base) plus **47**
-concrete leaf classes below it (`48` shared error classes total), including
-`ScopeViolationError` (`0.8.32`). See [errors reference](errors.md) for the
-full matrix and recovery-hint codes.
+`fathomdb.errors` exports `EngineError` (the catch-all base) plus **48**
+concrete leaf classes below it (`49` shared error classes total), including
+`ScopeViolationError` and `DatabaseNotFoundError` (`0.8.32`). See
+[errors reference](errors.md) for the full matrix and recovery-hint codes.
 
 The lifecycle / erasure verbs raise `IllegalTransitionError`,
 `NotLifecycleAddressableError`, `ErasureIncompleteError` and
@@ -1040,9 +1050,12 @@ body-byte coordinates, including role tags.
   list/tuple of `str` (`TypeError`), no NUL bytes (`WriteValidationError`), and
   raw count `1..=50` (`InvalidArgumentError`). Preserves duplicate order and
   arity; returns per-slot `EvidenceResolveManyItemV1(status="resolved", resolved=...)`
-  or `EvidenceResolveManyItemV1(status="refused", reason="evidence_unavailable", field_path="/evidenceRefs/{i}")`
-  while collapsing frozen-context drift into whole-call
-  `EvidenceError("evidence_unavailable")`.
+  or `EvidenceResolveManyItemV1(status="refused", reason="evidence_unavailable", field_path="/evidenceRefs/{i}")`,
+  collapsing whole-context frozen drift into whole-call
+  `EvidenceError("evidence_unavailable")` (under Schema 39 partitioned frozen
+  reads, post-decode `Edge`/`GraphArm` slots whose edge partition drifted
+  instead return per-slot `status="refused"` while unaffected node-only slots
+  resolve).
 - **Opt-in search hints (`hints: bool = False`):** Accepted as a keyword-only
   parameter on `engine.search`, `engine.search_frozen`, and
   `EvidenceSearchRequestV1` (non-`bool` values raise `TypeError`). When `False`

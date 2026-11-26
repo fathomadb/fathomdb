@@ -3,7 +3,7 @@
 Reference for the **0.8.32** documentation target (pre-publish; newest
 published release: **0.8.31**). Field spellings and type-level details are
 authoritative in the interface specs
-(`dev/interfaces/{python,typescript,rust-sdk,cli}.md`); this section is the
+(`dev/interfaces/{python,typescript,rust-sdk,rust,cli,mcp,wire}.md`); this section is the
 client-facing view.
 
 - [Python API](python-api.md) — `Engine`, `admin`, governed reads,

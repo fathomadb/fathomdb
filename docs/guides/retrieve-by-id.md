@@ -8,10 +8,15 @@ reader pool on a stable snapshot, so they never block the single writer.
 ## `read.get` / `read.get_many` — point lookup by id
 
 `logical_id` is the stable, cross-re-ingestion identity you supply at write
-time. `read.get` returns the **active** version only (a superseded version is
-never returned); a missing or superseded id is a normal `None`/`null`, not an
-error. `read.get_many` returns one slot per requested id, **in request order**,
-with `None`/`null` for any miss.
+time. Under the default strict `ReadView` (`view` omitted), `read.get` returns
+the **active** version only (a superseded version is not returned), and a
+missing or superseded id is a normal `None`/`null`, not an error. To read
+superseded revisions, opt in with `view=ReadView(include_superseded=True)` in
+Python, `{ includeSuperseded: true }` in TypeScript, or
+`ReadView { include_superseded: true, .. }` in Rust (`0.8.32` executes this via
+an indexed `SEARCH`-only SQL lookup without scanning `canonical_nodes`).
+`read.get_many` returns one slot per requested id, **in request order**, with
+`None`/`null` for any miss.
 
 Canonical node and edge items also require a **`source_id`** (mandatory since
 0.8.20 — see [Erasure](../operations/erasure.md)). The `admin_schema` /

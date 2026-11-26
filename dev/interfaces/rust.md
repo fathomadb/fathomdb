@@ -594,7 +594,11 @@ DEFAULT facade, not behind the `operator` feature.
   (legal only from `deleted`) and IDEMPOTENT. A SEPARATE verb from `transition`.
   **There is no restore counterpart on any surface.** A logical id remains
   purgeable after a correction supersedes one of its revisions: completed
-  direct-dependent closure rows do not block receipt redaction.
+  direct-dependent closure rows do not block receipt redaction. Under `0.8.32`
+  Slice 41 (`WP-41A`), `purge` narrows actuation receipt redaction strictly to
+  the purged entity's revision references (preserving actuation receipts for
+  surviving sibling entities that share the same `source_id` bucket) and
+  maintains monotonic cursor floors across post-purge writes.
 - `Engine::erase_source(&self, source_id: &str) -> Result<ExciseReport, EngineError>`
   — 0.8.20 Slice 5d (R-20-E4): erase every canonical row carrying `source_id`
   plus its row-owned projections, then finish the erasure AT REST (telemetry
@@ -964,8 +968,11 @@ An admitted request returns `ActuationReceiptV1` with a terminal `committed` or
 `refused` outcome. Exact `operation_id` and canonical-digest replay returns the
 stored receipt; a different digest or an erased receipt raises
 `EngineError::Actuation(ActuationError)`. Boundaries, dependency generations,
-and projection cursors are `u64`. Source erasure or purge redacts every matching
-receipt to an opaque, permanently reserved operation-ID tombstone.
+and projection cursors are `u64`. Source erasure (`erase_source`) redacts every
+matching receipt in the `source_id` bucket to an opaque, permanently reserved
+operation-ID tombstone; single-node `purge(logical_id)` redacts only receipts
+referencing the purged entity/revision IDs (`WP-41A`), preserving surviving
+siblings sharing `source_id`.
 
 `SourceId` retains its existing closed grammar, including embedded NUL; Python
 and TypeScript preserve every Engine-valid source identity exactly.
@@ -2319,8 +2326,8 @@ changes no default admission, public erasure outcome or shipped schema.
 
 The [approved contract](../design/explicit-maintenance-erasure/contract.md) and
 [production design](../design/explicit-maintenance-erasure/production-design.md)
-own format-38 (originally format-37 in `0.8.28`–`0.8.30`) policy, immutable
-scope, admission and physical proof.
+own format-39 (format-38 in `0.8.31`, format-37 in `0.8.28`–`0.8.30`) policy,
+immutable scope, admission and physical proof.
 
 The lower-level `fathomdb` facade re-exports all twelve maintenance types from
 `fathomdb-engine`: `PhysicalErasurePolicy`, `MaintenanceError`, `ErasureServiceState`,
@@ -2330,8 +2337,9 @@ The lower-level `fathomdb` facade re-exports all twelve maintenance types from
 Persisted `PhysicalErasurePolicy::{Autonomous, ExplicitMaintenance}` is selected for fresh
 stores with `EngineConfig.physical_erasure_policy`; absent configuration honors
 persisted policy on reopen. Missing/unknown policy is corruption, and mismatching
-selection refuses before mutation. Both profiles use current-only format 38 on
-`0.8.31` (committed Schema 37 stores upgrade offline via `fathomdb migrate`).
+selection refuses before mutation. Both profiles use current-only format 39 on
+`0.8.32` (committed Schema 38 stores and chained Schema 37 stores upgrade
+offline via `fathomdb migrate`).
 
 `Engine::physical_erasure_policy` observes the effective policy.
 `Engine::queue_physical_erasure(selector, key)` returns `QueueResult`;
@@ -2769,8 +2777,25 @@ compose orthogonally with world/validity time (`ReadView.valid_as_of` /
   executes on one deferred reader transaction without acquiring the writer lock,
   applying the in-process `fetch_max` regression guard (`EngineError::FrozenRead`).
 
-## Artifact-scoped evidence `property_predicates` and `GraphArm` provenance (0.8.32 Slice 41)
+## Artifact-scoped evidence `property_predicates`, `GraphArm` provenance, purge lineage, query scaling, and partitioned frozen reads (0.8.32 Slice 41)
 
+- **Shared-bucket `purge` receipt preservation and cursor monotonicity (`WP-41A` / `#268`):**
+  Single-node `Engine::purge(logical_id)` narrows actuation receipt redaction to
+  purged entity/revision references (`artifact_revision_id`,
+  `source_revision_id`, and physical-closure dependents) rather than redacting
+  all receipts sharing the node's `source_id` bucket, so surviving sibling
+  entities retain idempotent `operation_id` replay (while `Engine::erase_source`
+  continues redacting the entire `source_id` bucket). All erasure paths enforce
+  a monotonic cursor floor against persisted `_fathomdb_commit_timestamps` and
+  erasure/closure tables so post-purge `Engine::actuate` / `Engine::write` never
+  collides on `write_cursor`.
+- **Evidence `include_explanation = false` and `read_get(include_superseded = true)` query scaling (`WP-41B` / `#267`):**
+  `Engine::search_with_evidence` with `include_explanation = false` decouples
+  lightweight `EvidenceContributionV1` tracking from `explain = true`, skipping
+  `vec_distance_cosine`, dropped-edge counting, projection status computation,
+  and `PerHitExplain` materialization. `Engine::read_get` and
+  `Engine::read_get_many` with `ReadView.include_superseded = true` execute an
+  indexed `SEARCH`-only SQL lookup without full-table scans.
 - **Evidence `source_filter` tiering (`ADR-0.8.32 #103` §2.1):** Across
   `Engine::search_with_evidence`, `Engine::resolve_evidence`,
   `Engine::resolve_evidence_many`, `Engine::graph_expand(include_evidence = true)`,

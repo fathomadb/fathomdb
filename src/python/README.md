@@ -52,10 +52,15 @@ engine.close()
 
 ## What is on the surface
 
-- **Engine lifecycle** — `Engine.open`, `engine.close`, `engine.drain`, `engine.counters()`,
-  `engine.open_report()` (including `reranker_compiled`, `cuda_compiled`, and
-  `rerank_available` capability booleans), and a logging-subscriber seam.
-- **Writes** — `engine.write(batch)` of canonical nodes
+- **Engine lifecycle** — `Engine.open` (plus `0.8.32` target
+  `create_if_missing=False` / `DatabaseNotFoundError` and opt-in `ScopePolicy`
+  caller isolation defaulting to `ScopePolicy.unscoped()`), `engine.close`,
+  `engine.drain`, `engine.counters()`, `engine.open_report()` (including
+  `reranker_compiled`, `cuda_compiled`, and `rerank_available` capability
+  booleans), and a logging-subscriber seam.
+- **Writes** — `engine.write(batch)` (plus `0.8.32` target opt-in
+  `engine.write_with_options(batch, WriteOptions.bulk_non_strict())` and
+  `ActuationOperationV1.put_latest_state`) of canonical nodes
   (`{"kind", "body", "source_id", "logical_id"?, "state"?, "reason"?, "valid_from"?,
   "valid_until"?, "properties"?}`) and edges (`{"edge": {"kind", "from", "to", "source_id", "properties"?}}`).
 - **Search** — `engine.search(query, ...)` fuses FTS5 lexical retrieval with dense vector
@@ -67,8 +72,9 @@ engine.close()
   `engine.resolve_evidence_many` (`1..=50` refs with per-slot partial-result outcomes).
 - **Reads** — the `fathomdb.read` module: `read.get`, `read.get_many`, `read.list`,
   `read.collection`, `read.operational_collections`, `read.operational_collection`,
-  `read.mutations`, `read.projections`, `read.crossed_boundary_since`. Each
-  takes a `ReadView` selecting existence state and world-time validity where applicable.
+  `read.mutations`, `read.visibility_state` (`0.8.32` target),
+  `read.projections`, `read.crossed_boundary_since`. Each takes a `ReadView`
+  selecting existence state and world-time validity where applicable.
 - **Graph** — `fathomdb.graph.neighbors`, `fathomdb.graph.search_expand` for bounded BFS
   expansion from search hits, and `fathomdb.graph.expand` with predicates and optional
   historical `as_of_write_cursor` / `as_of_epoch_ms` coordinates.
@@ -102,8 +108,9 @@ requires process restart. See [model lifetime and examples](https://github.com/f
 Every canonical row carries a `source_id`, and that is deliberate: it is what makes the row
 erasable. Under the default autonomous policy, `engine.erase_source(source_id)` removes every row written under that provenance together
 with its full-text, vector and secondary-index shadows, and finishes the erasure at rest.
-`engine.purge(logical_id)` does the same for a single governed record. Both are idempotent, so an
-interrupted erasure obligation can simply be retried.
+`engine.purge(logical_id)` does the same for a single governed record while preserving actuation
+receipts for surviving sibling entities that share the same `source_id` bucket (`0.8.32` target).
+Both are idempotent, so an interrupted erasure obligation can simply be retried.
 
 A store configured with `physical_erasure_policy="explicit_maintenance"`
 requires an exclusive maintenance window for physical erasure; direct

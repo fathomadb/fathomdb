@@ -36,6 +36,8 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Python API](reference/python-api.md)
 - [TypeScript API](reference/typescript-api.md)
 - [CLI](reference/cli.md)
+- [MCP Server](reference/mcp.md) — stdio server config, startup guards, and tool surface
+- [SDK Operation Map](generated/sdk-operation-map.md) — cross-language governed operation index
 - [Errors](reference/errors.md)
 - [Config](reference/config.md)
 
@@ -57,7 +59,8 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 ## Guides and operations
 
 - [Guides](guides/index.md) — hybrid search + filtering, structured
-  search hits, retrieve-by-id.
+  search hits, retrieve-by-id, [frozen evidence](guides/frozen-evidence.md),
+  graph expansion, and the [MCP server guide](guides/mcp-server.md).
 - [Operations](operations/index.md) — including
   [erasure](operations/erasure.md): what `erase_source` / `purge`
   guarantee and what they do not; and

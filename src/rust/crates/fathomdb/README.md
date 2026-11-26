@@ -57,16 +57,22 @@ fn main() {
 
 With default features the crate exposes the *governed application surface*:
 
-- open / close / drain, `OpenReport` capability booleans (`reranker_compiled`,
-  `cuda_compiled`, `rerank_available`), plus engine counters and a subscriber seam
-- `write` of canonical nodes and edges, with mandatory `source_id` provenance
-  and optional inline JSON `properties`
+- open / close / drain (including `0.8.32` target `create_if_missing: false`
+  returning `EngineOpenError::DatabaseNotFound`, and opt-in `ScopePolicy`
+  isolation defaulting to `ScopePolicy::Unscoped`), `OpenReport` capability
+  booleans (`reranker_compiled`, `cuda_compiled`, `rerank_available`), plus
+  engine counters and a subscriber seam
+- `write` of canonical nodes and edges (plus `0.8.32` target opt-in
+  `write_with_options` / `WriteOptions::bulk_non_strict()` and
+  `ActuationOperationV1::PutLatestState`), with mandatory `source_id`
+  provenance and optional inline JSON `properties`
 - hybrid retrieval — `search`, `search_filter`, `search_reranked`, `search_explained`,
   `search_text_only`, opt-in agent search `hints`, frozen reads with bounded
   `resolve_evidence_many`, and graph-expanded `search_expand`
 - read verbs — `read_get`, `read_get_many`, `read_list`, `read_collection`,
   `read_operational_collections`, `read_operational_collection_info`,
-  `read_mutations`, `graph_neighbors`, `graph_expand`, `crossed_boundary_since`
+  `read_mutations`, `read_visibility_state` (`0.8.32` target),
+  `graph_neighbors`, `graph_expand`, `crossed_boundary_since`
 - record lifecycle — `transition`, `purge`, `erase_source`
 - declarative projections — `configure_projections`, `read_projections`
 

@@ -32,8 +32,11 @@ The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
-persisted in those tables; source erasure replaces a matching terminal receipt
-with an opaque operation-ID tombstone. Step 30 adds content-free direct
+persisted in those tables; source erasure (`erase_source`) redacts every
+matching receipt in the `source_id` bucket to an opaque operation-ID tombstone,
+whereas single-node `purge(logical_id)` redacts only receipts referencing the
+purged entity/revision IDs (`WP-41A` / `#268`), preserving surviving sibling
+receipts that share the same `source_id` bucket. Step 30 adds content-free direct
 dependency-closure rows, their monotonic sequence singleton, recovery/root
 indexes, and active-retry uniqueness. It performs no canonical-content rewrite
 and synthesizes no closure for historical lifecycle events. Step 31 adds the
@@ -354,8 +357,11 @@ erased, transitioned, or closure-barrier-blocked artifacts to
   (`FrozenReadContextV1`). Request-level schema mismatch uses `FDB_EVIDENCE`
   (`unsupported_schema_version` at `/schemaVersion`); raw count `0` or `> 50`
   uses `InvalidArgument`; embedded NUL / lone UTF-16 surrogates use
-  `WriteValidation`; invalid or drifted frozen contexts collapse into whole-call
-  `FDB_EVIDENCE` (`evidence_unavailable`). Each slot in the response array is
+  `WriteValidation`; invalid or whole-context drifted frozen contexts collapse
+  into whole-call `FDB_EVIDENCE` (`evidence_unavailable`) — under Schema 39
+  partitioned frozen reads (Slice 41 / `ADR #103`), post-decode `Edge`/`GraphArm`
+  slots whose edge partition drifted instead yield per-slot `refused`
+  (`evidence_unavailable`) while unaffected node-only slots resolve. Each slot in the response array is
   either `{ status: "resolved", resolved: ResolvedEvidenceV1 }` or
   `{ status: "refused", reason: EvidenceErrorReasonV1, fieldPath: "/evidenceRefs/{i}" }`,
   preserving exact input order and duplicate arity. Empty, oversized (`> 2048`
@@ -442,18 +448,22 @@ erased, transitioned, or closure-barrier-blocked artifacts to
   (`PRIMARY KEY(scope, partition_kind) WITHOUT ROWID`) records per-`(scope, partition_kind)`
   monotonic `add_generation`, `max_cursor`, `destructive_generation`, and
   64-hex `state_nonce` across `node:<kind>`, `node_all`, `edge:<kind>`,
-  `edge_any`, `vector_ready:<kind>`, `vector_ready_all`, `op_state`,
-  `scope_destructive`, and `scope_dependency`. All 60 visibility triggers across
+  `edge_any`, `vector_ready:<kind>`, `vector_ready_all`, `'op_log:' || collection_name`,
+  `op_state`, `scope_destructive`, and `scope_dependency`. All 60 visibility triggers across
   the 20 trigger-bearing tables remain active for uncoalesced (`coalescing = 0`)
   writes (with paired `(OLD.*, NEW.*)` updates on `AFTER UPDATE`).
 - **`0x53 0x39` trailing `SurfaceTags` in `FrozenReadContextV1`:** Schema 39
   tokens append an authenticated 34-byte suffix (`[0x53, 0x39]` magic followed
   by four 8-byte truncated SHA-256 surface tags: `op_state_tag`, `node_all_tag`,
-  `projection_readiness_tag`, and `edge_kind_tag`), binding universal serving
-  state (`SERVING_DOMAIN_V4`: `global_struct`, `scope_destructive`, and
-  partitioned node/dependency watermarks) in the primary `state_digest`. Wire
-  lengths are `492 B` (unscoped) and `556 B` (scoped), well under the `1,024 B`
-  budget. Schema `< 39` wire fixtures remain bit-identical.
+  `projection_readiness_tag`, and `edge_kind_tag`). The universal serving digest
+  (`SERVING_DOMAIN_V4` / `serving_digest`) hashes **only**
+  `(global_struct_gen, global_struct_nonce)`, sorted `current_generation`, and
+  sorted `(scope, "scope_destructive")`, while partitioned node and dependency
+  watermarks live in separate `FrozenReadBinding` fields
+  (`canonical_write_boundary`, `read_visibility_generation`,
+  `dependency_generation`). Wire lengths are `492 B` (unscoped) and `556 B`
+  (scoped), well under the `1,024 B` budget. Schema `< 39` wire fixtures remain
+  bit-identical.
 - **Additive stability vs. fail-closed boundaries:** Disjoint-`kind` additive
   writes/actuations, `AppendOnlyLog` (`operational_mutations`) appends,
   `LatestState` (`operational_state`) upserts (against canonical/search/evidence/graph

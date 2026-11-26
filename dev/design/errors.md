@@ -90,6 +90,8 @@ different remediation or cross-doc ownership.
 | `MaintenanceError` | runtime maintenance-operation policy, ticket, ownership or durable-fence refusal | `EngineError::Maintenance` | `design/explicit-maintenance-erasure/contract.md` | closed reason maps to Python MaintenanceError / TypeScript FDB_MAINTENANCE; incomplete activated debt is not generic storage failure |
 | `VectorEquivalenceMismatchError` | actual open-time numeric probe mismatch | `EngineOpenError` | `design/embedder.md` | no Engine is returned; `reason` preserves the numerical diagnosis |
 | `VectorVerificationError` | open-time verification cannot complete or reference state is invalid | `EngineOpenError` | `design/embedder.md` | typed cause distinct from a measured numeric mismatch and SQLite storage failure |
+| `ScopeViolation` | read-only scoped handle write or cross-scope bulk edge refusal (`0.8.32` Slice 20/30) | `EngineError` | `design/engine.md` | caller scope-authority violation distinct from malformed write shape or generic storage failure |
+| `DatabaseNotFound` | open with `create_if_missing = false` on a missing or zero-length path (`0.8.32` Slice 40) | `EngineOpenError` | `design/engine.md` | typed absence refusal before creating database or lock files |
 
 An explicit open-policy mismatch is `EngineOpenError::EngineConfiguration`
 (`PhysicalErasurePolicyMismatch`), mapped to InvalidArgumentError by the SDKs.
@@ -235,8 +237,8 @@ This file owns the stable inputs bindings map from:
 
 ## Binding-facing class matrix
 
-The matrix below is the canonical cross-binding class-stem table for
-0.8.28.
+The matrix below is the canonical cross-binding class-stem table (`49` shared
+classes total: `1` catch-all base + `48` concrete leaf classes on `0.8.32`).
 Per-language interface docs may apply idiomatic casing, but they must not
 rename the semantic class stems or collapse distinct rows.
 
@@ -317,6 +319,16 @@ provider panics keep their operation-specific panic boundary.
 | `EngineError::CudaPoolExhausted` / `EngineOpenError::CudaPoolExhausted` | `CudaPoolExhaustedError` | `CudaPoolExhaustedError` | runtime failure |
 | `EngineError::CudaContextLost` / `EngineOpenError::CudaContextLost` | `CudaContextLostError` | `CudaContextLostError` | runtime failure |
 | `EngineError::CudaPrivateBuildRefused` / `EngineOpenError::CudaPrivateBuildRefused` | `CudaPrivateBuildRefusedError` | `CudaPrivateBuildRefusedError` | runtime failure |
+| `EngineError::ScopeViolation`        | `ScopeViolationError`            | `ScopeViolationError`            | scope violation       |
+| `EngineOpenError::DatabaseNotFound`  | `DatabaseNotFoundError`          | `DatabaseNotFoundError`          | database not found    |
+
+2026-11-26 amendment (`0.8.32` Slices 20 & 40): added `ScopeViolation`
+(`ScopeViolationError` / `FDB_SCOPE_VIOLATION`, Slice 20 — raised on read-only
+scoped handle mutation attempts and cross-scope bulk-non-strict edge endpoints)
+and `DatabaseNotFound` (`DatabaseNotFoundError` / `FDB_DATABASE_NOT_FOUND`,
+Slice 40 `EP-07` — raised on `create_if_missing = false` against missing or
+zero-length paths, carrying optional `path`), bringing the taxonomy to **49**
+shared error classes (`1` base + `48` concrete leaf classes).
 
 2026-10-08 amendment (0.8.28 Slice 30, R30-04): the three CUDA
 private-memory-pool kinds. Each class derives from `EmbedderError` in both

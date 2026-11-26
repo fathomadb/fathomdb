@@ -93,7 +93,11 @@ denylist name).
 - `engine.purge(logical_id: str) -> None` — irreversible hard-erase of a
   governed node across every row-owned target. DELETED-FIRST and IDEMPOTENT.
   **No restore counterpart exists on any surface.** A logical id remains
-  purgeable after a correction supersedes one of its revisions.
+  purgeable after a correction supersedes one of its revisions. Under `0.8.32`
+  Slice 41 (`WP-41A`), `purge` redacts only actuation receipts referencing the
+  purged entity/revision IDs, preserving surviving sibling receipts that share
+  the same `source_id` bucket, and maintains monotonic cursor floors across
+  post-purge writes.
 - `engine.erase_source(source_id: str) -> EraseReport` — erase every canonical
   row carrying `source_id` plus its row-owned projections, then finish at rest
   (telemetry redaction + WAL truncation). The COMPANION to `purge`:
@@ -516,8 +520,10 @@ generations, and projection cursors use canonical unsigned decimal strings.
 Malformed requests and operation-ID conflict/erasure raise `ActuationError`
 with closed `reason` and canonical RFC 6901 `field_path`. Database-dependent
 domain refusals are terminal receipts, not exceptions. Exact replay is
-idempotent; source erasure and purge make a matching operation ID permanently
-unusable without retaining its prior receipt content.
+idempotent; `erase_source` redacts every receipt in the `source_id` bucket to an
+opaque permanently reserved operation-ID tombstone, whereas single-node `purge`
+redacts only receipts referencing the purged entity/revision IDs (`WP-41A`),
+preserving surviving sibling receipts sharing `source_id`.
 
 `source_id` follows the Engine `SourceId` grammar rather than the generic
 content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
@@ -993,9 +999,9 @@ The 0.8.25 additions are `RuntimeConfigurationError`,
 `EvidenceError`, `DependencyTraceError`, and `GraphExpansionError`. Their
 request-facing payloads use stable `reason` and `field_path` attributes except
 for runtime configuration, which exposes its requested/effective modes and
-optional SQLite code. In 0.8.32, `ScopeViolationError` is added (`47` concrete
-leaf classes under `EngineError`; `48` shared error classes total including the
-base class).
+optional SQLite code. In 0.8.32, `ScopeViolationError` and
+`DatabaseNotFoundError` are added (`48` concrete leaf classes under
+`EngineError`; `49` shared error classes total including the base class).
 
 Payload fields remain typed attributes; callers do not dispatch on message
 text. ⚠ `WriteValidationError` is **message-less** since decision #18 — its
@@ -1594,10 +1600,11 @@ Only mappings derived from the removed refused-open runtime state disappear.
 
 The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
 and [production design](../design/explicit-maintenance-erasure/production-design.md)
-own guarantees, scope, limits and recovery. Format 38 (format 37 in `0.8.28`–`0.8.30`)
-requires valid persisted policy metadata. `Engine.open` refuses earlier formats
-before mutation with no automatic upgrade (committed Schema 37 stores upgrade
-offline via `fathomdb migrate`).
+own guarantees, scope, limits and recovery. Format 39 (format 38 in `0.8.31`,
+format 37 in `0.8.28`–`0.8.30`) requires valid persisted policy metadata.
+`Engine.open` refuses earlier formats before mutation with no automatic upgrade
+(committed Schema 38 stores and chained Schema 37 stores upgrade offline via
+`fathomdb migrate`).
 `EngineConfig.physical_erasure_policy` is `"autonomous"`, `"explicit_maintenance"`
 or `None` (honor persisted policy; new stores default Autonomous). A mismatch
 refuses open. Explicit reopen performs no autonomous physical cleanup.
@@ -1953,8 +1960,21 @@ members), opt-in agent search hints across `search`, `search_frozen`, and
   generation, nonce, canonical_write_boundary, projection_cursor)` from one
   deferred reader snapshot without acquiring the writer lock.
 
-## Artifact-scoped evidence `property_predicates` and `GraphArm` provenance (0.8.32 Slice 41)
+## Artifact-scoped evidence `property_predicates`, `GraphArm` provenance, purge lineage, query scaling, and partitioned frozen reads (0.8.32 Slice 41)
 
+- **Shared-bucket `engine.purge` receipt preservation (`WP-41A` / `#268`):**
+  Single-node `engine.purge(logical_id)` narrows actuation receipt redaction to
+  purged entity/revision references rather than redacting the whole `source_id`
+  bucket, preserving idempotent `operation_id` replay for surviving sibling
+  entities sharing `source_id` (while `engine.erase_source` continues redacting
+  the entire `source_id` bucket), and maintains monotonic cursor floors across
+  post-purge writes.
+- **Evidence `include_explanation=False` & `read.get`/`read.get_many(view=ReadView(include_superseded=True))` (`WP-41B` / `#267`):**
+  `engine.search_with_evidence` with `include_explanation=False` captures
+  lightweight `EvidenceContributionV1` without triggering `explain=True`
+  vector-cosine / status / `PerHitExplain` overhead. `read.get` and
+  `read.get_many` with `ReadView(include_superseded=True)` execute indexed
+  `SEARCH`-only SQL lookup without full-table scans.
 - **Artifact-scoped `SearchFilter.property_predicates` on evidence resolution
   (`ADR-0.8.32 #103` §2.1):** Across `engine.search_with_evidence`,
   `engine.resolve_evidence`, `engine.resolve_evidence_many`,

@@ -6,6 +6,7 @@ desc: Module structure, lifecycle implementation, rmcp confinement, opt-in scope
 inputs:
   - dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md
   - dev/adr/ADR-0.8.32-caller-scope-isolation.md
+  - dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md
   - dev/design/mcp-adapter/requirements.md
   - dev/design/mcp-adapter/architecture.md
   - dev/interfaces/mcp.md
@@ -126,13 +127,16 @@ closed ──open()──▶ opening ──ok──▶ ready ──idle/switch�
     (MR-006.4). At the deadline the call returns `not_ready` with the phase
     (owner decision, 2026-10-17, FIX-1 CR-1).
 - **Open.** On a blocking thread, `Engine::open(path, OpenOptions)` passes
-  `create_if_missing(entry.create)` (`EP-07`), failing atomically with
-  `DatabaseNotFound` → `unavailable/missing_file` before lock/database creation
-  or embedder/CUDA initialization when `create: false` and the file is missing
-  or zero-length (closing the pre-`0.8.32` check-then-open race), followed by
-  the apply-on-open list (§5). Success sets `ready`, `epoch += 1`. Failure
-  records `last_error` and sets `closed`. The next acquire retries (MR-006.6)
-  but returns the recorded error first if the retry also fails.
+  `create_if_missing(entry.create)` (`EP-07`) and `with_sync_mode(entry.sync_mode)`
+  (`ADR-0.8.32` `#101`; configurable strictly on write-enabled `allow_writes: true`
+  stores and enforced fail-fast by `SC-03`, `SC-05`, `SC-06`, and `SC-10`),
+  failing atomically with `DatabaseNotFound` → `unavailable/missing_file` before
+  lock/database creation or embedder/CUDA initialization when `create: false`
+  and the file is missing or zero-length (closing the pre-`0.8.32`
+  check-then-open race), followed by the apply-on-open list (§5). Success sets
+  `ready`, `epoch += 1`. Failure records `last_error` and sets `closed`. The
+  next acquire retries (MR-006.6) but returns the recorded error first if the
+  retry also fails.
 - **Idle.** A single tokio task ticks every second (skipped when
   `idle_timeout_secs == 0`). It drains a `ready` slot when `in_flight == 0` and
   `last_used` is older than the timeout.
@@ -352,7 +356,7 @@ returns an rmcp client.
 
 | Order | Test file | Covers |
 | --- | --- | --- |
-| 1 | `tests/config.rs` & `tests/startup_conflicts.rs` | Config grammar, defaults, `SC-01`–`SC-10` fail-fast startup conflicts (including `allow_writes` requiring non-empty writable `ScopePolicy`, rejecting legacy `"write"` key, and read-only `roots`), name grammar, root resolution, path rejection (MR-005.3) |
+| 1 | `tests/config.rs` & `tests/startup_conflicts.rs` | Config grammar, defaults, `SC-01`–`SC-10` fail-fast startup conflicts (including `allow_writes` requiring non-empty writable `ScopePolicy`, per-store `sync_mode` write-only/alias/hosted-engine conflict checks, rejecting legacy `"write"` key, and read-only `roots`), name grammar, root resolution, path rejection (MR-005.3) |
 | 2 | `tests/manifest.rs` | MR-070.2 dependency lint; rmcp confinement |
 | 3 | `tests/protocol.rs` | Handshake, static `tools/list` across read-only (7 tools) and write-enabled (9 tools) configs (MR-012.1, MR-006.7), stdio purity by spawning the binary (MR-002.1), diagnostics on stderr (MR-002.3), panic isolation (MR-002.2), no listener (MR-001.2) |
 | 4 | `tests/lifecycle.rs` | Lazy open, `not_ready` during open with test seam (MR-003.1/.2), open failure without exit and retry (MR-003.3, MR-006.6), lock conflict (MR-004.2), idle close at the timeout and never at 0 (MR-005.4), one-open-at-a-time switch (MR-005.7), reopen re-applies settings (MR-006.1/.2), epoch handling, close after a failed drain releases the lock (F-44), and a stall test: a call blocked past its deadline while idle expiry fires does not delay a call to another store beyond its deadline (F-42) |
@@ -365,6 +369,8 @@ returns an rmcp client.
 | 8b | `tests/readonly.rs` & `tests/mcp_write_safety.rs` | Read-only default mutation invariance (MR-060.1) and opt-in write safety (`AC32-MCP-SAFETY-01`–`09`: scoped writes, CAS `expected_write_boundary`, idempotent `operation_id` replay, `put_latest_state`, strict rollback, blocking drain fence, secret-scrubbed errors) |
 | 9 | `tests/determinism.rs` | Two process lifetimes, pinned `as_of`, byte-identical output (MR-043.1) |
 | 10 | `tests/schema.rs` | Every structured result validates against its `outputSchema`; schemas are draft 2020-12 (MR-071) |
+| 11 | `tests/mcp_lifecycle_leaks.rs` | Open/idle-reopen/shutdown FD, thread, and `.lock` lifecycle leak verification (`R32-04`) |
+| 12 | `tests/slice50_fuzz_regressions.rs` | Deterministic stable fuzz regressions for malformed configs, `sync_mode` conflicts, anti-spoof, and forbidden tools (`AC32-FUZZ-03`) |
 | — | `src/shape/*` unit + `proptest` | Budget never exceeded, snippet on char boundary, continuation pages have no gaps or duplicates, ordering stable |
 
 Not covered by automated tests in this release: MR-001.3 (official
@@ -377,7 +383,8 @@ conformance suite, run manually once and recorded), MR-021 (evaluation run).
   Release archives and lockstep `src/python-mcp/` PyPI wheels).
 - `fathomdb-engine` / `fathomdb-sdk` / bindings: backed by `ADR-0.8.32` `#99`
   (`Pin C`: `PutLatestState`, `EP-07` `create_if_missing`, `EP-01`
-  `read::visibility_state`), `#102` (`ScopePolicy`), and `#103` (Schema 39
+  `read::visibility_state`), `#101` (`SyncMode::{Normal, Full}` on write-enabled
+  stores), `#102` (`ScopePolicy`), and `#103` (Schema 39
   partitioned frozen-read additive stability) while keeping `fathomdb-mcp`
   runtime dependencies strictly confined to `fathomdb-sdk` (`MR-070.2`).
 - `scripts/agent-*.sh` & `.github/workflows/release.yml`: covered by workspace

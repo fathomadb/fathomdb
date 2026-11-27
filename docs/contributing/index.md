@@ -86,6 +86,89 @@ prerequisites and fixture setup):
 
 Mode flags are mutually exclusive (combining two or more exits `2`).
 
+## Coverage-guided fuzzing (standalone `fuzz/` workspace)
+
+Structured fuzz targets live in the standalone `fuzz/` workspace
+(`exclude = ["fuzz"]` in root `Cargo.toml`, classified as `dev-tooling` in
+`scripts/sbom-survey/tiers.toml`, `publish = false`). Root `rust-toolchain.toml`
+stays pinned at `1.95.0` and shipping crates must carry zero `libfuzzer-sys` or
+`arbitrary` dependencies (verified by
+`ac32_fuzz_01_shipping_crates_have_zero_fuzz_dependencies`).
+
+Seven structured targets are maintained under `fuzz/fuzz_targets/` with curated
+seeds under `fuzz/corpus/<target>/`:
+
+- `fuzz_query_filter` — FTS5 query compiler and `Filter` parsing/lowering
+- `fuzz_property_predicates` — `PropertyPredicate` typing, numeric edges, and
+  projection bounds
+- `fuzz_scope_policy` — `ScopePolicy` grammar, conflicts, and SQL lowering
+- `fuzz_auth_tokens` — `FrozenReadContextV1` (`0x53 0x39` trailers),
+  `EvidenceRefV1`, `GraphEvidenceRefV1`, and `PageCursor` MAC/digest codecs
+- `fuzz_wire_codecs` — `PreparedWrite`, `ActuationBatchV1`, and internal
+  `fathomdb.logical-export/v1` archive frames
+- `fuzz_mcp_jsonrpc` — `fathomdb-mcp` JSON config and strict tool-argument
+  validation
+- `fuzz_export_and_open_recovery` — malformed/truncated export archives and
+  corrupt `Engine::open` recovery inputs
+
+Run `ASan` campaigns offline with `nightly-2026-08-01` and `cargo-fuzz`:
+
+```bash
+CARGO_NET_OFFLINE=true cargo +nightly-2026-08-01 fuzz run --sanitizer address \
+  fuzz_mcp_jsonrpc /tmp/fathomdb-fuzz-corpus/fuzz_mcp_jsonrpc \
+  fuzz/corpus/fuzz_mcp_jsonrpc -- -max_total_time=60 -max_len=8192 -print_final_stats=1
+```
+
+- **LeakSanitizer note (`sqlite-vec = "=0.1.9"`):** Upstream `sqlite-vec 0.1.9`
+  has a deterministic 280-byte `LSan` leak in `vec0_init`
+  (`sqlite-vec.c:5045`). For targets that open `vec0`, keep 100% of `ASan`
+  memory-safety checks active with
+  `ASAN_OPTIONS=detect_leaks=0:detect_odr_violation=0` and `-detect_leaks=0`;
+  `fuzz_mcp_jsonrpc` runs with both `ASan` and `LSan` (`-detect_leaks=1`).
+- **`UBSan` + Rust UB checks:** Pair
+  `RUSTFLAGS="-Coverflow-checks=on -Zub-checks=on -Clink-arg=-lubsan"` with
+  `CFLAGS`/`CXXFLAGS="-fsanitize=undefined -fno-sanitize-recover=all"` and
+  `UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"` when replaying corpora.
+- **Coverage reports (`llvm-cov`):** Install the `llvm-tools` component on
+  `nightly-2026-08-01`, run
+  `cargo +nightly-2026-08-01 fuzz coverage <target> <corpus-dir>`, merge
+  `.profraw` profiles with `llvm-profdata merge -sparse`, and inspect with
+  `llvm-cov report`.
+- **Deterministic stable regressions:** Every crash, panic, or sanitizer finding
+  must be minimized and committed as an ordinary `#[test]` under stable `1.95.0`
+  with zero fuzz linkage:
+
+```bash
+cargo test -p fathomdb-engine --features "operator,test-hooks" --test slice50_fuzz_regressions
+cargo test -p fathomdb-mcp --test slice50_fuzz_regressions
+```
+
+## QEMU/KVM `dm-flakey` power-loss campaign
+
+Block-level power-loss qualification for `SyncMode::Normal` and `SyncMode::Full`
+(`ADR-0.8.32` `#101`) runs in a disposable, user-mode `qemu-system-x86_64` guest
+over `/dev/kvm` with **zero host `sudo`** and **zero host mutation**. The
+workload and oracle verifier live in the `eval-only` crate
+`fathomdb-tc5-benchmark` (`fathomdb-dmflakey-harness`), attach the raw data disk
+with `cache=none`, terminate the guest exclusively via QMP `quit`, and verify
+recovery against an external two-phase `INFLIGHT`/`ACK`/`ERR` `virtio-serial`
+oracle plus shipped `fathomdb doctor check-integrity --full` and
+`fathomdb doctor data-plane-integrity`.
+
+Keep the Ubuntu 24.04 Noble cloud image and run artifacts **outside** the git
+checkout (for example under `/mnt/data/worktrees/`):
+
+```bash
+# Self-test harness script and unit tests without booting a VM:
+bash scripts/run-dmflakey-campaign.sh --self-test
+cargo test -p fathomdb-tc5-benchmark --bin fathomdb-dmflakey-harness
+
+# Run all 11 live power-loss scenarios against a staged VM directory:
+bash scripts/run-dmflakey-campaign.sh \
+  --vm-dir /mnt/data/worktrees/fathomdb-0.8.32-dmflakey-vm \
+  --scenarios all
+```
+
 ## Maintain generated documentation
 
 The tracked generated pages index source, rather than inventing API

@@ -14,8 +14,9 @@ and served over stdio (standalone binary) or embedded as a Rust library via
 - **Per-store write opt-in with bound caller `scope`:** Enabling writes on a
   store requires both `allow_writes: true` and an explicit non-empty writable
   caller `scope` policy. Write-enabled profiles expose 9 tools (adding
-  `actuate` and `put_latest_state`), enforce strict-only atomic writes with
-  idempotent `operation_id` replay and CAS `expected_write_boundary`
+  `actuate` and `put_latest_state`), optionally configure per-store WAL
+  durability (`sync_mode: "normal" | "full"`), enforce strict-only atomic writes
+  with idempotent `operation_id` replay and CAS `expected_write_boundary`
   preconditions, and never expose operator recovery or raw SQL escape hatches.
 - **Fail-fast startup validation:** Conflicting or legacy configurations
   (`SC-01`–`SC-10`) are rejected before opening any database or lock file.

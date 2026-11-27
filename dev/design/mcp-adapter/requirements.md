@@ -6,6 +6,7 @@ desc: Falsifiable requirements and acceptance criteria (MR-###, SC-01..SC-10, AC
 inputs:
   - dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md
   - dev/adr/ADR-0.8.32-caller-scope-isolation.md
+  - dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md
   - dev/design/mcp-adapter/agent-needs.md
   - dev/adr/ADR-0.6.0-cli-scope.md
   - dev/adr/ADR-0.6.0-async-surface.md
@@ -17,13 +18,18 @@ inputs:
 # MCP adapter requirements and acceptance criteria
 
 > **0.8.32 production status:** Adopted under
-> `dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md` and
+> `dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md`,
+> `dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md`, and
 > `dev/interfaces/mcp.md`. In addition to the `MR-###` criteria below,
 > production `0.8.32` enforces the `SC-01`–`SC-10` fail-fast startup conflict
-> matrix (`tests/startup_conflicts.rs`), `AC32-MCP-SAFETY-01`–`09` write-safety
-> contract (`tests/mcp_write_safety.rs`), exact SDK-vs-MCP frozen-evidence
-> equivalence (`tests/mcp_frozen_evidence.rs`), live `EP-01` visibility state,
-> `EP-07` `create_if_missing`, and 3-channel distribution (`Gate1-D5`).
+> matrix (`tests/startup_conflicts.rs`, including write-only per-store
+> `sync_mode: "normal" | "full"` under `SC-03`, `SC-05`, `SC-06`, and `SC-10`),
+> `AC32-MCP-SAFETY-01`–`09` write-safety contract (`tests/mcp_write_safety.rs`),
+> exact SDK-vs-MCP frozen-evidence equivalence (`tests/mcp_frozen_evidence.rs`),
+> lifecycle FD/thread/lock leak checks (`tests/mcp_lifecycle_leaks.rs`),
+> deterministic fuzz regressions (`tests/slice50_fuzz_regressions.rs`), live
+> `EP-01` visibility state, `EP-07` `create_if_missing`, and 3-channel
+> distribution (`Gate1-D5`).
 
 Conventions:
 

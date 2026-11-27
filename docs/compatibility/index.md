@@ -172,6 +172,11 @@ Automatic `Engine::open` WAL recovery assumes a **local POSIX filesystem**
   reliable `flock`/`fsync`, flush-ignoring write-back caches, silent hardware
   media corruption, and processes bypassing `.lock` (see
   [Operations — concurrency and durability limits](../operations/index.md#concurrency-and-durability-limits)).
+- **Pre-publish `0.8.32` empirical verification:** Both `SyncMode::Normal` and
+  `SyncMode::Full` passed all `11 / 11` live user-mode QEMU/KVM `dm-flakey`
+  power-loss scenarios (`cache=none`, QMP `quit`, two-phase `INFLIGHT`/`ACK`/`ERR`
+  external oracle, `ext4`, stale `.lock` reclamation, and fail-closed `EIO`);
+  published `0.8.31` qualification remains CPU/process-kill scoped.
 
 ## Versioning — two axes
 

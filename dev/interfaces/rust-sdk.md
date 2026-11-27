@@ -18,9 +18,9 @@ its separate contract in [`rust.md`](rust.md).
 
 ## Boundary
 
-`fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, `ScopePolicy`,
-`ScopePolicyError`, `MAX_READ_SCOPES`, `MAX_SCOPE_TOKEN_BYTES`, the option
-structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
+`fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, `SyncMode`,
+`ScopePolicy`, `ScopePolicyError`, `MAX_READ_SCOPES`, `MAX_SCOPE_TOKEN_BYTES`,
+the option structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
 `embed_batch_cls`, `release_models`, `snippet_for`, `search_hints`, the rerank DTOs, the shared DTO re-exports, and the
 modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
 privately; there is no `Deref`, accessor or conversion to

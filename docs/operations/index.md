@@ -80,14 +80,91 @@ projection-worker/runtime connections:
   `Engine::open` recovery and require `fathomdb recover` or full rebuild/restore
   from backup.
 
-Published `0.8.31` tests cover selected CPU process-kill/SIGKILL, WAL,
-checkpoint, persistent SQLite-full/provider-fault, and reopen/recovery cases.
-They do not prove behavior under torn/reordered device writes, sudden power
-loss, or a general hardware fault model; expanded power-loss proof and
-coverage-guided fuzzing remain staged within the `0.8.32` release program
-rather than already-published `0.8.31` coverage claims. SDK/query admission has
-bounded Proptest coverage; no general FFI, MC/DC or numerical line-coverage
-claim follows.
+### Empirical durability & fuzz verification (`0.8.32` pre-publish vs. `0.8.31` published)
+
+- **Published `0.8.31`:** Release qualification tests cover selected CPU
+  process-kill/SIGKILL, WAL, checkpoint, persistent SQLite-full/provider-fault,
+  and reopen/recovery cases. They do not prove behavior under torn/reordered
+  device writes, sudden power loss, or a general hardware fault model.
+- **Pre-publish `0.8.32` (`dev/0.8.32`, `ADR-0.8.32` `#101`):**
+  - **QEMU/KVM `dm-flakey` power-loss campaign (`11 / 11` live cases passed):**
+    User-mode QEMU/KVM (`cache=none`, QMP `quit`, two-phase `INFLIGHT`/`ACK`/`ERR`
+    virtio-serial oracle, `ext4` over `dm-flakey`) empirically verified
+    `SyncMode::Normal` atomic checkpoint-bounded prefix rollback (including
+    `4.3 MiB` WAL accumulation and `drop_writes`) and `SyncMode::Full` `0` lost
+    acknowledged commits across active commit, `4.3 MiB` WAL accumulation,
+    `wal_checkpoint(TRUNCATE)` + erasure, double-cut reopen/WAL replay, live
+    mid-`INFLIGHT` atomic rollback and commit, mid-erasure cuts with stale
+    `.lock` reclamation (`pending_erasures` `2 -> 0`), and fail-closed `EIO`
+    (`error_writes`), passing `e2fsck`, `PRAGMA integrity_check`,
+    `doctor check-integrity --full`, and `doctor data-plane-integrity` with `0`
+    findings on every case.
+  - **Coverage-guided fuzzing (`2,185,400` runs across 7 structured targets):**
+    Combined `ASan` and `UBSan`/`-Zub-checks=on` sweeps over query filters,
+    property predicates, `ScopePolicy`, auth/frozen tokens, wire/export codecs,
+    `fathomdb-mcp` JSON/tool parsing, and corrupt open recovery reported `0`
+    FathomDB defects (`23.18%` merged `llvm-cov` line coverage; upstream
+    `sqlite-vec 0.1.9` 280 B `LSan` allocation in `vec0_init` documented
+    separately). No general MC/DC or hardware-wide fault-model claim follows.
+
+## Backup, restore, and rebuild runbook (0.8.32)
+
+Because a WAL-mode database can hold committed transactions in `<db>-wal` that
+are not yet checkpointed into the main file, **never back up a live store by
+copying only the main SQLite file**. Use `fathomdb doctor safe-export` to
+create a self-contained logical snapshot (`VACUUM INTO`) with a SHA-256
+manifest, and rebuild derived indexes on a restored copy via separate `recover`
+invocations when needed:
+
+1. **Quiesce and close the application `Engine`.** Ensure no process holds
+   `<db>.lock` and all admitted writes have returned.
+2. **Export a consistent snapshot and manifest:**
+
+   ```bash
+   fathomdb doctor safe-export ./backup.sqlite \
+     --manifest ./backup.manifest.json \
+     ./source.sqlite
+   ```
+
+   Verify the exported file's SHA-256 matches `sha256` in
+   `backup.manifest.json`.
+3. **Copy the verified snapshot to the restore destination:**
+
+   ```bash
+   cp ./backup.sqlite ./restored.sqlite
+   ```
+
+4. **Rebuild derived projections and `vec0` storage (when required):**
+   `fathomdb recover` executes one selected action per command, so run
+   `--rebuild-projections` and `--rebuild-vec0` as **separate** invocations
+   (each exits `64` on accepted-loss completion):
+
+   ```bash
+   fathomdb recover --accept-data-loss --rebuild-projections --json ./restored.sqlite
+   fathomdb recover --accept-data-loss --rebuild-vec0 --json ./restored.sqlite
+   ```
+
+5. **Re-materialize dense vectors (if the store uses embeddings):** Reopen
+   `./restored.sqlite` with its matching embedder enabled
+   (`use_default_embedder=True` in Python, `useDefaultEmbedder: true` in
+   TypeScript, or `OpenOptions::default().with_default_embedder(true)` in Rust),
+   call `drain(...)` until dense projections finish catching up, and close the
+   handle cleanly. If FTS sanitation debt remains after rebuild, discharge it
+   offline before integrity verification:
+
+   ```bash
+   fathomdb recover --accept-data-loss --complete-erasures --json ./restored.sqlite
+   ```
+
+6. **Verify post-restore integrity across both operator layers:**
+
+   ```bash
+   fathomdb doctor check-integrity --full --json ./restored.sqlite
+   fathomdb doctor data-plane-integrity --json ./restored.sqlite
+   ```
+
+   Both commands must exit `0` with `clean` status and `0` findings before
+   returning the restored store to application traffic.
 
 See also [Reference — CLI](../reference/cli.md) for the full `doctor` /
 `recover` / `migrate` verb tables, [Guide — MCP Server](../guides/mcp-server.md)

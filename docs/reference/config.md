@@ -112,6 +112,16 @@ connection and all background projection-worker/runtime connections:
   every client-acknowledged commit on a local POSIX filesystem over an
   `fsync`/`FLUSH`/`FUA`-honoring block device, trading higher unbatched
   single-row commit latency (amortized on multi-row batches).
+- **Entry points across surfaces:**
+  - **Python:** `EngineConfig(sync_mode="normal" | "full")` or
+    `Engine.open(path, sync_mode="normal" | "full")`.
+  - **TypeScript:** `Engine.open(path, { engineConfig: { syncMode: "normal" | "full" } })`.
+  - **Rust:** `OpenOptions::with_sync_mode(SyncMode::{Normal, Full})`
+    (`fathomdb-sdk`) or `EngineConfig::with_sync_mode(SyncMode::{Normal, Full})`
+    (`fathomdb` / `fathomdb-sdk`).
+  - **MCP server (`fathomdb-mcp`):** Per-store `"sync_mode": "normal" | "full"`
+    strictly on write-enabled (`allow_writes: true`) stores (`SC-03`, `SC-05`,
+    `SC-06`, `SC-10`).
 - Invalid string values fail closed before touching any database or `.lock`
   file. See [Operations — concurrency and durability limits](../operations/index.md#concurrency-and-durability-limits)
   for declared storage and non-recoverable fault boundaries.

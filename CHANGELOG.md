@@ -48,6 +48,49 @@ pending).
 - **Governed surface & error parity:** `58` live governed operations (`97`
   allowlist members) and `49` shared error classes (`1` base + `48` leaf,
   adding `ScopeViolation` and `DatabaseNotFound`).
+- **Declared WAL durability `SyncMode` (`ADR #101`):** `SyncMode::{Normal, Full}`
+  on `EngineConfig` (`sync_mode: Option<SyncMode>`, default `None` resolving to
+  `SyncMode::Normal` / `PRAGMA synchronous = NORMAL` checkpoint-bounded atomic
+  prefix recovery; opt-in `SyncMode::Full` / `PRAGMA synchronous = FULL`
+  per-commit WAL `fsync`) applied across the primary writer and all
+  projection-worker, runtime, dispatcher, and probe connections in Rust
+  (`fathomdb-engine`, `fathomdb`, `fathomdb-sdk` `OpenOptions::with_sync_mode`),
+  Python (`EngineConfig(sync_mode=...)` / `Engine.open(..., sync_mode=...)`),
+  TypeScript (`EngineConfig.syncMode`), and write-enabled `fathomdb-mcp` stores
+  (`SC-03`/`SC-05`/`SC-06`/`SC-10`).
+- **Backup, restore, rebuild & internal `fathomdb.logical-export/v1` (`R32-04`):**
+  Feature-gated internal `logical_export` module
+  (`#[cfg(any(test, feature = "test-hooks", feature = "operator"))]`, absent
+  from default public SDK APIs) covering all `36` `TABLE_MANIFEST` tables,
+  preserving exact `write_cursor` values and orphaned `non_canonical`
+  `_fathomdb_projection_terminal` cursors, refusing export atomically inside the
+  snapshot when any pending erasure exists, excluding derived vector/probe
+  payloads (`embedding_bin`, `mean_vec`, `_fathomdb_embed_probe`), and deriving
+  `mean_vec` on restore iff vector count `>= 256`; paired with installed-artifact
+  CLI backup/restore/rebuild proof (`doctor safe-export` -> restore copy ->
+  separate `recover --accept-data-loss --rebuild-projections` and
+  `--rebuild-vec0` -> dense embedder reopen + `drain()` -> `doctor
+  check-integrity --full` + `data-plane-integrity`, `0` findings) and Engine /
+  `fathomdb-mcp` FD, thread, and lock lifecycle leak checks.
+- **Standalone `fuzz/` workspace (`AC32-FUZZ-01`–`03`):** Isolated `fuzz/`
+  workspace (`exclude = ["fuzz"]` in root `Cargo.toml`, `dev-tooling` tier in
+  `scripts/sbom-survey/tiers.toml`, zero fuzz dependencies in shipping crates,
+  root toolchain unchanged at `1.95.0`) with 7 structured targets
+  (`fuzz_query_filter`, `fuzz_property_predicates`, `fuzz_scope_policy`,
+  `fuzz_auth_tokens`, `fuzz_wire_codecs`, `fuzz_mcp_jsonrpc`,
+  `fuzz_export_and_open_recovery`), `2,185,400` combined `ASan` +
+  `UBSan`/`-Zub-checks=on` executions (`0` FathomDB defects; `23.18%` merged
+  `llvm-cov` line coverage; upstream `sqlite-vec = "=0.1.9"` 280 B `LSan` leak
+  in `vec0_init` documented), and deterministic stable `#[test]` regressions
+  (`slice50_fuzz_regressions.rs`).
+- **QEMU/KVM `dm-flakey` power-loss durability verification (`AC32-DMFLAKEY-01`–`04`):**
+  Disposable user-mode QEMU/KVM harness (`scripts/run-dmflakey-campaign.sh`,
+  `eval-only` `fathomdb-dmflakey-harness`, `cache=none`, QMP `quit`, two-phase
+  `INFLIGHT`/`ACK`/`ERR` virtio-serial oracle, zero host `sudo`) passing
+  `11 / 11` live cases across `SyncMode::Normal` (checkpoint-bounded atomic
+  prefix rollback) and `SyncMode::Full` (`0` lost acknowledged commits, live
+  mid-`INFLIGHT` atomic rollback and commit, mid-erasure cuts with stale `.lock`
+  recovery `pending_erasures 2 -> 0`, and fail-closed `EIO`).
 
 ### Changed
 

@@ -168,6 +168,12 @@ member carrying the engine-owned knobs from `design/engine.md` in camelCase:
   single-scope/single-agent databases; 0.8.32 Slice 20). May also be passed at
   top-level as `EngineOpenOptions.scopePolicy` (mutually exclusive with
   `engineConfig.scopePolicy`; passing both throws `TypeError`).
+- `syncMode`: optional `"normal" | "full"` (`undefined` resolves to `"normal"` /
+  `PRAGMA synchronous = NORMAL`; `"full"` sets `PRAGMA synchronous = FULL` on
+  both the primary writer and projection/runtime connections; 0.8.32 Slice 50,
+  `ADR-0.8.32` `#101`). Configured on `engineConfig` (`EngineConfig.syncMode`,
+  not top-level `EngineOpenOptions`); invalid values throw `TypeError` before
+  native, filesystem, or lock work (see § Declared WAL durability `syncMode`).
 
 `engine.config` is a cloned, frozen, readonly snapshot of the requested
 open-time values. Mutating the caller's original object after `Engine.open`

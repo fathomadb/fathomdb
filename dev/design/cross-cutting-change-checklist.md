@@ -22,9 +22,14 @@ or schema version:
    managed-vec releases — enforced by `scripts/agent-lint-migrations.sh`).
 2. Keep `ExportClass` (`src/rust/crates/fathomdb-engine/src/export_manifest.rs`,
    which inherits the table inventory directly from `fathomdb_schema::TABLE_MANIFEST`)
-   synchronized so erasure completeness, logical export, and `sqlite_master`
-   audit tests (`src/rust/crates/fathomdb-engine/tests/slice38_erasure_and_audit.rs`)
-   cover every object with zero uncategorized tables.
+   and internal `fathomdb.logical-export/v1`
+   (`src/rust/crates/fathomdb-engine/src/logical_export.rs`, strictly gated
+   behind `#[cfg(any(test, feature = "test-hooks", feature = "operator"))]`)
+   synchronized so erasure completeness, logical export/restore
+   (`src/rust/crates/fathomdb-engine/tests/slice50_logical_export_and_rebuild.rs`),
+   and `sqlite_master` audit tests
+   (`src/rust/crates/fathomdb-engine/tests/slice38_erasure_and_audit.rs`) cover
+   every object with zero uncategorized tables.
 3. Keep Schema 39 / `ADR #103` visibility and admission touchpoints
    synchronized across crates:
    - `_fathomdb_scope_visibility_watermarks` (`WITHOUT ROWID`) and
@@ -49,7 +54,10 @@ Whenever adding, renaming, or changing a governed SDK operation, option, or
 error type across Rust, Python, and TypeScript:
 
 1. Update all three binding implementations in lockstep (`fathomdb-sdk`,
-   `fathomdb-py` + `src/python/fathomdb/`, `fathomdb-napi` + `src/ts/src/`).
+   `fathomdb-py` + `src/python/fathomdb/`, `fathomdb-napi` + `src/ts/src/`),
+   including `EngineConfig` knobs (such as `scope_policy`/`scopePolicy` and
+   `sync_mode`/`syncMode`) and `fathomdb-mcp` store config parity
+   (`SC-03`/`SC-05`/`SC-06`/`SC-10`).
 2. Update `src/conformance/governed-operation-parity.json` and
    `src/conformance/governed-surface-allowlist.json`.
 3. Only update `scripts/governed-surface-pin.json` after explicit HITL
@@ -120,3 +128,21 @@ scripts, `AGENTS.md`, or `dev/design/**/*.md`:
    `python3 scripts/check-architecture-authority.py`.
 3. When editing `AGENTS.md`, keep it `<= 300` lines and verify every cited path
    resolves via `python3 scripts/check-agents-md-paths.py --root .`.
+
+## 7. Standalone `fuzz/` workspace and durability harnesses (`ADR #101`)
+
+Whenever adding or updating fuzz targets or block-level durability harnesses:
+
+1. Keep all `libfuzzer-sys` and `arbitrary` dependencies strictly inside the
+   standalone `fuzz/` workspace (`exclude = ["fuzz"]` in root `Cargo.toml`,
+   `publish = false`, `tier = "dev-tooling"` in `scripts/sbom-survey/tiers.toml`),
+   leaving root `rust-toolchain.toml` unchanged at `1.95.0` and shipping crate
+   dependency graphs free of fuzz crates
+   (`ac32_fuzz_01_shipping_crates_have_zero_fuzz_dependencies`).
+2. Commit every confirmed fuzz defect or edge regression as a deterministic
+   stable `#[test]` (`slice50_fuzz_regressions.rs`) runnable under stable
+   `cargo test` with zero fuzz linkage.
+3. Keep QEMU/KVM `dm-flakey` workloads (`fathomdb-dmflakey-harness`) confined to
+   the `eval-only` `fathomdb-tc5-benchmark` crate and keep VM images/results
+   staged outside the git checkout (`scripts/run-dmflakey-campaign.sh`, zero
+   host `sudo`).

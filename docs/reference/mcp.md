@@ -118,7 +118,7 @@ quoting record bodies, secrets, or raw SQL):
 
 - `Adapter::new(config: config::Config) -> Result<Adapter, AdapterError>`
 - `Adapter::register_engine(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>) -> Result<(), AdapterError>` (read-only default policy)
-- `Adapter::register_engine_with_policy(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>, policy: HostedStorePolicy) -> Result<(), AdapterError>`
+- `Adapter::register_engine_with_policy(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>, policy: HostedStorePolicy) -> Result<(), AdapterError>` (`HostedStorePolicy` supports `with_sync_mode(SyncMode)` and validates against host `engine.config().sync_mode.unwrap_or_default()` under `SC-10`)
 - `Adapter::connection(&self) -> edge::FathomServer`
 - `Adapter::shutdown(&self)` (enforces the blocking drain fence across active blocking SDK closures before closing adapter-opened stores)
 

@@ -131,6 +131,11 @@ tools by adding `actuate` and `put_latest_state`:
   `erase_source`, `migrate`, `safe_export`, raw SQL) are never exposed and are
   always refused.
 - Auto-discovered `roots` directories remain strictly read-only (`SC-05`).
+- Write-enabled stores may optionally select `"sync_mode": "normal"` (default,
+  checkpoint-bounded atomic prefix recovery) or `"sync_mode": "full"` (opt-in
+  per-commit WAL `fsync`); setting `sync_mode` on a read-only store or `roots`
+  entry, or conflicting values across path aliases/hosted engines, fails fast
+  under `SC-03`, `SC-05`, `SC-06`, and `SC-10`.
 - Conflicting or legacy configurations (`SC-01`–`SC-10`, including the removed
   evaluation key `"write"`) fail fast at startup before touching disk.
 

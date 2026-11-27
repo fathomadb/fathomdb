@@ -203,6 +203,17 @@ mode failures remain `EngineOpenError::RuntimeConfiguration`.
 | `embedder_call_timeout_ms` | `1..=u32::MAX`; `30_000` ms | One absolute queue-plus-service deadline per call or batch across all production inference routes. |
 | `provenance_row_cap` | `0..=2^53-1`; `1_000_000` rows | Bounds retained provenance after write and actuation commits; zero disables retention. |
 | `slow_threshold_ms` | `0..=2^53-1`; `100` ms | Operation and SQLite-statement slow signals when elapsed time is strictly greater than the threshold. Zero accepts every positive duration. |
+| `sync_mode` | `Option<SyncMode>` (`Normal` \| `Full`); `None` -> `SyncMode::Normal` | Applies `PRAGMA synchronous = NORMAL` (`1`, default) or `FULL` (`2`, opt-in) across the primary writer and every projection-worker, runtime, dispatcher, and probe connection on open and reopen (`ADR-0.8.32` `#101`). |
+
+`sync_mode` is fixed per open handle and is not persisted in the database file.
+`SyncMode::Normal` guarantees zero corruption and checkpoint-bounded atomic
+prefix recovery (un-checkpointed volatile-cache commits may roll back atomically
+as a contiguous suffix on power loss); opt-in `SyncMode::Full` issues per-commit
+WAL `fsync` (`SQLITE_SYNC_FULL`) for strict zero loss of every client-acknowledged
+commit on an `fsync`/`FLUSH`/`FUA`-honoring local POSIX filesystem (such as
+`ext4` with barriers/`data=ordered`). Network filesystems lacking reliable
+`flock`/`fsync`, flush-ignoring write-back caches, silent hardware media
+corruption, and `.lock` bypass fall outside automatic `Engine::open` recovery.
 
 The additional CUDA pool fields are process-wide settings described in
 [`embedder.md`](embedder.md) and the interfaces. `query_stop_words` is an

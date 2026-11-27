@@ -54,6 +54,7 @@
         "dev/adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md",
         "dev/adr/ADR-0.8.28-transactional-visibility-coalescing.md",
         "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md",
         "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md"
       ],
       "implementation_witness": ["src/rust/crates/fathomdb-engine/src/lib.rs"],
@@ -140,6 +141,7 @@
       "profile": "current",
       "semantic_authority": [
         "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md",
         "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
         "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
         "dev/interfaces/mcp.md"
@@ -147,6 +149,7 @@
       "implementation_witness": [
         "src/rust/crates/fathomdb-mcp/src/lib.rs",
         "src/rust/crates/fathomdb-mcp/tests/manifest.rs",
+        "src/rust/crates/fathomdb-mcp/tests/mcp_lifecycle_leaks.rs",
         "src/rust/crates/fathomdb-mcp/tests/startup_conflicts.rs"
       ],
       "evidence_only": [
@@ -158,6 +161,7 @@
       "profile": "current",
       "semantic_authority": [
         "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md",
         "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md",
         "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
         "dev/interfaces/mcp.md"
@@ -234,8 +238,14 @@
     {
       "path": "dev/design/recovery.md",
       "profile": "current",
-      "semantic_authority": ["dev/adr/ADR-0.8.26-cli-derived-maintenance-boundary.md"],
-      "implementation_witness": ["src/rust/crates/fathomdb-cli/tests/recovery_cli.rs"],
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.26-cli-derived-maintenance-boundary.md",
+        "dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md"
+      ],
+      "implementation_witness": [
+        "src/rust/crates/fathomdb-cli/tests/recovery_cli.rs",
+        "src/rust/crates/fathomdb-cli/tests/slice50_backup_restore_rebuild.rs"
+      ],
       "evidence_only": []
     },
     {

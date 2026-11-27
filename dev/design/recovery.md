@@ -1,8 +1,8 @@
 ---
 title: Recovery Subsystem Design
-date: 2026-09-17
-target_release: 0.8.28
-desc: Current operator diagnostics, maintenance, export, and loss-authorized recovery boundary
+date: 2026-11-26
+target_release: 0.8.32
+desc: Current operator diagnostics, maintenance, export, backup/restore/rebuild, migration, and loss-authorized recovery boundary
 blast_radius: fathomdb-cli; operator feature; requirements REQ-035..REQ-040 and REQ-054; interfaces/cli.md
 status: ACTIVE
 ---
@@ -17,13 +17,15 @@ in [`recovery-0.8.25.md`](recovery-0.8.25.md).
 
 ## Operator boundary
 
-The binary has exactly two roots:
+The binary exposes three roots:
 
 - `fathomdb doctor <command>` for diagnostics, inspection, export/cache work,
   and one explicitly authorized non-lossy derived-vector maintenance command;
-  and
 - `fathomdb recover --accept-data-loss <action> <db_path>` for CLI
-  data-loss-authorized operator recovery.
+  data-loss-authorized operator recovery; and
+- `fathomdb migrate --backup-dir <dir> [--json] <db_path>` for offline
+  Schema `38 -> 39` (and chained `37 -> 38 -> 39`) upgrades with pre-upgrade
+  SHA-256 backup verification.
 
 This split is not equivalent to “all doctor commands are read-only.” The narrow
 successor
@@ -99,12 +101,43 @@ Projection rebuild uses active eligible canonical state and the current
 projection-generation authority. It is a recovery workflow, not an automatic
 open-time heal and not a separate `regenerate` root.
 
+## Backup, restore, rebuild, and internal `fathomdb.logical-export/v1` (`R32-04`)
+
+- **Installed-artifact CLI backup / restore / rebuild flow (`slice50_backup_restore_rebuild.rs`):**
+  1. Quiesce and close the application `Engine`, then snapshot via
+     `fathomdb doctor safe-export <export.sqlite> --manifest <manifest.json> <source.sqlite>`
+     (SQLite `VACUUM INTO` plus SHA-256 manifest verification).
+  2. Copy the verified snapshot to the restored target path.
+  3. Rebuild derived state via **separate** `recover` invocations (each command
+     selects one action):
+     `fathomdb recover --accept-data-loss --rebuild-projections --json <restored.sqlite>`
+     and
+     `fathomdb recover --accept-data-loss --rebuild-vec0 --json <restored.sqlite>`
+     (each exiting `64`).
+  4. Reopen a dense store with its matching embedder and call `drain()` to
+     re-materialize vector rows, discharging any remaining FTS sanitation
+     certificate via `fathomdb recover --accept-data-loss --complete-erasures --json <restored.sqlite>`.
+  5. Verify post-restore health with both
+     `fathomdb doctor check-integrity --full --json <restored.sqlite>` and
+     `fathomdb doctor data-plane-integrity --json <restored.sqlite>` (`0`
+     findings).
+- **Internal `fathomdb.logical-export/v1` seam (`logical_export.rs`):**
+  Strictly feature-gated behind
+  `#[cfg(any(test, feature = "test-hooks", feature = "operator"))]` and absent
+  from default public SDK APIs (`fathomdb-sdk`, Python, TypeScript). Covers all
+  `36` `fathomdb_schema::TABLE_MANIFEST` tables, preserves exact `write_cursor`
+  values and orphaned `non_canonical` `_fathomdb_projection_terminal` cursors,
+  refuses export atomically inside the snapshot transaction when any pending
+  erasure exists, never emits derived vector/probe payloads (`embedding_bin`,
+  `mean_vec`, `_fathomdb_embed_probe`), and derives `mean_vec` on restore iff
+  the vector count is `>= 256` (`NULL` below `256`).
+
 ## Connections, locks, and mutation posture
 
 Most database-bearing commands use operator-enabled Engine methods and inherit
 the engine's admission lock, primary writer, reader, projection, and close
 rules. Readout does not imply that `Engine::open` itself is immutable: public
-0.8.28 admission accepts only a current schema-37 database or a fresh path.
+0.8.32 admission accepts only a current schema-39 database or a fresh path.
 
 `data-plane-integrity` is the deliberate exception. It does not call
 `Engine::open`, does not start workers, and does not migrate, repair, rebuild,
@@ -123,7 +156,7 @@ requires an existing nonempty regular database, acquires the canonical product
 lock, rechecks those facts, and refuses a nonempty rollback journal. It probes
 the main file through immutable/read-only/query-only SQLite before classifying
 the fixed 32-byte WAL header under the lock. A malformed WAL may be discarded
-only when the standalone main file is schema 37 and satisfies current Fathom
+only when the standalone main file is schema 39 and satisfies current Fathom
 schema invariants; a valid WAL is checked through SQLite's effective
 main-plus-WAL view because it may carry pending schema state. The effective-view
 probe snapshots transient SHM state and restores it when validation refuses.
@@ -212,7 +245,7 @@ exits `65`.
 
 `E_CORRUPT_WAL_REPLAY` refuses normal open. The explicitly acknowledged
 `--truncate-wal` path independently validates the main database, holds the
-product lock, rejects a counterfeit schema-37 database, preserves database,
+product lock, rejects a counterfeit current-schema database, preserves database,
 WAL, and transient SHM bytes on preflight refusal, and lets SQLite perform the
 checkpoint/discard. Its report adds
 `discarded_corrupt_wal`, true only when the locked header classification was

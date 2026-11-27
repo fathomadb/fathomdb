@@ -95,3 +95,47 @@ plan which recommendations apply, which are deferred and why, and what new
 evidence or changed architecture revises the assessment. Update this document
 when its change-curve evidence or recommendations become stale. Consultation
 does not make every recommendation an automatic release gate.
+
+## 0.8.32 Slice 50 progress record (2026-11-26)
+
+Slice 50 (`DURABILITY-AND-FUZZ`, `dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md`)
+closed three major testing gaps from this roadmap and the `0.8.31` quality
+backlog (`R32-04`, `R32-05`) on `dev/0.8.32` (pre-publish):
+
+1. **Block-level power-loss durability oracle (`AC32-DMFLAKEY-01`–`04`):**
+   Added `SyncMode::{Normal, Full}` on `EngineConfig` (`PRAGMA synchronous =
+   NORMAL` vs. `FULL` across writer and projection/runtime connections) and
+   qualified both modes in a disposable user-mode QEMU/KVM (`cache=none`, QMP
+   `quit`, zero host `sudo`) `dm-flakey` campaign
+   (`scripts/run-dmflakey-campaign.sh`, `eval-only` `fathomdb-dmflakey-harness`,
+   two-phase `INFLIGHT`/`ACK`/`ERR` `virtio-serial` oracle). All **`11 / 11`**
+   live cases passed (`dev/plans/0.8.32/features/slice-50/dm-flakey-campaign-report.md`),
+   empirically proving `SyncMode::Normal` atomic checkpoint-bounded prefix
+   rollback and `SyncMode::Full` `0` lost acknowledged commits across active
+   commit, `4.3 MiB` WAL accumulation, `wal_checkpoint(TRUNCATE)` + erasure,
+   double-cut reopen/replay, live mid-`INFLIGHT` atomic rollback (`51/51/52`)
+   and commit (`58/57/58`), mid-erasure cuts with stale `.lock`
+   (`pending_erasures 2 -> 0`), and fail-closed `EIO` (`error_writes`).
+2. **Standalone coverage-guided `fuzz/` workspace (`AC32-FUZZ-01`–`03`):**
+   Added an isolated `fuzz/` workspace (`exclude = ["fuzz"]` in root
+   `Cargo.toml`, `dev-tooling` tier in `scripts/sbom-survey/tiers.toml`, zero
+   fuzz dependencies in shipping crates, root toolchain unchanged at `1.95.0`)
+   with 7 structured targets (`fuzz_query_filter`, `fuzz_property_predicates`,
+   `fuzz_scope_policy`, `fuzz_auth_tokens`, `fuzz_wire_codecs`,
+   `fuzz_mcp_jsonrpc`, `fuzz_export_and_open_recovery`). Executed
+   **`2,185,400`** combined `ASan` + `UBSan`/`-Zub-checks=on` runs with **`0`**
+   FathomDB defects and **`23.18%`** merged `llvm-cov` line coverage
+   (`dev/plans/0.8.32/features/slice-50/fuzz-campaign-report.md`; upstream
+   `sqlite-vec = "=0.1.9"` 280 B `LSan` leak in `vec0_init` documented
+   honestly), and committed deterministic stable `#[test]` regressions
+   (`slice50_fuzz_regressions.rs`).
+3. **Backup/restore/rebuild & lifecycle leak proofs (`R32-04`):**
+   Implemented internal feature-gated `fathomdb.logical-export/v1` covering all
+   `36` `TABLE_MANIFEST` tables (atomic pending-erasure refusal, exact
+   `write_cursor` and `non_canonical` terminal-cursor preservation, derived
+   `mean_vec` on restore iff vector count `>= 256`), proved end-to-end
+   installed-artifact CLI `safe-export` -> restore -> separate
+   `--rebuild-projections` / `--rebuild-vec0` -> dense reopen + `drain()` ->
+   `check-integrity --full` + `data-plane-integrity` (`0` findings), and added
+   FD/thread/lock lifecycle leak checks for Engine (`None` + dense) and
+   `fathomdb-mcp`.

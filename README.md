@@ -45,9 +45,11 @@ business, knowledge management and personal agent examples.
 - **MCP server (`0.8.32` target):** production stdio [`fathomdb-mcp`](docs/guides/mcp-server.md)
   server (`allow_writes: false` default, opt-in per-store writes with bound
   scope, startup conflict guards, and bounded read/evidence/graph/write tools).
-- **Operations:** a separate CLI (`doctor`, `recover`, and offline `migrate`
-  for `38 -> 39` and chained `37 -> 38 -> 39` upgrades) for integrity
-  inspection, schema upgrade, and explicit recovery.
+- **Operations & durability:** a separate CLI (`doctor`, `recover`, and offline
+  `migrate` for `38 -> 39` and chained `37 -> 38 -> 39` upgrades) for integrity
+  inspection, backup/restore/rebuild, schema upgrade, and explicit recovery,
+  paired with declared `SyncMode` (`"normal"` default / `"full"` opt-in,
+  `0.8.32` target) WAL durability across writer and projection connections.
 
 The three application SDKs share governed operations and option defaults with
 language-specific naming, calling conventions, and error handling. Rust uses

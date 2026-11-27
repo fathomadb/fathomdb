@@ -130,6 +130,15 @@ Releases) remains pending Slice 70 authorization.
   when `search_with_evidence(include_explanation = false)`, and optimized
   `read.get` / `read.get_many(include_superseded = true)` onto indexed
   `SEARCH`-only SQL lookup.
+- Applied Slice 60 hot-path and memory optimizations (`FIX-PERF-1`–`8`):
+  eliminated single-scope FTS scope reprepare, deferred lazy reader/runtime
+  initialization, batched edge write statements, compacted Schema 39 visibility
+  triggers, right-sized reader prepared-statement (`24`) and lookaside
+  (`512 × 256`) pools, and switched `rederive_projections_on_boot` to zero-alloc
+  row borrows and buffered `StreamDigest` — passing paired `v0.8.31` vs.
+  `0.8.32` `10k`/`50k`/`100k` latency/RSS/DB-size gates (`100k` hybrid search
+  `-39.3%`, `Gate1-D10` `10k` `search_with_evidence` `0.089x`–`0.092x` p50,
+  `0` parity mismatches).
 - Retained CUDA 12.6 shipping posture (`cudarc`/Candle fork with PTX0 producer
   policy and F32); CUDA 13 remains deferred out of `0.8.32`.
 
@@ -138,6 +147,10 @@ Releases) remains pending Slice 70 authorization.
 - Fixed the `0.8.31` empty-DB reopen cursor bug (`Gate1-D9`) by adding
   `owner_kind` on `_fathomdb_projection_terminal` to preserve monotonic
   terminal cursor separation between canonical and non-canonical owners.
+- Fixed `STEP_39_SQL` offline `38 -> 39` migration backfill so non-tail
+  Schema 38 `AdminSchema` batch cursors in `_fathomdb_projection_terminal` are
+  classified as `owner_kind = 'non_canonical'` rather than `'canonical'`,
+  preserving zero findings under `fathomdb doctor data-plane-integrity`.
 - Narrowed single-node `purge(logical_id)` actuation receipt redaction to
   purged entity/revision references so surviving sibling entities sharing the
   same `source_id` bucket retain their idempotent actuation receipts (while

@@ -1,0 +1,197 @@
+{
+  "schema": "fathomdb.golden-fixture/v2",
+  "producer_release": "0.8.32",
+  "schema_version": 39,
+  "git_sha": "8c0021f051ba5a6a6d0432ac658b531deac9cd49",
+  "path": "/mnt/data/worktrees/fathomdb-0.8.32-golden/golden-0.8.32-schema39.sqlite",
+  "bytes": 1200128,
+  "sha256": "e232232e2c669a53400bdd78e655efad16c3d92b2e6305ba6d6431d41e3ffaa8",
+  "file_mode": "0444",
+  "use_default_embedder": true,
+  "exact_i64_canary": 9007199254740993,
+  "scopes_present": [
+    "",
+    "team-a",
+    "team-b"
+  ],
+  "shared_projection_name": "domain_tier",
+  "shared_projection_classes": [
+    "edge",
+    "node"
+  ],
+  "projection_registry_pk": [
+    "entity_class",
+    "name"
+  ],
+  "vector_default_ddl": "CREATE VIRTUAL TABLE vector_default USING vec0(embedding float[384],embedding_bin bit[384],source_type TEXT partition key,kind TEXT,created_at INTEGER,status TEXT,lifecycle INTEGER,valid_from INTEGER,valid_until INTEGER,scope TEXT,attr_646f6d61696e5f74696572 TEXT,attr_7072696f726974795f72616e6b TEXT,attr_7665726966696564 TEXT,chunk_size=64)",
+  "commit_timestamps": [
+    {
+      "write_cursor": 2,
+      "committed_at_ms": 1795794030221
+    },
+    {
+      "write_cursor": 9,
+      "committed_at_ms": 1795794030223
+    },
+    {
+      "write_cursor": 15,
+      "committed_at_ms": 1795794030225
+    },
+    {
+      "write_cursor": 18,
+      "committed_at_ms": 1795794030226
+    },
+    {
+      "write_cursor": 23,
+      "committed_at_ms": 1795794030262
+    },
+    {
+      "write_cursor": 28,
+      "committed_at_ms": 1795794030297
+    }
+  ],
+  "enrolled_vector_kinds": [
+    "domain_fact",
+    "edge_fact",
+    "note"
+  ],
+  "vector_unsupported_kinds": [
+    "raw_stub"
+  ],
+  "counts": {
+    "canonical_nodes_total": 10,
+    "canonical_nodes_active": 9,
+    "canonical_nodes_superseded": 1,
+    "canonical_nodes_null_properties": 1,
+    "canonical_edges_total": 5,
+    "canonical_edges_active": 4,
+    "canonical_edges_superseded": 1,
+    "canonical_property_values_total": 32,
+    "canonical_property_values_node": 24,
+    "canonical_property_values_edge": 8,
+    "commit_timestamps_count": 6,
+    "scope_visibility_watermarks_count": 38,
+    "vector_rows_total": 13,
+    "vector_rows_domain_fact": 3,
+    "vector_spans_total": 13,
+    "operational_collections_count": 3,
+    "operational_state_count": 4,
+    "operational_mutations_count": 5
+  },
+  "expected": {
+    "scopes": [
+      "",
+      "team-a",
+      "team-b"
+    ],
+    "default_scope_active_nodes": [
+      "fact:1",
+      "legacy:1",
+      "raw:1",
+      "req:1",
+      "ver:1"
+    ],
+    "team_a_active_nodes": [
+      "team-a:fact:1",
+      "team-a:note:1"
+    ],
+    "team_b_active_nodes": [
+      "team-b:fact:1",
+      "team-b:note:1"
+    ],
+    "null_property_node": "legacy:1",
+    "superseded_node": "req:1",
+    "default_scope_active_edges": [
+      "edge:supports:1",
+      "edge:verifies:1"
+    ],
+    "scoped_active_edges": [
+      "team-a:edge:1",
+      "team-b:edge:1"
+    ],
+    "superseded_edge": "edge:verifies:1",
+    "erased_source": "src-erase-1",
+    "erased_logical_ids": [
+      "secret:1",
+      "edge:secret:1"
+    ],
+    "purged_logical_ids": [
+      "temp:1"
+    ],
+    "erased_nodes_count": 1,
+    "operational_collections": {
+      "agent_checkpoints": "latest_state",
+      "agent_audit": "append_only_log"
+    },
+    "canaries_verified_absent": [
+      "CANARY_SECRET_BODY_0832_ERASE",
+      "CANARY_SECRET_PROP_0832_ERASE",
+      "CANARY_SECRET_EDGE_0832_ERASE",
+      "CANARY_TEMP_PURGE_0832_ERASE"
+    ]
+  },
+  "doctor_check_integrity": {
+    "logical": {
+      "findings": [],
+      "status": "clean"
+    },
+    "physical": {
+      "findings": [],
+      "status": "clean"
+    },
+    "semantic": {
+      "findings": [],
+      "status": "clean"
+    },
+    "verb": "check-integrity"
+  },
+  "doctor_data_plane_integrity": {
+    "report": {
+      "checkCounts": [
+        {
+          "check": "dependency_chain",
+          "checkedCount": 1,
+          "findingCount": 0,
+          "schemaVersion": 1
+        },
+        {
+          "check": "active_searchable_orphans",
+          "checkedCount": 270,
+          "findingCount": 0,
+          "schemaVersion": 1
+        },
+        {
+          "check": "projection_generation",
+          "checkedCount": 65,
+          "findingCount": 0,
+          "schemaVersion": 1
+        },
+        {
+          "check": "mutation_readiness",
+          "checkedCount": 0,
+          "findingCount": 0,
+          "schemaVersion": 1
+        },
+        {
+          "check": "edge_endpoint_integrity",
+          "checkedCount": 5,
+          "findingCount": 0,
+          "schemaVersion": 1
+        }
+      ],
+      "checkedCount": 341,
+      "complete": true,
+      "findings": [],
+      "readBoundary": {
+        "dependencyGeneration": "0",
+        "effectiveAtEpochS": 1795794039,
+        "observedWriteBoundary": "29",
+        "projectionGenerationId": "pgen1:fbe4012818763e393543a3d68e01bbb0",
+        "schemaVersion": 1
+      },
+      "schemaVersion": 1
+    },
+    "schemaVersion": "fathomdb.doctor.data-plane-integrity.v1",
+    "status": "clean"
+  }
+}

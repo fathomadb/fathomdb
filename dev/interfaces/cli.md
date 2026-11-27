@@ -606,11 +606,14 @@ strictly Schema-39-only and never auto-migrates.
    before executing any DDL.
 6. **Single-transaction Schema 39 DDL (`S39-COMPOSITE` + 8-column `vec0`):**
    Execute `fathomdb_schema::STEP_39_SQL` (`S39-COMPOSITE` composite
-   `(scope, ...)` PKs/indexes and scoped triggers) plus offline `vec0` virtual
-   table reshape (expanding to 8 columns including `scope TEXT` while preserving
-   stored dense vectors) and `PRAGMA user_version = 39` inside one
-   `BEGIN IMMEDIATE` transaction. Any failure rolls back while preserving the
-   verified backup. (Chained `37 -> 38 -> 39` runs `STEP_38_SQL` then step 39.)
+   `(scope, ...)` PKs/indexes, scoped triggers, and
+   `_fathomdb_projection_terminal.owner_kind` backfill classifying operational
+   and non-tail Schema 38 `AdminSchema` batch cursors as `'non_canonical'`) plus
+   offline `vec0` virtual table reshape (expanding to 8 columns including
+   `scope TEXT` while preserving stored dense vectors) and
+   `PRAGMA user_version = 39` inside one `BEGIN IMMEDIATE` transaction. Any
+   failure rolls back while preserving the verified backup. (Chained
+   `37 -> 38 -> 39` runs `STEP_38_SQL` then step 39.)
 7. **Post-upgrade admission & full integrity check:** Checkpoint WAL, verify
    current schema admission (`admit_current_database`), and execute
    `check-integrity --full` (`exit 0` clean, `exit 65` if post-upgrade findings

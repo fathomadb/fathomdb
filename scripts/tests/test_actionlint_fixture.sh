@@ -232,13 +232,7 @@ for tier in \
     in_step { print }
     in_step && /^      - / && $0 !~ /cargo-publish-if-new\.sh/ { exit }
   ')"
-  mcp_bootstrap_line='          CARGO_REGISTRY_TOKEN: ${{ env.RELEASE_TAG == '\''v0.8.32'\'' && secrets.CARGO_REGISTRY_TOKEN || steps.crates_io_auth.outputs.token }}'
-  if [ "$tier" = publish-rust-t7-mcp ]; then
-    if ! grep -Fqx "$mcp_bootstrap_line" <<<"$publish_step"; then
-      printf 'FAIL  %s must pass the v0.8.32-scoped bootstrap or crates.io OIDC output to cargo-publish-if-new\n' "$tier" >&2
-      CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
-    fi
-  elif ! grep -Fqx '          CARGO_REGISTRY_TOKEN: ${{ steps.crates_io_auth.outputs.token }}' <<<"$publish_step"; then
+  if ! grep -Fqx '          CARGO_REGISTRY_TOKEN: ${{ steps.crates_io_auth.outputs.token }}' <<<"$publish_step"; then
     printf 'FAIL  %s must pass the crates.io OIDC output to cargo-publish-if-new\n' "$tier" >&2
     CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
   fi
@@ -253,18 +247,6 @@ for tier in \
     if ! grep -Fqx "$bootstrap_line" <<<"$sdk_step" \
       || [ "$bootstrap_occurrences" -ne 1 ]; then
       printf 'FAIL  T6 must confine the API-token bootstrap to the v0.8.27 SDK step\n' >&2
-      CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
-    fi
-  elif [ "$tier" = publish-rust-t7-mcp ]; then
-    mcp_step="$(printf '%s\n' "$tier_block" | awk '
-      /^      - name: cargo publish fathomdb-mcp$/ { in_step = 1 }
-      in_step && /^      - / && $0 !~ /^      - name: cargo publish fathomdb-mcp$/ { exit }
-      in_step { print }
-    ')"
-    bootstrap_occurrences="$(awk 'index($0, "secrets.CARGO_REGISTRY_TOKEN") { n++ } END { print n+0 }' <<<"$tier_block")"
-    if ! grep -Fqx "$mcp_bootstrap_line" <<<"$mcp_step" \
-      || [ "$bootstrap_occurrences" -ne 1 ]; then
-      printf 'FAIL  T7 MCP must confine the API-token bootstrap to the v0.8.32 MCP step\n' >&2
       CRATES_OIDC_FAILED=$((CRATES_OIDC_FAILED + 1))
     fi
   elif grep -Fq 'secrets.CARGO_REGISTRY_TOKEN' <<<"$tier_block"; then

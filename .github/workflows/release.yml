@@ -117,15 +117,6 @@ jobs:
             echo 'CARGO_REGISTRY_TOKEN is required for the first fathomdb-sdk publish' >&2
             exit 1
           fi
-      - name: Require first-publish MCP API token before any release tier
-        if: ${{ env.RELEASE_TAG == 'v0.8.32' && (github.event_name != 'workflow_dispatch' || inputs.dry_run != true) }}
-        env:
-          MCP_FIRST_PUBLISH_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$MCP_FIRST_PUBLISH_TOKEN" ]; then
-            echo 'CARGO_REGISTRY_TOKEN is required for the first fathomdb-mcp publish' >&2
-            exit 1
-          fi
       - name: Run release gates
         # Runs on push (tag-format + version-axis enforced) and dispatch.
         # Dry runs require and verify the selected full candidate SHA; non-dry
@@ -1517,9 +1508,9 @@ jobs:
         if: ${{ inputs.dry_run != true }}
         uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
       - name: cargo publish fathomdb-mcp
-        # fathomdb-mcp depends on fathomdb-sdk (T6). Its first publish at v0.8.32
-        # cannot use trusted publishing before the crate exists on crates.io;
-        # CARGO_REGISTRY_TOKEN is scoped to v0.8.32 and OIDC takes over thereafter.
+        # fathomdb-mcp depends on fathomdb-sdk (T6). The crate is registered on
+        # crates.io with Trusted Publishing configured for this workflow, so
+        # v0.8.32 and all subsequent releases publish via short-lived OIDC tokens.
         run: |
           if [ "${DRY_RUN}" = "true" ]; then
             bash scripts/release/cargo-publish-if-new.sh --dry-run fathomdb-mcp
@@ -1527,7 +1518,7 @@ jobs:
             bash scripts/release/cargo-publish-if-new.sh fathomdb-mcp
           fi
         env:
-          CARGO_REGISTRY_TOKEN: ${{ env.RELEASE_TAG == 'v0.8.32' && secrets.CARGO_REGISTRY_TOKEN || steps.crates_io_auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates_io_auth.outputs.token }}
       - name: Wait for crates.io index propagation (poll, not sleep)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
         run: bash scripts/release/wait-for-crate-version.sh fathomdb-mcp

@@ -1,6 +1,6 @@
 ---
 title: Slice 70 Plan — Authorized 0.8.32 Multi-Registry, GitHub Release & Tegra CUDA Publication
-status: DRAFT
+status: APPROVED
 target_release: 0.8.32
 slice: 70
 date: 2026-11-27
@@ -8,7 +8,7 @@ date: 2026-11-27
 
 # Slice 70 Plan — Authorized `0.8.32` Publication (`PUBLICATION`)
 
-- **Gate Posture:** **HELD** until explicit owner HITL publication authorization (Gate 2) is granted. Zero `git push`, zero `v0.8.32` tag creation, and zero registry or Pages uploads occur before authorization.
+- **Gate Posture:** **AUTHORIZED** by owner HITL Gate 2 (`2026-11-27`; PyPI Pending Publisher confirmed, `fathomdb-mcp` registered on crates.io with OIDC Trusted Publisher configured, Slice 70 publication approved).
 - **Branch / Worktree:** `dev/0.8.32` in `/mnt/data/worktrees/release-0.8.32` (integrating onto `main` + `refs/heads/release/0.8.32` upon authorization; never mutate `/home/coreyt/projects/fathomdb`).
 - **Inherited Frozen Qualification Base:** Slice 60 ([../slice-60/status.md](../slice-60/status.md)) qualified frozen product SHA **`8c0021f051ba5a6a6d0432ac658b531deac9cd49`** across all local gates (`agent-verify.sh` `246/249`, `AGENT_LONG=1` / `--release` perf gates, paired `10k`/`50k`/`100k` + `Gate1-D10` latency report, RTX 3090 `test-feature-complete.sh` `227/227`, Inspector `local-ci.sh --full-workspace` `89/89` Playwright + `qualify-installed-network.sh`, 3-wheel clean-venv + stripped-`PATH` `migrate` / `R32-04` + `690/690` TS tests, and golden Schema 39 archive).
 - **Zero-Redundancy Design:** Because Slice 70 performs only the mechanical Axis-W version bump (`0.8.31 -> 0.8.32`, zero product-code changes) and the post-publish documentation/truth flip, Slice 70 **inherits all Slice 60 qualification receipts verbatim** and does **NOT** re-run:

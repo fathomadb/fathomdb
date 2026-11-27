@@ -262,14 +262,17 @@ fn migrate_golden_0_8_31_schema38_upgrades_to_8col_vec0_and_passes_integrity() {
             schema_version: 1,
             checks: vec![
                 DataPlaneIntegrityCheckV1::DependencyChain,
+                DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+                DataPlaneIntegrityCheckV1::ProjectionGeneration,
                 DataPlaneIntegrityCheckV1::MutationReadiness,
+                DataPlaneIntegrityCheckV1::EdgeEndpointIntegrity,
             ],
             max_work_units: 10_000,
             max_findings: 100,
         },
     )
     .unwrap();
-    assert!(dp.findings.is_empty(), "expected zero integrity findings: {dp:?}");
+    assert!(dp.findings.is_empty(), "expected zero integrity findings across all 5 checks: {dp:?}");
 
     // Engine::open registered sqlite-vec auto-extension globally; query vector_default directly.
     {

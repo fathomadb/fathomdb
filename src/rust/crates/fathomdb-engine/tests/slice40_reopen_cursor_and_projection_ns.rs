@@ -528,9 +528,12 @@ fn bug1_schema38_to_39_backfills_projection_terminal_owner_kind_accurately() {
             )
             .unwrap();
         let canonical_cursor = base + 1;
-        let op_state_cursor = base + 2;
-        let admin_ts_cursor = base + 3;
-        let orphan_cursor = base + 4;
+        let corrupt_in_canon_batch = base + 2;
+        let canon_batch_tail = base + 3;
+        let op_state_cursor = base + 4;
+        let admin_head_cursor = base + 5;
+        let admin_ts_cursor = base + 6;
+        let orphan_cursor = base + 7;
 
         // Canonical row that also happens to have a commit timestamp at its cursor.
         conn.execute(
@@ -556,6 +559,37 @@ fn bug1_schema38_to_39_backfills_projection_terminal_owner_kind_accurately() {
         )
         .unwrap();
 
+        // Corrupted canonical cursor inside a canonical batch: raw SQL deleted its node/revision
+        // while its sibling at `canon_batch_tail` still has a canonical node + commit timestamp.
+        // Backfill MUST keep this as 'canonical' so data-plane-integrity still flags it.
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+            [corrupt_in_canon_batch],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state) \
+             VALUES(?1, 'note', 's38 canon sibling', 's38-src', 's38-lid-sib', 'leaf', 'active')",
+            [canon_batch_tail],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_artifact_revisions(schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness) \
+             VALUES(1, 's38-rev-canonical-sib', 'node', ?1, 'canonical_source', 'complete')",
+            [canon_batch_tail],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_commit_timestamps(write_cursor, committed_at_ms) VALUES(?1, 1500)",
+            [canon_batch_tail],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+            [canon_batch_tail],
+        )
+        .unwrap();
+
         // Non-canonical row with operational_state.
         conn.execute(
             "INSERT OR IGNORE INTO operational_collections(name, kind, schema_json, retention_json, format_version, created_at) \
@@ -575,7 +609,14 @@ fn bug1_schema38_to_39_backfills_projection_terminal_owner_kind_accurately() {
         )
         .unwrap();
 
-        // Non-canonical AdminSchema row with only _fathomdb_commit_timestamps.
+        // Multi-item AdminSchema batch [admin_head_cursor, admin_ts_cursor] where only the
+        // batch tail (`admin_ts_cursor`) has a `_fathomdb_commit_timestamps` row (matching
+        // Schema-38 `golden-0.8.31-schema38.sqlite` cursors 1..2).
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+            [admin_head_cursor],
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO _fathomdb_commit_timestamps(write_cursor, committed_at_ms) VALUES(?1, 2000)",
             [admin_ts_cursor],
@@ -605,8 +646,21 @@ fn bug1_schema38_to_39_backfills_projection_terminal_owner_kind_accurately() {
             )
             .unwrap()
         };
+        assert_eq!(
+            owner_kind(1),
+            "non_canonical",
+            "golden Schema-38 AdminSchema batch head cursor 1"
+        );
+        assert_eq!(
+            owner_kind(2),
+            "non_canonical",
+            "golden Schema-38 AdminSchema batch tail cursor 2"
+        );
         assert_eq!(owner_kind(canonical_cursor), "canonical");
+        assert_eq!(owner_kind(corrupt_in_canon_batch), "canonical");
+        assert_eq!(owner_kind(canon_batch_tail), "canonical");
         assert_eq!(owner_kind(op_state_cursor), "non_canonical");
+        assert_eq!(owner_kind(admin_head_cursor), "non_canonical");
         assert_eq!(owner_kind(admin_ts_cursor), "non_canonical");
         assert_eq!(owner_kind(orphan_cursor), "canonical");
     }

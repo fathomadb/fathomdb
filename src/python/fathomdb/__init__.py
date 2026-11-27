@@ -353,4 +353,4 @@ __all__ = [
     "rerank",
     "snippet_for",
 ]
-__version__ = "0.8.31"
+__version__ = "0.8.32"

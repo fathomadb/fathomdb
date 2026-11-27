@@ -10,7 +10,7 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
-## 0.8.32 (Pre-publication qualification)
+## 0.8.32 - 2026-11-27
 
 **Pre-publication qualification.** `0.8.32` is not yet published; `0.8.31`
 remains the newest published release. Registry publication (crates.io, PyPI

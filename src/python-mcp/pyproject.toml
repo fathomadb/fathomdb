@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "fathomdb-mcp"
-version = "0.8.31"
+version = "0.8.32"
 description = "FathomDB MCP server binary (default read-only, opt-in per-store scoped writes over stdio)"
 readme = "README.md"
 requires-python = ">=3.10"

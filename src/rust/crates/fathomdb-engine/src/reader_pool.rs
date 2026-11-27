@@ -701,9 +701,10 @@ fn reader_worker_loop(
         }
     }
     let _guard = LiveGuard(live_workers);
-    // Defer `PRAGMA cache_size = -1000` (1.0 MiB / 250 pages per reader × 8 = 8 MiB vs
+    // Defer `PRAGMA cache_size = -1500` (1.5 MiB / 375 pages per reader × 8 = 12 MiB vs
     // SQLite's 16 MiB default) until each reader's first actual query so `Engine::open`
-    // does not trigger eager `sqlite3Init()` across idle reader connections.
+    // does not trigger eager `sqlite3Init()` across idle reader connections while keeping
+    // 50k/100k FTS working sets resident without page-cache thrashing.
     let mut cache_size_configured = false;
 
     while let Ok(request) = rx.recv() {
@@ -732,7 +733,7 @@ fn reader_worker_loop(
             _ => true,
         };
         if !cache_size_configured && is_data_query {
-            let _ = connection.pragma_update(None, "cache_size", -1000);
+            let _ = connection.pragma_update(None, "cache_size", -1500);
             crate::connection_runtime::apply_perf_experiment_reader_pragmas(&connection);
             cache_size_configured = true;
         }

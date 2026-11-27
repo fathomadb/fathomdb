@@ -713,6 +713,8 @@ impl Engine {
                 None,
                 None,
                 None,
+                None,
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
             advance_projection_cursor(&tx).map_err(|_| EngineError::Storage)?;

@@ -131,6 +131,8 @@ impl Engine {
                 registry.as_ref(),
                 Some(&mut fts_dirty),
                 Some(&mut vector_kind_cache),
+                None,
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
             if include_fts {
@@ -194,6 +196,7 @@ impl Engine {
                 superseded_at.is_none(),
                 registry.as_ref(),
                 Some(&mut fts_dirty),
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
             if include_fts && has_body {

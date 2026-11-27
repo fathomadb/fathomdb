@@ -88,6 +88,8 @@ pub(crate) fn restore_registered_derived_projections(
                 None,
                 None,
                 None,
+                None,
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
         }
@@ -223,6 +225,8 @@ pub(crate) fn reproject_search_index_after_tokenizer_upgrade(
                 row.properties.as_ref(),
                 None,
                 Some(&mut fts_dirty),
+                None,
+                None,
                 None,
             )?;
         }
@@ -366,37 +370,6 @@ pub(crate) fn index_targets_for_row_kind(row_kind: RowKind) -> IndexTargetSet {
 /// pre-EXP-S inline node path.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn project_canonical_node_row(
-    tx: &Connection,
-    cursor: u64,
-    kind: &str,
-    body: &str,
-    row_kind: RowKind,
-    pass: ProjectionPass,
-    node_active: bool,
-    properties: Option<&crate::PropertyMap>,
-    registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
-    fts_dirty: Option<&mut bool>,
-    vector_kind_cache: Option<&mut std::collections::HashMap<String, bool>>,
-) -> rusqlite::Result<bool> {
-    project_canonical_node_row_with_terminal_sink(
-        tx,
-        cursor,
-        kind,
-        body,
-        row_kind,
-        pass,
-        node_active,
-        properties,
-        registry,
-        fts_dirty,
-        vector_kind_cache,
-        None,
-        None,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn project_canonical_node_row_with_terminal_sink(
     tx: &Connection,
     cursor: u64,
     kind: &str,
@@ -551,32 +524,6 @@ pub(crate) fn project_canonical_node_row_with_terminal_sink(
 /// Returns `(enqueued_vector, enrolled_vector_kind)`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn project_canonical_edge_row(
-    tx: &Connection,
-    cursor: u64,
-    kind: &str,
-    body: Option<&str>,
-    pass: ProjectionPass,
-    properties: Option<&crate::PropertyMap>,
-    edge_active: bool,
-    registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
-    fts_dirty: Option<&mut bool>,
-) -> rusqlite::Result<(bool, bool)> {
-    project_canonical_edge_row_with_terminal_sink(
-        tx,
-        cursor,
-        kind,
-        body,
-        pass,
-        properties,
-        edge_active,
-        registry,
-        fts_dirty,
-        None,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn project_canonical_edge_row_with_terminal_sink(
     tx: &Connection,
     cursor: u64,
     kind: &str,

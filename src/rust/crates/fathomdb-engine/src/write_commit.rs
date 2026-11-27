@@ -1529,40 +1529,21 @@ pub(crate) fn apply_batch_in_transaction(
                         .or_default()
                         .push((cursor as i64, kind.clone()));
                 }
-                match pending_terminals.as_mut() {
-                    Some(sink) => {
-                        crate::index_projector::project_canonical_node_row_with_terminal_sink(
-                            tx,
-                            cursor,
-                            kind,
-                            body,
-                            RowKind::Leaf,
-                            ProjectionPass::Write,
-                            matches!(state, InitialState::Active),
-                            properties.as_ref(),
-                            projection_registry,
-                            Some(&mut batch_fts_dirty),
-                            Some(&mut vector_kind_cache),
-                            Some(sink),
-                            pending_node_attrs.as_mut(),
-                        )?;
-                    }
-                    None => {
-                        project_canonical_node_row(
-                            tx,
-                            cursor,
-                            kind,
-                            body,
-                            RowKind::Leaf,
-                            ProjectionPass::Write,
-                            matches!(state, InitialState::Active),
-                            properties.as_ref(),
-                            projection_registry,
-                            Some(&mut batch_fts_dirty),
-                            Some(&mut vector_kind_cache),
-                        )?;
-                    }
-                }
+                project_canonical_node_row(
+                    tx,
+                    cursor,
+                    kind,
+                    body,
+                    RowKind::Leaf,
+                    ProjectionPass::Write,
+                    matches!(state, InitialState::Active),
+                    properties.as_ref(),
+                    projection_registry,
+                    Some(&mut batch_fts_dirty),
+                    Some(&mut vector_kind_cache),
+                    pending_terminals.as_mut(),
+                    pending_node_attrs.as_mut(),
+                )?;
                 if track_delta {
                     let kind_ref = match original_write {
                         PreparedWrite::Node { kind, .. } => kind.as_str(),
@@ -1715,33 +1696,18 @@ pub(crate) fn apply_batch_in_transaction(
                         triple_map.entry(triple_key).or_default().push(cursor as i64);
                     }
                 }
-                let (_enqueued_vec, enrolled_vk) = match pending_terminals.as_mut() {
-                    Some(sink) => {
-                        crate::index_projector::project_canonical_edge_row_with_terminal_sink(
-                            tx,
-                            cursor,
-                            kind,
-                            body.as_deref(),
-                            ProjectionPass::Write,
-                            properties.as_ref(),
-                            true,
-                            projection_registry,
-                            Some(&mut batch_fts_dirty),
-                            Some(sink),
-                        )?
-                    }
-                    None => project_canonical_edge_row(
-                        tx,
-                        cursor,
-                        kind,
-                        body.as_deref(),
-                        ProjectionPass::Write,
-                        properties.as_ref(),
-                        true,
-                        projection_registry,
-                        Some(&mut batch_fts_dirty),
-                    )?,
-                };
+                let (_enqueued_vec, enrolled_vk) = project_canonical_edge_row(
+                    tx,
+                    cursor,
+                    kind,
+                    body.as_deref(),
+                    ProjectionPass::Write,
+                    properties.as_ref(),
+                    true,
+                    projection_registry,
+                    Some(&mut batch_fts_dirty),
+                    pending_terminals.as_mut(),
+                )?;
                 if track_delta {
                     let kind_ref = match original_write {
                         PreparedWrite::Edge { kind, .. } => kind.as_str(),

@@ -114,13 +114,19 @@
         40,
         41
       ],
-      "status": "NOT_STARTED",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "d41975f02",
       "design_refs": [
+        "dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md",
+        "dev/plans/0.8.32/features/slice-50/plan.md",
+        "dev/plans/0.8.32/features/slice-50/fuzz-campaign-report.md",
+        "dev/plans/0.8.32/features/slice-50/dm-flakey-campaign-report.md",
+        "dev/plans/0.8.32/features/slice-50/status.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
-      ]
+      ],
+      "evidence": "WP-50A..WP-50D + FIX-1 (979d61719) + 19-file 4-tier docs sync (ba77948e3) landed locally at d41975f02; 2,185,400 ASan+UBSan fuzz runs (0 FathomDB defects), 11/11 live QEMU/KVM dm-flakey power-loss cases passed (all_ok=true), full unconfined agent-verify.sh EXIT 0 (246/249 suites passed, 3 platform-skipped, 0 failed, 0 security violations), mkdocs build --strict EXIT 0 (0 warnings), and independent pro adversarial reviews VERDICT: APPROVE across plan and full Slice 50 code/campaign diff (0 P1, 0 P2)."
     },
     {
       "slice": 60,
@@ -158,14 +164,14 @@
     20,
     30,
     40,
-    41
+    41,
+    50
   ],
   "remaining_ladder": [
-    50,
     60,
     70
   ],
-  "next_slice": 50,
+  "next_slice": 60,
   "decisions": {
     "ruled": [
       {

@@ -18,9 +18,9 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`DURABILITY-AND-FUZZ`) — Internal fathomdb.logical-export/v1 backup/restore/rebuild proof, SyncMode::{Normal, Full} + disposable QEMU/KVM dm-flakey power-loss campaign, isolated fuzz/ workspace (7 targets), and leak/state-machine checks
+**IMMEDIATE NEXT: Slice 60** (`QUALIFICATION`) — Full-workspace qualification, paired 0.8.31 vs. 0.8.32 10k/50k/100k latency/RSS/DB-size gate, candidate smokes, release docs, and golden 0.8.32 archive
 
-**Remaining ladder:** 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**Remaining ladder:** 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
 ## Goal and scope
 

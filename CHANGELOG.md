@@ -10,8 +10,12 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
-Target release: `0.8.32` (pre-publish on `dev/0.8.32`; registry publication
-pending).
+## 0.8.32 (Pre-publication qualification)
+
+**Pre-publication qualification.** `0.8.32` is not yet published; `0.8.31`
+remains the newest published release. Registry publication (crates.io, PyPI
+`fathomdb`, `fathomdb-cli`, and `fathomdb-mcp`, npm, GitHub Pages, and GitHub
+Releases) remains pending Slice 70 authorization.
 
 ### Added
 
@@ -24,27 +28,40 @@ pending).
   `fathomdb_schema::TABLE_MANIFEST` (`36` tables / `20` visibility-trigger
   tables / `60` triggers), and offline `fathomdb migrate` (`38 -> 39` and
   chained `37 -> 38 -> 39`).
-- **Opt-in bulk write mode (`ADR #100`):** `WriteOptions` /
-  `EndpointValidationMode::{Strict, BulkNonStrict}` and
+- **Opt-in bulk write mode (`ADR #100`) and Inspector active-`scope` UI:**
+  `WriteOptions` / `EndpointValidationMode::{Strict, BulkNonStrict}` and
   `write_with_options` / `writeWithOptions` across all three SDKs (keeping
   `write` and `actuate` strictly endpoint-validated), truthful
-  `WriteReceipt.dangling_edge_endpoints`, and read-only
-  `edge_endpoint_integrity` verification in `fathomdb doctor`.
+  `WriteReceipt.dangling_edge_endpoints`, read-only `edge_endpoint_integrity`
+  verification in `fathomdb doctor`, and `TABLE_MANIFEST`-backed Schema 39
+  admission plus active-`scope` UI (`D-01` nondisclosure preserved) in
+  FathomDB Inspector `0.3.0`.
 - **Production read+write `fathomdb-mcp` and Pin C engine primitives (`ADR #99`):**
   Stdio MCP server (`allow_writes: false` default, per-store opt-in with bound
-  scope, `SC-01`–`SC-10` startup conflict guards, 7 read / 9 read+write tools),
+  scope, `SC-01`–`SC-10` startup conflict guards, 7 read / 9 read+write tools,
+  3-channel packaging across crates.io `default = []`, PyPI `fathomdb-mcp`, and
+  5-target GitHub Releases with `--features default-embedder`),
   `ActuationOperationV1::PutLatestState`, `read.visibility_state` /
   `read.visibilityState` (`VisibilityStateV1`), `create_if_missing=False` /
   `{ createIfMissing: false }` (`DatabaseNotFoundError` /
   `FDB_DATABASE_NOT_FOUND`), and `PerHitExplain.vector_cosine`.
+- **Per-class projection namespace (`ProjectionTarget`) and pooled-reader
+  projection status cache (`Gate1-D9` & `Gate1-D10`):** Upgraded
+  `_fathomdb_projection_registry` to `PRIMARY KEY(entity_class, name)` with
+  strictly typed `ProjectionTarget` across Rust, Python, and TypeScript, and
+  added pooled-reader `ProjectionGenerationStatusCache` eliminating
+  steady-state full completion scans across `search(..., explain=true)`,
+  `search_frozen(..., explain=true)`, `search_with_evidence`, and query-seeded
+  `graph.expand`.
 - **Partitioned frozen-read additive stability (`ADR #103`):** Schema 39
   `_fathomdb_scope_visibility_watermarks`, `_fathomdb_read_visibility_state`
-  `global_struct_gen`/`global_struct_nonce`, and `0x53 0x39` trailing
-  `SurfaceTags` on `FrozenReadContextV1` (`492 B` unscoped / `556 B` scoped) so
-  disjoint-`kind` additive writes, operational log/state writes, disjoint-scope
-  activity, and disjoint-`(scope, kind)` background vector commits produce zero
-  unintended drift while preserving fail-closed boundaries and per-slot
-  `resolve_evidence_many` refusal for drifted `Edge` / `GraphArm` slots.
+  `global_struct_gen`/`global_struct_nonce`, `ReadSurface`, and `0x53 0x39`
+  trailing `SurfaceTags` on `FrozenReadContextV1` (`492 B` unscoped / `556 B`
+  scoped) so disjoint-`kind` additive writes, operational log/state writes,
+  disjoint-scope activity, and disjoint-`(scope, kind)` background vector
+  commits produce zero unintended drift while preserving fail-closed boundaries,
+  per-slot `resolve_evidence_many` refusal for drifted `Edge` / `GraphArm`
+  slots, and `fathomdb-mcp` `MR-070.2` cold probes.
 - **Governed surface & error parity:** `58` live governed operations (`97`
   allowlist members) and `49` shared error classes (`1` base + `48` leaf,
   adding `ScopeViolation` and `DatabaseNotFound`).
@@ -97,6 +114,12 @@ pending).
 - Bumped store `SCHEMA_VERSION` from **38** to **39** (`Engine::open` remains
   exact-schema only; committed Schema 37/38 stores upgrade offline via
   `fathomdb migrate`).
+- Breaking API change (`Gate1-D9`): `configure_projections(..., drop=...)` and
+  `ProjectionDelta` (`built`, `dropped`, `deferred`) now require and return
+  strictly typed `ProjectionTarget` (`name` + `entity_class` / `entityClass`)
+  across Rust (`fathomdb`, `fathomdb-sdk`), Python, and TypeScript; bare string
+  drop entries are rejected (`TypeError` in Python/TypeScript, compile error in
+  Rust).
 - Made `SearchFilter.property_predicates` artifact-scoped on evidence source
   authorization (`search_with_evidence`, `resolve_evidence`,
   `resolve_evidence_many`, `graph.expand(include_evidence=True)`,
@@ -107,9 +130,14 @@ pending).
   when `search_with_evidence(include_explanation = false)`, and optimized
   `read.get` / `read.get_many(include_superseded = true)` onto indexed
   `SEARCH`-only SQL lookup.
+- Retained CUDA 12.6 shipping posture (`cudarc`/Candle fork with PTX0 producer
+  policy and F32); CUDA 13 remains deferred out of `0.8.32`.
 
 ### Fixed
 
+- Fixed the `0.8.31` empty-DB reopen cursor bug (`Gate1-D9`) by adding
+  `owner_kind` on `_fathomdb_projection_terminal` to preserve monotonic
+  terminal cursor separation between canonical and non-canonical owners.
 - Narrowed single-node `purge(logical_id)` actuation receipt redaction to
   purged entity/revision references so surviving sibling entities sharing the
   same `source_id` bucket retain their idempotent actuation receipts (while
@@ -118,7 +146,10 @@ pending).
 
 ### Removed
 
-- None.
+- Bare-string drop-entry acceptance on `configure_projections` and bare-string
+  `ProjectionDelta` (`built`, `dropped`, `deferred`) payloads, replaced by
+  strictly typed `ProjectionTarget` (no top-level public symbols removed since
+  `0.8.31`).
 
 ## 0.8.31 — 2026-11-23
 

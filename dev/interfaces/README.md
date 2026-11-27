@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Internal interface contracts for Rust, Python, TypeScript, CLI, and wire-level
-surfaces.
+Internal interface contracts for Rust, Python, TypeScript, CLI, MCP, and
+wire-level surfaces.
 
 ## Keep here
 
@@ -21,12 +21,13 @@ surfaces.
 
 Canonical for internal interface intent until replaced by shipped public docs.
 
-The dedicated Rust SDK (`fathomdb-sdk`, 0.8.31) has its own contract in
+The dedicated Rust SDK (`fathomdb-sdk`, 0.8.32) has its own contract in
 [`rust-sdk.md`](rust-sdk.md); [`rust.md`](rust.md) covers the lower-level
-`fathomdb` facade.
+`fathomdb` facade, and [`mcp.md`](mcp.md) covers the `fathomdb-mcp` stdio
+server.
 
-The Rust, Python, TypeScript and CLI records are maintained for the current
-0.8.31 source. Historical wire draft sections retain their local status. Section-local status remains controlling: implemented,
+The Rust, Python, TypeScript, CLI, MCP, and wire records are maintained for the
+current 0.8.32 source. Historical wire draft sections retain their local status. Section-local status remains controlling: implemented,
 accepted, proposed, and unsigned sections can coexist, and this index does not
 promote proposed material. The active architecture is
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md).

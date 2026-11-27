@@ -1,6 +1,6 @@
 ---
 title: TypeScript Public Interface
-date: 2026-11-25
+date: 2026-11-26
 target_release: 0.8.32
 desc: Public TypeScript surface for 0.8.32
 blast_radius: src/ts/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md

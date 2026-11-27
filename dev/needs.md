@@ -16,17 +16,24 @@ for public automatic migration or superseded identity/provider behavior. Current
 contracts are owned by accepted [ADRs](adr/ADR-0.6.0-decision-index.md), maintained
 [interfaces](interfaces/rust.md) and the
 [active architecture](design/fathomdb-data-plane-architecture-v2.md).
-The current integrated tree admits fresh/current schema 38 only on `Engine::open`,
-with logical_id-alone active identity, built-in-provider-or-none admission, and
-explicit maintenance as documented there. Per
+The current integrated tree admits fresh/current schema 39 only on `Engine::open`,
+with logical_id-alone active identity within the caller's authorized scope
+(single-scope default `scope = ""` with opt-in `ScopePolicy` per
+[`ADR-0.8.32-caller-scope-isolation.md`](adr/ADR-0.8.32-caller-scope-isolation.md)),
+built-in-provider-or-none admission, and explicit maintenance as documented there.
+Per
 [`ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md`](adr/ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md),
+[`ADR-0.8.32-caller-scope-isolation.md`](adr/ADR-0.8.32-caller-scope-isolation.md),
+and
+[`ADR-0.8.32-mcp-read-write-and-distribution.md`](adr/ADR-0.8.32-mcp-read-write-and-distribution.md),
 `REQ-036`/`REQ-045` permit the narrow third operator CLI root `fathomdb migrate`
-(`37 -> 38`) while `Engine::open` remains schema-38-only (no public automatic
-migration), and `REQ-037`/`AC-041` remain intact via companion `fathomdb-cli`
-PyPI wheels (`fathomdb` keeps `[project.scripts]` empty).
+(`38 -> 39` and chained `37 -> 38 -> 39`) while `Engine::open` remains
+schema-39-only (no public automatic migration), and `REQ-037`/`AC-041` remain
+intact via companion `fathomdb-cli` and `fathomdb-mcp` PyPI wheels (`fathomdb`
+keeps `[project.scripts]` empty).
 Current release-local needs/requirements and accepted measurement replacements
 live in the canonical active release selected by `scripts/release-current.py`
-(currently [`dev/plans/0.8.31/plan.md`](plans/0.8.31/plan.md)). Historical
+(currently [`dev/plans/0.8.32/plan.md`](plans/0.8.32/plan.md)). Historical
 migration fixtures do not establish a general automatic upgrade path; global
 acceptance IDs/thresholds in `dev/acceptance.md` are unchanged.
 

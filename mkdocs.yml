@@ -49,6 +49,7 @@ nav:
       - Prompt Context: guides/prompt-context.md
       - MCP Server: guides/mcp-server.md
   - Release Notes:
+      - 0.8.32 (pre-publication): release-notes/0.8.32.md
       - 0.8.31: release-notes/0.8.31.md
       - 0.8.30: release-notes/0.8.30.md
       - 0.8.29: release-notes/0.8.29.md

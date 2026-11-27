@@ -1,6 +1,6 @@
 ---
 title: CLI Public Interface
-date: 2026-11-25
+date: 2026-11-26
 target_release: 0.8.32
 desc: Current 0.8.32 operator CLI surface
 blast_radius: src/rust/crates/fathomdb-cli/src/lib.rs; design/recovery.md; design/errors.md

@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 
 VERBS = ('build', 'lint', 'typecheck', 'test', 'verify')
 LOCATORS = {'engine_static', 'engine_instance', 'read', 'graph', 'admin', 'package'}
-SOURCE_URL = 'https://github.com/fathomadb/fathomdb/blob/release/0.8.31/'
+SOURCE_URL = 'https://github.com/fathomadb/fathomdb/blob/release/0.8.32/'
 
 
 def source(root: Path, relative: str) -> Path:

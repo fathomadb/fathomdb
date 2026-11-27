@@ -1,6 +1,6 @@
 ---
 title: MCP Server Interface (fathomdb-mcp)
-date: 2026-11-25
+date: 2026-11-26
 target_release: 0.8.32
 desc: Tool contract, launch configuration, SC-01..SC-10 startup conflict matrix, frozen evidence, opt-in scoped writes, result envelope, error model, and embedded Rust API for fathomdb-mcp.
 blast_radius: src/rust/crates/fathomdb-mcp/**; dev/design/mcp-adapter/*.md; docs/reference/mcp.md; docs/guides/mcp-server.md

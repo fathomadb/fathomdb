@@ -6,8 +6,10 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 
 ## Where to go
 
-- [0.8.31 release notes](../release-notes/0.8.31.md) —
-  changes, compatibility boundaries, and schema migration guidance.
+- [0.8.32 pre-publication release notes](../release-notes/0.8.32.md) —
+  qualification target changes (not yet published), and
+  [0.8.31 release notes](../release-notes/0.8.31.md) — newest published
+  release changes, compatibility boundaries, and schema migration guidance.
 
 - [Quickstart](quickstart.md) — install, open, write, search,
   counters, close, exit. ~5 minutes.

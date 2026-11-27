@@ -1,6 +1,6 @@
 ---
 title: Rust Public Interface
-date: 2026-11-25
+date: 2026-11-26
 target_release: 0.8.32
 desc: Public Rust surface (traits, functions, types, errors) for 0.8.32
 blast_radius: src/rust/crates/fathomdb; design/engine.md; design/bindings.md; design/errors.md; design/lifecycle.md

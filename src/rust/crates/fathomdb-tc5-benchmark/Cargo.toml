@@ -21,7 +21,7 @@ tc5-benchmark-cuda = [
 ]
 
 [dependencies]
-fathomdb-engine = { workspace = true }
+fathomdb-engine = { workspace = true, features = ["operator"] }
 fathomdb-schema = { workspace = true }
 fathomdb-embedder = { workspace = true, optional = true }
 fathomdb-embedder-api = { workspace = true, optional = true }
@@ -38,3 +38,7 @@ proptest = "1"
 name = "fathomdb-tc5-benchmark"
 path = "src/main.rs"
 required-features = ["tc5-benchmark"]
+
+[[bin]]
+name = "fathomdb-dmflakey-harness"
+path = "src/bin/fathomdb-dmflakey-harness.rs"

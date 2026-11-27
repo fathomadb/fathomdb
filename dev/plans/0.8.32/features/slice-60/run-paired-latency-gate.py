@@ -1022,16 +1022,22 @@ def _run_paired_scale(
     rss_a_max = 0
     rss_b_max = 0
 
-    # 2 counterbalanced store builds: pair 0 = AB, pair 1 = BA
-    last_db_a = scale_dir / "pair1-a.sqlite"
-    last_db_b = scale_dir / "pair1-b.sqlite"
-    for pair_idx in range(2):
+    # Counterbalanced store builds: 4 pairs (AB/BA/AB/BA) at 10k for tighter
+    # bootstrap CI on small-scale write batches, 2 pairs (AB/BA) at 50k/100k.
+    num_build_pairs = 4 if scale <= 10_000 else 2
+    last_db_a = scale_dir / f"pair{num_build_pairs - 1}-a.sqlite"
+    last_db_b = scale_dir / f"pair{num_build_pairs - 1}-b.sqlite"
+    for pair_idx in range(num_build_pairs):
         db_a = scale_dir / f"pair{pair_idx}-a.sqlite"
         db_b = scale_dir / f"pair{pair_idx}-b.sqlite"
         last_db_a, last_db_b = db_a, db_b
         order = ("A", "B") if pair_idx % 2 == 0 else ("B", "A")
         pair_res: dict[str, dict[str, Any]] = {}
         for arm in order:
+            # Flush dirty pages symmetrically before each arm's build_store so
+            # prior-arm writeback cannot bleed into the next arm's batch timings.
+            if hasattr(os, "sync"):
+                os.sync()
             py = py_a if arm == "A" else py_b
             db = db_a if arm == "A" else db_b
             pair_res[arm] = _invoke_worker(
@@ -1055,6 +1061,10 @@ def _run_paired_scale(
         db_bytes_b_list.append(int(pair_res["B"]["database_bytes"]))
         rss_a_max = max(rss_a_max, int(pair_res["A"]["peak_rss_bytes"]))
         rss_b_max = max(rss_b_max, int(pair_res["B"]["peak_rss_bytes"]))
+        if pair_idx < num_build_pairs - 1:
+            for stale_db in (db_a, db_b):
+                for suffix in ("", "-wal", "-shm", ".lock"):
+                    Path(f"{stale_db}{suffix}").unlink(missing_ok=True)
 
     # process_open: warmup_rounds discarded + min_samples measured, interleaved AB / BA
     proc_open_a: list[float] = []

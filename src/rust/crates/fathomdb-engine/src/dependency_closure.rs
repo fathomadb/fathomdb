@@ -641,7 +641,8 @@ pub(crate) fn validate_physical_closures(
     Ok(())
 }
 
-#[cfg(feature = "operator")]
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+#[cfg_attr(not(feature = "operator"), allow(dead_code))]
 pub(crate) struct PendingPhysicalClosure {
     pub(crate) id: ClosureOperationId,
     pub(crate) cause: String,
@@ -650,7 +651,7 @@ pub(crate) struct PendingPhysicalClosure {
     pub(crate) sequence: u64,
 }
 
-#[cfg(feature = "operator")]
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
 pub(crate) fn pending_physical_closures(
     connection: &Connection,
 ) -> Result<Vec<PendingPhysicalClosure>, EngineError> {

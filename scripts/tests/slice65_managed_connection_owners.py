@@ -19,12 +19,13 @@ EXPECTED_CALLS = Counter({
     ("projection_commit.rs", "open_runtime_connection", "ProjectionWorker"): 1,
     ("wal_runtime.rs", "open_managed_connection", "RuntimeProbe"): 2,
     ("read_api.rs", "open_managed_connection", "RuntimeProbe"): 1,
-    ("connection_runtime.rs", "open_runtime_connection", "RuntimeProbe"): 1,
+    ("connection_runtime.rs", "open_runtime_connection", "RuntimeProbe"): 2,
     ("connection_runtime.rs", "open_managed_connection", "category"): 1,
 })
 CALL = re.compile(r"\b(open_managed_connection|open_runtime_connection)\s*\(")
 CLASSIFIED_CALL = re.compile(
-    r"\b(open_managed_connection|open_runtime_connection)\s*\(\s*[^,]+,\s*"
+    r"\b(?:(open_managed_connection)\s*\(\s*[^,]+,\s*"
+    r"|(open_runtime_connection)\s*\(\s*[^,]+,\s*[^,]+,\s*)"
     r"(?:#\[cfg[^\]]*\]\s*)?(?:ManagedConnectionCategory::(\w+)|(category))\s*,",
     re.S,
 )
@@ -133,8 +134,9 @@ def owner_errors(sources: dict[str, str]) -> list[str]:
             prefix = source[max(0, match.start() - 16):match.start()]
             if re.search(r"\bfn\s*$", prefix):
                 continue
-            role = match.group(2) or match.group(3)
-            calls[path, match.group(1), role] += 1
+            opener = match.group(1) or match.group(2)
+            role = match.group(3) or match.group(4)
+            calls[path, opener, role] += 1
             matched_starts.add(match.start())
         for match in CALL.finditer(source):
             prefix = source[max(0, match.start() - 16):match.start()]

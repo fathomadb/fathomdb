@@ -75,6 +75,7 @@ reported identity
 reported index_projector
 reported ingest
 reported lifecycle
+reported logical_export
 reported mean
 reported mean::mean_centering_internals_for_test
 reported maintenance_admission

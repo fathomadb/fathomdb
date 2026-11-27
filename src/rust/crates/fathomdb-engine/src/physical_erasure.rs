@@ -537,6 +537,23 @@ pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(),
     faultpoint("after_completion_commit")
 }
 
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+pub(crate) fn has_diagnostics(c: &Connection) -> Result<bool, EngineError> {
+    if root(c)?.is_some() {
+        return Ok(true);
+    }
+    Ok(state(c)?.phase != "clean")
+}
+
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+pub(crate) fn mark_clean_in_tx(c: &Connection) -> Result<(), EngineError> {
+    store(
+        c,
+        FTS_KEY,
+        &Sanitation { version: 1, phase: "clean".into(), family: families().len(), started: false },
+    )
+}
+
 #[cfg(feature = "operator")]
 pub(crate) fn diagnostics(c: &Connection) -> Result<Vec<PendingErasure>, EngineError> {
     let mut rows = Vec::new();

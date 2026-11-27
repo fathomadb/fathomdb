@@ -975,6 +975,41 @@ fn mint_id(connection: &Connection) -> Result<ProjectionGenerationId, EngineErro
     })
 }
 
+/// Install a clean serving projection generation inside an open restore
+/// transaction (`fathomdb.logical-export/v1`). Retires any pre-existing empty
+/// bootstrap generation, or mints the initial serving row directly when the
+/// target database was bootstrapped without opening an `Engine`.
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+pub(crate) fn install_restored_generation(
+    connection: &Connection,
+) -> Result<ProjectionGenerationId, EngineError> {
+    let existing: u64 = connection
+        .query_row("SELECT COUNT(*) FROM _fathomdb_projection_generations", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    if existing > 0 {
+        return transition(connection, ProjectionGenerationOriginV1::Rebuild);
+    }
+    let boundary = authoritative_boundary(connection)?;
+    let digest = declaration_digest(connection)?;
+    let id = mint_id(connection)?;
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_projection_generations(\
+               schema_version,generation_id,declaration_sha256,transition_boundary,role,origin\
+             ) VALUES(1,?1,?2,?3,'serving','rebuild')",
+            params![id.as_str(), digest, boundary],
+        )
+        .map_err(|_| EngineError::Storage)?;
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_projection_generation_current(singleton,generation_id) \
+             VALUES(1,?1)",
+            [id.as_str()],
+        )
+        .map_err(|_| EngineError::Storage)?;
+    Ok(id)
+}
+
 /// Retire the current in-place serving epoch and install its successor inside
 /// the caller's already-open write transaction.
 pub(crate) fn transition(

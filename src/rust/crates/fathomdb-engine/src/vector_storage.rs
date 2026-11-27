@@ -116,7 +116,7 @@ fn vector_partition_create_sql(
     vector_partition_create_sql_with_scope(dimension, if_not_exists, attr_cols, true)
 }
 
-#[cfg(feature = "operator")]
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
 pub(crate) fn vector_partition_dimension(conn: &Connection) -> rusqlite::Result<Option<u32>> {
     let sql: Option<String> = conn
         .query_row(

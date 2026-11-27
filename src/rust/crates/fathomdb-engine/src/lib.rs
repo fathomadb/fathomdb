@@ -377,6 +377,17 @@ pub use export_manifest::{
     audit_schema_38_sqlite_master, audit_schema_39_sqlite_master, classify_schema_38_table,
     classify_schema_39_table, ExportClass,
 };
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+mod logical_export;
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+pub use logical_export::{
+    decode_logical_export_v1, encode_logical_export_v1, export_logical_archive_v1,
+    restore_logical_archive_v1, validate_logical_export_v1, LogicalExportAuditTablesV1,
+    LogicalExportAuthorityTablesV1, LogicalExportEmbedderIdentityV1, LogicalExportError,
+    LogicalExportErrorCode, LogicalExportOptionsV1, LogicalExportRestoreReportV1, LogicalExportV1,
+    LogicalExportVectorRowV1, LogicalExportVectorsV1, LOGICAL_EXPORT_FORMAT_V1,
+    LOGICAL_EXPORT_MAX_BYTES, LOGICAL_EXPORT_MAX_VECTOR_DIM,
+};
 pub use properties::{
     OperationalCollectionInfo, ProjectionTarget, PropertyComparisonOp, PropertyEntityClass,
     PropertyMap, PropertyPredicate, PropertyValue,

@@ -1114,23 +1114,23 @@ fn dependency_findings(
                             ));
                         } else {
                             let selected_digest = canonical_node.body.as_ref().and_then(|body| {
-                                let selected = match (locator, start, end) {
-                                    ("whole_body", None, None) => Some(body.as_bytes()),
+                                let locator_valid = match (locator, start, end) {
+                                    ("whole_body", None, None) => true,
                                     ("utf8_bytes", Some(start), Some(end)) => {
                                         usize::try_from(start)
                                             .ok()
                                             .zip(usize::try_from(end).ok())
-                                            .and_then(|(start, end)| {
-                                                (body.is_char_boundary(start)
-                                                    && body.is_char_boundary(end))
-                                                .then(|| body.as_bytes().get(start..end))
-                                                .flatten()
+                                            .is_some_and(|(start, end)| {
+                                                start <= end
+                                                    && end <= body.len()
+                                                    && body.is_char_boundary(start)
+                                                    && body.is_char_boundary(end)
                                             })
                                     }
-                                    _ => None,
+                                    _ => false,
                                 };
-                                selected.map(|bytes| {
-                                    Sha256::digest(bytes)
+                                locator_valid.then(|| {
+                                    Sha256::digest(body.as_bytes())
                                         .iter()
                                         .map(|byte| format!("{byte:02x}"))
                                         .collect::<String>()
@@ -1308,7 +1308,14 @@ fn owner_retention_at(
             RetentionPurpose::Dense { required } => {
                 if state.as_deref() == Some("deleted") || !matches!(superseded, NullableValue::Null)
                 {
-                    OwnerRetention::GovernedPruningResidue
+                    if kind
+                        .as_deref()
+                        .is_some_and(|k| crate::kind_is_vector_committable_on(connection, k))
+                    {
+                        OwnerRetention::LegitimateRetained
+                    } else {
+                        OwnerRetention::GovernedPruningResidue
+                    }
                 } else if required {
                     OwnerRetention::RequiredMembership
                 } else if kind
@@ -1344,11 +1351,11 @@ fn owner_retention_at(
         cursor_u64,
         effective_at_epoch_s,
     )?;
-    if !eligible
-        || !matches!(body, NullableValue::Value(_))
-        || !matches!(superseded, NullableValue::Null)
-    {
+    if !eligible || !matches!(body, NullableValue::Value(_)) {
         return Ok(OwnerRetention::GovernedPruningResidue);
+    }
+    if !matches!(superseded, NullableValue::Null) {
+        return Ok(OwnerRetention::LegitimateRetained);
     }
     if matches!(t_invalid, NullableValue::Value(end) if end <= effective_at_epoch_s) {
         return Ok(OwnerRetention::LegitimateRetained);
@@ -1476,7 +1483,7 @@ fn edge_is_legitimate_bodyless_terminal_only(
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let Some((NullableValue::Null, NullableValue::Null)) = row else {
+    let Some((NullableValue::Null, _superseded)) = row else {
         return Ok(false);
     };
     if !crate::dependency_closure::projection_owner_is_eligible_at(
@@ -1517,10 +1524,10 @@ fn node_is_legitimate_non_vector_terminal_only(
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let Some((Some(kind), Some(state), NullableValue::Null)) = row else {
+    let Some((Some(kind), Some(_state), _superseded)) = row else {
         return Ok(false);
     };
-    if state == "deleted" || crate::kind_is_vector_committable_on(connection, &kind) {
+    if crate::kind_is_vector_committable_on(connection, &kind) {
         return Ok(false);
     }
     if !crate::dependency_closure::projection_owner_is_eligible_at(

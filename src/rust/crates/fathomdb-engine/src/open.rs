@@ -2462,7 +2462,7 @@ pub enum TestEmbedderChoice {
     None,
 }
 
-fn default_embedder_identity() -> EmbedderIdentity {
+pub(crate) fn default_embedder_identity() -> EmbedderIdentity {
     EmbedderIdentity::new(
         DEFAULT_EMBEDDER_NAME,
         DEFAULT_EMBEDDER_REVISION,

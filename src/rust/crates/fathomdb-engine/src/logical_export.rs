@@ -862,6 +862,8 @@ pub fn restore_logical_archive_v1(
             row.attr_projected,
             row.properties.as_ref(),
             Some(&registry),
+            None,
+            None,
         )
         .map_err(|err| LogicalExportError::storage("project canonical node", err))?;
     }
@@ -914,6 +916,7 @@ pub fn restore_logical_archive_v1(
             edge.properties.as_ref(),
             edge.superseded_at.is_none(),
             Some(&registry),
+            None,
         )
         .map_err(|err| LogicalExportError::storage("project canonical edge", err))?;
     }

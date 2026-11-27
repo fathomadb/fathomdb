@@ -33,27 +33,26 @@ pub(crate) fn collect_projection_jobs(
     connection: &Connection,
     batch: &[PreparedWrite],
 ) -> Result<Vec<ProjectionJob>, EngineError> {
-    let mut jobs = Vec::new();
-    let generation_id = projection_generation::current_generation_id(connection)?;
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for write in batch {
-        let write = storage_write_shape(write);
-        if let PreparedWrite::Node { kind, body, .. } = write.as_ref() {
-            // 0.8.20 Slice 20c — this read-only probe finds already enrolled
-            // kinds. `write_inner` separately treats every prospective enrolment
-            // as pending, then notifies only after the batch transaction commits.
-            if kind_is_vector_indexed(connection, kind)? {
-                jobs.push(ProjectionJob {
-                    cursor: 0,
-                    kind: kind.clone(),
-                    body: body.clone(),
-                    generation_id: generation_id.clone(),
-                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
-                    observation: None,
-                });
-            }
+        let (kind, body) = match write {
+            PreparedWrite::Node { kind, body, .. } => (kind.as_str(), body.as_str()),
+            PreparedWrite::ProvenancedNode(node) => (node.kind.as_str(), node.body.as_str()),
+            _ => continue,
+        };
+        if seen.insert(kind) && kind_is_vector_indexed(connection, kind)? {
+            let generation_id = projection_generation::current_generation_id(connection)?;
+            return Ok(vec![ProjectionJob {
+                cursor: 0,
+                kind: kind.to_string(),
+                body: body.to_string(),
+                generation_id,
+                #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                observation: None,
+            }]);
         }
     }
-    Ok(jobs)
+    Ok(Vec::new())
 }
 
 pub(crate) fn validate_write(

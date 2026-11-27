@@ -214,7 +214,10 @@ pub(crate) fn open_runtime_connection(
         #[cfg(any(test, feature = "test-hooks"))]
         managed_connections,
     )?;
-    connection.pragma_update(None, "journal_mode", "WAL")?;
+    // WAL mode is persistent in the database header (already set by the writer
+    // connection during `open_locked`). Skipping a redundant `PRAGMA journal_mode=WAL`
+    // avoids forcing eager `sqlite3Init()` schema parsing on idle projection
+    // runtime connections.
     connection.pragma_update(None, "synchronous", sync_mode.as_pragma())?;
     // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `secure_delete=ON` at
     // EVERY open. The projection/vector-rewrite runtime connection performs

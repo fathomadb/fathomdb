@@ -196,15 +196,217 @@ pub(crate) fn checked_locator_columns(
     }
 }
 
-fn revision_is_registered(
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PrecheckedWriteGuards {
+    pub(crate) scoped_physical: bool,
+    pub(crate) queued_erasure: bool,
+}
+
+fn prefetch_active_node_cursors_by_logical_id(
     tx: &Connection,
     scope: &str,
-    revision_id: &str,
-) -> rusqlite::Result<bool> {
-    tx.prepare_cached(
-        "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE scope = ?1 AND revision_id = ?2)",
-    )?
-    .query_row(params![scope, revision_id], |row| row.get(0))
+    batch: &[PreparedWrite],
+) -> rusqlite::Result<std::collections::HashMap<String, Vec<(i64, String)>>> {
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut distinct: Vec<&str> = Vec::new();
+    for write in batch {
+        let lid = match write {
+            PreparedWrite::Node { logical_id: Some(id), .. } => Some(id.as_str()),
+            PreparedWrite::ProvenancedNode(node) => node.logical_id.as_deref(),
+            _ => None,
+        };
+        if let Some(id) = lid {
+            if seen.insert(id) {
+                distinct.push(id);
+            }
+        }
+    }
+    let mut map: std::collections::HashMap<String, Vec<(i64, String)>> =
+        std::collections::HashMap::new();
+    if distinct.is_empty() {
+        return Ok(map);
+    }
+    const CHUNK_SIZE: usize = 64;
+    for chunk in distinct.chunks(CHUNK_SIZE) {
+        let mut stmt = if chunk.len() == CHUNK_SIZE {
+            tx.prepare_cached(
+                "SELECT logical_id, write_cursor, kind FROM canonical_nodes \
+                 WHERE scope = ?1 AND logical_id IN (\
+                     ?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,\
+                     ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,\
+                     ?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,?49,\
+                     ?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64,?65\
+                 ) AND superseded_at IS NULL",
+            )?
+        } else {
+            let mut sql = String::from(
+                "SELECT logical_id, write_cursor, kind FROM canonical_nodes WHERE scope = ?1 AND logical_id IN (",
+            );
+            for idx in 0..chunk.len() {
+                if idx > 0 {
+                    sql.push(',');
+                }
+                sql.push_str(&format!("?{}", idx + 2));
+            }
+            sql.push_str(") AND superseded_at IS NULL");
+            tx.prepare_cached(&sql)?
+        };
+        let rows = stmt.query_map(
+            rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?)),
+        )?;
+        for row in rows {
+            let (lid, cursor, kind) = row?;
+            map.entry(lid).or_default().push((cursor, kind));
+        }
+    }
+    Ok(map)
+}
+
+fn prefetch_active_edge_cursors_by_logical_id(
+    tx: &Connection,
+    scope: &str,
+    batch: &[PreparedWrite],
+) -> rusqlite::Result<std::collections::HashMap<String, Vec<(i64, String)>>> {
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut distinct: Vec<&str> = Vec::new();
+    for write in batch {
+        let lid = match write {
+            PreparedWrite::Edge { logical_id: Some(id), .. } => Some(id.as_str()),
+            PreparedWrite::ProvenancedEdge(edge) => edge.logical_id.as_deref(),
+            _ => None,
+        };
+        if let Some(id) = lid {
+            if seen.insert(id) {
+                distinct.push(id);
+            }
+        }
+    }
+    let mut map: std::collections::HashMap<String, Vec<(i64, String)>> =
+        std::collections::HashMap::new();
+    if distinct.is_empty() {
+        return Ok(map);
+    }
+    const CHUNK_SIZE: usize = 64;
+    for chunk in distinct.chunks(CHUNK_SIZE) {
+        let mut stmt = if chunk.len() == CHUNK_SIZE {
+            tx.prepare_cached(
+                "SELECT logical_id, write_cursor, kind FROM canonical_edges \
+                 WHERE scope = ?1 AND logical_id IN (\
+                     ?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,\
+                     ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,\
+                     ?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,?49,\
+                     ?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64,?65\
+                 ) AND superseded_at IS NULL",
+            )?
+        } else {
+            let mut sql = String::from(
+                "SELECT logical_id, write_cursor, kind FROM canonical_edges WHERE scope = ?1 AND logical_id IN (",
+            );
+            for idx in 0..chunk.len() {
+                if idx > 0 {
+                    sql.push(',');
+                }
+                sql.push_str(&format!("?{}", idx + 2));
+            }
+            sql.push_str(") AND superseded_at IS NULL");
+            tx.prepare_cached(&sql)?
+        };
+        let rows = stmt.query_map(
+            rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?)),
+        )?;
+        for row in rows {
+            let (lid, cursor, kind) = row?;
+            map.entry(lid).or_default().push((cursor, kind));
+        }
+    }
+    Ok(map)
+}
+
+fn prefetch_registered_revisions(
+    tx: &Connection,
+    scope: &str,
+    revision_ids: &[&str],
+) -> rusqlite::Result<std::collections::HashSet<String>> {
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut distinct: Vec<&str> = Vec::new();
+    for &rev in revision_ids {
+        if seen.insert(rev) {
+            distinct.push(rev);
+        }
+    }
+    let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if distinct.is_empty() {
+        return Ok(registered);
+    }
+    const CHUNK_SIZE: usize = 64;
+    for chunk in distinct.chunks(CHUNK_SIZE) {
+        let any_exists: bool = if chunk.len() == CHUNK_SIZE {
+            tx.prepare_cached(
+                "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions \
+                 WHERE scope = ?1 AND revision_id IN (\
+                     ?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,\
+                     ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,\
+                     ?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,?49,\
+                     ?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64,?65\
+                 ))",
+            )?
+            .query_row(
+                rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+                |row| row.get(0),
+            )?
+        } else {
+            let mut sql = String::from(
+                "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE scope = ?1 AND revision_id IN (",
+            );
+            for idx in 0..chunk.len() {
+                if idx > 0 {
+                    sql.push(',');
+                }
+                sql.push_str(&format!("?{}", idx + 2));
+            }
+            sql.push_str("))");
+            tx.prepare_cached(&sql)?.query_row(
+                rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+                |row| row.get(0),
+            )?
+        };
+        if !any_exists {
+            continue;
+        }
+        let mut stmt = if chunk.len() == CHUNK_SIZE {
+            tx.prepare_cached(
+                "SELECT revision_id FROM _fathomdb_artifact_revisions \
+                 WHERE scope = ?1 AND revision_id IN (\
+                     ?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,\
+                     ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,\
+                     ?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,?49,\
+                     ?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64,?65\
+                 )",
+            )?
+        } else {
+            let mut sql = String::from(
+                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE scope = ?1 AND revision_id IN (",
+            );
+            for idx in 0..chunk.len() {
+                if idx > 0 {
+                    sql.push(',');
+                }
+                sql.push_str(&format!("?{}", idx + 2));
+            }
+            sql.push(')');
+            tx.prepare_cached(&sql)?
+        };
+        let rows = stmt.query_map(
+            rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+            |row| row.get::<_, String>(0),
+        )?;
+        for row in rows {
+            registered.insert(row?);
+        }
+    }
+    Ok(registered)
 }
 
 fn register_artifact_identity(
@@ -212,6 +414,8 @@ fn register_artifact_identity(
     scope: &str,
     original: &PreparedWrite,
     cursor: u64,
+    precomputed_runtime_rev: Option<&str>,
+    registered_revisions: &mut std::collections::HashSet<String>,
 ) -> Result<(), CommitBatchError> {
     let (artifact_class, provenance) = match original {
         PreparedWrite::ProvenancedNode(node) => ("node", Some(&node.provenance)),
@@ -222,8 +426,15 @@ fn register_artifact_identity(
     };
 
     let Some(provenance) = provenance else {
-        let revision_id = runtime_revision_id(original, scope, cursor);
-        if revision_is_registered(tx, scope, &revision_id)? {
+        let computed;
+        let revision_id = match precomputed_runtime_rev {
+            Some(rev) => rev,
+            None => {
+                computed = runtime_revision_id(original, scope, cursor);
+                computed.as_str()
+            }
+        };
+        if registered_revisions.contains(revision_id) {
             return Err(ProvenanceError::new(ProvenanceErrorReason::RevisionIdConflict, "").into());
         }
         tx.prepare_cached(
@@ -238,11 +449,12 @@ fn register_artifact_identity(
             ProvenanceCompleteness::MigratedIncomplete.as_str(),
             scope,
         ])?;
+        registered_revisions.insert(revision_id.to_string());
         return Ok(());
     };
 
     let revision_id = provenance.artifact_revision_id.as_str();
-    if revision_is_registered(tx, scope, revision_id)? {
+    if registered_revisions.contains(revision_id) {
         return Err(ProvenanceError::new(ProvenanceErrorReason::RevisionIdConflict, "").into());
     }
 
@@ -256,9 +468,11 @@ fn register_artifact_identity(
                 .into());
             };
             let existing: Option<String> = tx
-                .query_row(
+                .prepare_cached(
                     "SELECT source_revision_id FROM _fathomdb_source_versions \
                      WHERE scope = ?1 AND source_id = ?2 AND source_version_id = ?3",
+                )?
+                .query_row(
                     params![scope, node.source_id.as_str(), provenance.source_version_id.as_str()],
                     |row| row.get(0),
                 )
@@ -271,36 +485,41 @@ fn register_artifact_identity(
                 .into());
             }
             let hash = canonical_body_hash(&node.body);
-            tx.execute(
+            tx.prepare_cached(
                 "INSERT INTO _fathomdb_artifact_revisions(\
                    schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope\
                  ) VALUES(1, ?1, 'node', ?2, 'canonical_source', ?3, ?4)",
-                params![revision_id, cursor, ProvenanceCompleteness::Complete.as_str(), scope],
-            )?;
-            tx.execute(
+            )?
+            .execute(params![
+                revision_id,
+                cursor,
+                ProvenanceCompleteness::Complete.as_str(),
+                scope
+            ])?;
+            tx.prepare_cached(
                 "INSERT INTO _fathomdb_source_versions(\
                    schema_version, source_id, source_version_id, source_revision_id, scope\
                  ) VALUES(1, ?1, ?2, ?3, ?4)",
-                params![
-                    node.source_id.as_str(),
-                    provenance.source_version_id.as_str(),
-                    revision_id,
-                    scope,
-                ],
-            )?;
-            tx.execute(
+            )?
+            .execute(params![
+                node.source_id.as_str(),
+                provenance.source_version_id.as_str(),
+                revision_id,
+                scope,
+            ])?;
+            tx.prepare_cached(
                 "INSERT INTO _fathomdb_source_links(\
                    schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
                    locator_kind, start_byte, end_byte, hash_algorithm, hash_digest, scope\
                  ) VALUES(1, ?1, ?2, ?3, ?1, 'whole_body', NULL, NULL, 'sha256', ?4, ?5)",
-                params![
-                    revision_id,
-                    node.source_id.as_str(),
-                    provenance.source_version_id.as_str(),
-                    hash,
-                    scope,
-                ],
-            )?;
+            )?
+            .execute(params![
+                revision_id,
+                node.source_id.as_str(),
+                provenance.source_version_id.as_str(),
+                hash,
+                scope,
+            ])?;
         }
         ProvenanceRole::Derived => {
             let source_revision_id = provenance
@@ -308,7 +527,7 @@ fn register_artifact_identity(
                 .as_ref()
                 .expect("derived constructor always sets source revision");
             let source: Option<(String, String, String)> = tx
-                .query_row(
+                .prepare_cached(
                     "SELECT sv.source_id, sv.source_version_id, n.body \
                      FROM _fathomdb_artifact_revisions ar \
                      JOIN _fathomdb_source_versions sv \
@@ -317,9 +536,10 @@ fn register_artifact_identity(
                        ON n.scope = ar.scope AND n.write_cursor = ar.write_cursor \
                      WHERE ar.scope = ?1 AND ar.revision_id = ?2 AND ar.artifact_class = 'node' \
                        AND ar.artifact_role = 'canonical_source'",
-                    params![scope, source_revision_id.as_str()],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-                )
+                )?
+                .query_row(params![scope, source_revision_id.as_str()], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                })
                 .optional()?;
             let Some((stored_source_id, stored_version_id, source_body)) = source else {
                 return Err(ProvenanceError::new(
@@ -380,37 +600,38 @@ fn register_artifact_identity(
                 )
                 .into());
             }
-            tx.execute(
+            tx.prepare_cached(
                 "INSERT INTO _fathomdb_artifact_revisions(\
                    schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope\
                  ) VALUES(1, ?1, ?2, ?3, 'derived_semantic', ?4, ?5)",
-                params![
-                    revision_id,
-                    artifact_class,
-                    cursor,
-                    ProvenanceCompleteness::Complete.as_str(),
-                    scope,
-                ],
-            )?;
-            tx.execute(
+            )?
+            .execute(params![
+                revision_id,
+                artifact_class,
+                cursor,
+                ProvenanceCompleteness::Complete.as_str(),
+                scope,
+            ])?;
+            tx.prepare_cached(
                 "INSERT INTO _fathomdb_source_links(\
                    schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
                    locator_kind, start_byte, end_byte, hash_algorithm, hash_digest, scope\
                  ) VALUES(1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'sha256', ?8, ?9)",
-                params![
-                    revision_id,
-                    stored_source_id,
-                    stored_version_id,
-                    source_revision_id.as_str(),
-                    locator_kind,
-                    start_byte,
-                    end_byte,
-                    supplied_hash.digest_hex(),
-                    scope,
-                ],
-            )?;
+            )?
+            .execute(params![
+                revision_id,
+                stored_source_id,
+                stored_version_id,
+                source_revision_id.as_str(),
+                locator_kind,
+                start_byte,
+                end_byte,
+                supplied_hash.digest_hex(),
+                scope,
+            ])?;
         }
     }
+    registered_revisions.insert(revision_id.to_string());
     Ok(())
 }
 
@@ -539,6 +760,8 @@ pub(crate) fn commit_batch(
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
     endpoint_validation: CommitEndpointValidationMode,
+    preloaded_registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
+    prechecked_guards: Option<PrecheckedWriteGuards>,
     #[cfg(feature = "test-hooks")] abort_next_commit_for_test: bool,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     #[cfg(feature = "test-hooks")]
@@ -554,6 +777,8 @@ pub(crate) fn commit_batch(
         provenance_row_cap,
         vector_kinds_to_enrol,
         endpoint_validation,
+        preloaded_registry,
+        prechecked_guards,
     );
     #[cfg(feature = "test-hooks")]
     if abort_next_commit_for_test {
@@ -572,6 +797,8 @@ fn commit_batch_transaction(
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
     endpoint_validation: CommitEndpointValidationMode,
+    preloaded_registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
+    prechecked_guards: Option<PrecheckedWriteGuards>,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
@@ -630,6 +857,8 @@ fn commit_batch_transaction(
             dependency_closure::SoftClosureMode::Complete,
             endpoint_validation,
             Some(&mut visibility_delta),
+            preloaded_registry,
+            prechecked_guards,
         )
         .and_then(|result| {
             if !batch.is_empty() {
@@ -665,6 +894,8 @@ fn commit_batch_transaction(
         dependency_closure::SoftClosureMode::Complete,
         endpoint_validation,
         None,
+        preloaded_registry,
+        prechecked_guards,
     )?;
     if !batch.is_empty() {
         crate::temporal::record_batch_commit_timestamp(
@@ -843,24 +1074,27 @@ pub(crate) fn apply_batch_in_transaction(
     vector_kinds_to_enrol: &[String],
     closure_mode: dependency_closure::SoftClosureMode,
     endpoint_validation: CommitEndpointValidationMode,
-    mut visibility_delta: Option<&mut VisibilityDelta>,
+    visibility_delta: Option<&mut VisibilityDelta>,
+    preloaded_registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
+    prechecked_guards: Option<PrecheckedWriteGuards>,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
-    let scoped_physical = physical_erasure::guard_plain_write(tx, scope, batch)?;
-    let queued_erasure = erasure_queue::guard_plain(tx, scope, batch)?;
-    if !scoped_physical {
-        dependency_closure::guard_no_pending_physical(tx)?;
-    }
+    let (scoped_physical, queued_erasure) = match prechecked_guards {
+        Some(guards) => (guards.scoped_physical, guards.queued_erasure),
+        None => {
+            let scoped_physical = physical_erasure::guard_plain_write(tx, scope, batch)?;
+            let queued_erasure = erasure_queue::guard_plain(tx, scope, batch)?;
+            if !scoped_physical {
+                dependency_closure::guard_no_pending_physical(tx)?;
+            }
+            (scoped_physical, queued_erasure)
+        }
+    };
     let mut closure_ids = Vec::new();
     for kind in vector_kinds_to_enrol {
         register_vector_kind(tx, kind)?;
     }
     let unstranded =
         if vector_kinds_to_enrol.is_empty() { false } else { reenqueue_stranded_vector_rows(tx)? };
-    if !vector_kinds_to_enrol.is_empty() || unstranded {
-        if let Some(delta) = visibility_delta.as_deref_mut() {
-            delta.record_global_struct();
-        }
-    }
     let has_canonical_writes = batch.iter().any(|write| {
         matches!(
             write,
@@ -870,8 +1104,77 @@ pub(crate) fn apply_batch_in_transaction(
                 | PreparedWrite::ProvenancedEdge(_)
         )
     });
-    let projection_registry =
-        if has_canonical_writes { Some(load_projection_registry(tx)?) } else { None };
+    let loaded_registry = if has_canonical_writes && preloaded_registry.is_none() {
+        Some(load_projection_registry(tx)?)
+    } else {
+        None
+    };
+    let projection_registry = preloaded_registry.or(loaded_registry.as_ref());
+
+    // Pre-fetch active prior cursors and registered revisions in chunks of 64
+    // to collapse ~400 per-row point lookups per 200-row batch down to ~8.
+    let mut node_active_by_logical_id = if batch.len() > 1 {
+        Some(prefetch_active_node_cursors_by_logical_id(tx, scope, batch)?)
+    } else {
+        None
+    };
+    let mut edge_active_by_logical_id = if batch.len() > 1 {
+        Some(prefetch_active_edge_cursors_by_logical_id(tx, scope, batch)?)
+    } else {
+        None
+    };
+    let runtime_revisions: Vec<Option<String>> = batch
+        .iter()
+        .enumerate()
+        .map(|(i, write)| match write {
+            PreparedWrite::Node { .. } | PreparedWrite::Edge { .. } => {
+                let cursor = base_cursor.saturating_add((i as u64).saturating_add(1));
+                Some(runtime_revision_id(write, scope, cursor))
+            }
+            _ => None,
+        })
+        .collect();
+    let revision_refs: Vec<&str> = batch
+        .iter()
+        .enumerate()
+        .filter_map(|(i, write)| match write {
+            PreparedWrite::ProvenancedNode(node) => {
+                Some(node.provenance.artifact_revision_id.as_str())
+            }
+            PreparedWrite::ProvenancedEdge(edge) => {
+                Some(edge.provenance.artifact_revision_id.as_str())
+            }
+            PreparedWrite::Node { .. } | PreparedWrite::Edge { .. } => {
+                runtime_revisions[i].as_deref()
+            }
+            _ => None,
+        })
+        .collect();
+    let mut registered_revisions = prefetch_registered_revisions(tx, scope, &revision_refs)?;
+
+    let mut batch_fts_dirty = false;
+    let mut vector_kind_cache: std::collections::HashMap<String, bool> =
+        std::collections::HashMap::new();
+
+    // Deduplicate VisibilityDelta keys locally across the batch so 200-row
+    // batches do not allocate `format!("node:{kind}")` / `scope.to_string()`
+    // on every row.
+    let track_delta = visibility_delta.is_some();
+    let mut delta_node_all: Option<u64> = None;
+    let mut delta_edge_any: Option<u64> = None;
+    let mut delta_op_state: Option<u64> = None;
+    let mut delta_node_kinds: std::collections::HashMap<&str, u64> =
+        std::collections::HashMap::new();
+    let mut delta_edge_kinds: std::collections::HashMap<&str, u64> =
+        std::collections::HashMap::new();
+    let mut delta_op_logs: std::collections::HashMap<&str, u64> = std::collections::HashMap::new();
+    let mut delta_prior_node_kinds: std::collections::HashMap<String, u64> =
+        std::collections::HashMap::new();
+    let mut delta_prior_edge_kinds: std::collections::HashMap<String, u64> =
+        std::collections::HashMap::new();
+    let mut delta_destructive = false;
+    let mut delta_soft_closure = false;
+    let mut delta_global_struct = !vector_kinds_to_enrol.is_empty() || unstranded;
 
     for (i, (original_write, plan)) in batch.iter().zip(plans).enumerate() {
         // Per-row cursor: row i gets `base_cursor + i + 1`. See the
@@ -900,23 +1203,22 @@ pub(crate) fn apply_batch_in_transaction(
                 WritePlan::Node,
             ) => {
                 if let Some(logical_id) = logical_id {
-                    let prior_g0 = prior_node_cursors_by_logical_id(tx, scope, logical_id)?;
-                    let mut prior_kinds = Vec::new();
-                    if visibility_delta.is_some() && !prior_g0.is_empty() {
-                        for sc in &prior_g0 {
-                            if let Some(pk) = tx
-                                .prepare_cached(
-                                    "SELECT kind FROM canonical_nodes WHERE scope = ?1 AND write_cursor = ?2",
-                                )?
-                                .query_row(params![scope, sc], |row| row.get::<_, String>(0))
-                                .optional()?
-                            {
-                                prior_kinds.push(pk);
-                            }
-                        }
-                    }
+                    let prior_entries: Vec<(i64, Option<String>)> =
+                        if let Some(ref mut node_map) = node_active_by_logical_id {
+                            node_map
+                                .remove(logical_id.as_str())
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|(sc, pk)| (sc, Some(pk)))
+                                .collect()
+                        } else {
+                            prior_node_cursors_by_logical_id(tx, scope, logical_id)?
+                                .into_iter()
+                                .map(|sc| (sc, None))
+                                .collect()
+                        };
                     let mut had_soft_closure = false;
-                    for prior_cursor in &prior_g0 {
+                    for (prior_cursor, _) in &prior_entries {
                         if let Some(source_revision) =
                             dependency_closure::source_revision_for_cursor(
                                 tx,
@@ -937,37 +1239,56 @@ pub(crate) fn apply_batch_in_transaction(
                             }
                         }
                     }
-                    if !prior_g0.is_empty() {
+                    if had_soft_closure {
+                        // `apply_soft_effects` may supersede derived edges; fall back to
+                        // live edge lookups for any subsequent edges in this batch.
+                        edge_active_by_logical_id = None;
+                    }
+                    if !prior_entries.is_empty() {
+                        if track_delta {
+                            delta_destructive = true;
+                            for (sc, cached_kind) in &prior_entries {
+                                let pk = match cached_kind {
+                                    Some(pk) => Some(pk.clone()),
+                                    None => tx
+                                        .prepare_cached(
+                                            "SELECT kind FROM canonical_nodes WHERE scope = ?1 AND write_cursor = ?2",
+                                        )?
+                                        .query_row(params![scope, sc], |row| {
+                                            row.get::<_, String>(0)
+                                        })
+                                        .optional()?,
+                                };
+                                if let Some(pk) = pk {
+                                    if pk != *kind {
+                                        delta_prior_node_kinds
+                                            .entry(pk)
+                                            .and_modify(|c| *c = (*c).max(cursor))
+                                            .or_insert(cursor);
+                                    }
+                                }
+                            }
+                            if had_soft_closure {
+                                delta_soft_closure = true;
+                            }
+                        }
                         tx.prepare_cached(
                             "UPDATE canonical_nodes SET superseded_at = ?1
                              WHERE scope = ?2 AND logical_id = ?3 AND superseded_at IS NULL",
                         )?
                         .execute(params![cursor, scope, logical_id])?;
-                        if let Some(delta) = visibility_delta.as_deref_mut() {
-                            delta.record_destructive(scope);
-                            for pk in prior_kinds {
-                                if pk != *kind {
-                                    delta.record_add(scope, format!("node:{pk}"), cursor);
-                                }
-                            }
-                            if had_soft_closure {
-                                delta.record_add(scope, "scope_dependency", 0);
-                                delta.record_add(scope, "edge_any", 0);
-                                delta.record_add(scope, "vector_ready_all", 0);
-                            }
+                        for (sc, _) in &prior_entries {
+                            vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
+                            purge_row_projections_for_cursor_in(
+                                tx,
+                                *sc,
+                                &[
+                                    ProjectionClass::Attribute,
+                                    ProjectionClass::PropertyFts,
+                                    ProjectionClass::PropertyValue,
+                                ],
+                            )?;
                         }
-                    }
-                    for sc in &prior_g0 {
-                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
-                        purge_row_projections_for_cursor_in(
-                            tx,
-                            *sc,
-                            &[
-                                ProjectionClass::Attribute,
-                                ProjectionClass::PropertyFts,
-                                ProjectionClass::PropertyValue,
-                            ],
-                        )?;
                     }
                 }
                 let encoded_properties =
@@ -978,6 +1299,14 @@ pub(crate) fn apply_batch_in_transaction(
                      VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 )?
                 .execute(params![cursor, kind, body, source_id.as_str(), logical_id, RowKind::Leaf.as_str(), state.as_str(), reason, valid_from, valid_until, encoded_properties, scope])?;
+                if let (Some(logical_id), Some(ref mut node_map)) =
+                    (logical_id, &mut node_active_by_logical_id)
+                {
+                    node_map
+                        .entry(logical_id.clone())
+                        .or_default()
+                        .push((cursor as i64, kind.clone()));
+                }
                 project_canonical_node_row(
                     tx,
                     cursor,
@@ -987,11 +1316,21 @@ pub(crate) fn apply_batch_in_transaction(
                     ProjectionPass::Write,
                     matches!(state, InitialState::Active),
                     properties.as_ref(),
-                    projection_registry.as_ref(),
+                    projection_registry,
+                    Some(&mut batch_fts_dirty),
+                    Some(&mut vector_kind_cache),
                 )?;
-                if let Some(delta) = visibility_delta.as_deref_mut() {
-                    delta.record_add(scope, format!("node:{kind}"), cursor);
-                    delta.record_add(scope, "node_all", cursor);
+                if track_delta {
+                    let kind_ref = match original_write {
+                        PreparedWrite::Node { kind, .. } => kind.as_str(),
+                        PreparedWrite::ProvenancedNode(node) => node.kind.as_str(),
+                        _ => unreachable!(),
+                    };
+                    delta_node_kinds
+                        .entry(kind_ref)
+                        .and_modify(|c| *c = (*c).max(cursor))
+                        .or_insert(cursor);
+                    delta_node_all = Some(delta_node_all.map_or(cursor, |c| c.max(cursor)));
                 }
             }
             (
@@ -1014,12 +1353,27 @@ pub(crate) fn apply_batch_in_transaction(
                 let mut edge_superseded = false;
                 let mut prior_edge_kinds = Vec::new();
                 if let Some(logical_id) = logical_id {
-                    let prior_g0 = prior_edge_cursors_by_logical_id(tx, scope, logical_id)?;
-                    if !prior_g0.is_empty() {
+                    let prior_entries: Vec<(i64, Option<String>)> =
+                        if let Some(ref mut edge_map) = edge_active_by_logical_id {
+                            edge_map
+                                .remove(logical_id.as_str())
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|(sc, pk)| (sc, Some(pk)))
+                                .collect()
+                        } else {
+                            prior_edge_cursors_by_logical_id(tx, scope, logical_id)?
+                                .into_iter()
+                                .map(|sc| (sc, None))
+                                .collect()
+                        };
+                    if !prior_entries.is_empty() {
                         edge_superseded = true;
-                        if visibility_delta.is_some() {
-                            for sc in &prior_g0 {
-                                if let Some(pk) = tx
+                        if track_delta {
+                            for (sc, cached_kind) in &prior_entries {
+                                if let Some(pk) = cached_kind {
+                                    prior_edge_kinds.push(pk.clone());
+                                } else if let Some(pk) = tx
                                     .prepare_cached(
                                         "SELECT kind FROM canonical_edges WHERE scope = ?1 AND write_cursor = ?2",
                                     )?
@@ -1035,7 +1389,7 @@ pub(crate) fn apply_batch_in_transaction(
                              WHERE scope = ?2 AND logical_id = ?3 AND superseded_at IS NULL",
                         )?
                         .execute(params![cursor, scope, logical_id])?;
-                        for sc in &prior_g0 {
+                        for (sc, _) in &prior_entries {
                             vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                             purge_row_projections_for_cursor_in(
                                 tx,
@@ -1049,6 +1403,9 @@ pub(crate) fn apply_batch_in_transaction(
                     let prior_g11 = prior_edge_cursors_by_triple(tx, scope, from, to, kind)?;
                     if !prior_g11.is_empty() {
                         edge_superseded = true;
+                        // Triple supersession may supersede an edge cached under another
+                        // logical_id; invalidate the pre-fetched map for remaining edges.
+                        edge_active_by_logical_id = None;
                         tx.prepare_cached(
                             "UPDATE canonical_edges SET superseded_at = ?1
                              WHERE scope = ?2 AND from_id = ?3 AND to_id = ?4 AND kind = ?5 AND superseded_at IS NULL",
@@ -1092,6 +1449,14 @@ pub(crate) fn apply_batch_in_transaction(
                     encoded_properties,
                     scope,
                 ])?;
+                if let (Some(logical_id), Some(ref mut edge_map)) =
+                    (logical_id, &mut edge_active_by_logical_id)
+                {
+                    edge_map
+                        .entry(logical_id.clone())
+                        .or_default()
+                        .push((cursor as i64, kind.clone()));
+                }
                 let (_enqueued_vec, enrolled_vk) = project_canonical_edge_row(
                     tx,
                     cursor,
@@ -1100,21 +1465,33 @@ pub(crate) fn apply_batch_in_transaction(
                     ProjectionPass::Write,
                     properties.as_ref(),
                     true,
-                    projection_registry.as_ref(),
+                    projection_registry,
+                    Some(&mut batch_fts_dirty),
                 )?;
-                if let Some(delta) = visibility_delta.as_deref_mut() {
-                    delta.record_add(scope, format!("edge:{kind}"), cursor);
-                    delta.record_add(scope, "edge_any", cursor);
+                if track_delta {
+                    let kind_ref = match original_write {
+                        PreparedWrite::Edge { kind, .. } => kind.as_str(),
+                        PreparedWrite::ProvenancedEdge(edge) => edge.kind.as_str(),
+                        _ => unreachable!(),
+                    };
+                    delta_edge_kinds
+                        .entry(kind_ref)
+                        .and_modify(|c| *c = (*c).max(cursor))
+                        .or_insert(cursor);
+                    delta_edge_any = Some(delta_edge_any.map_or(cursor, |c| c.max(cursor)));
                     if edge_superseded {
-                        delta.record_destructive(scope);
+                        delta_destructive = true;
                         for pk in prior_edge_kinds {
                             if pk != *kind {
-                                delta.record_add(scope, format!("edge:{pk}"), cursor);
+                                delta_prior_edge_kinds
+                                    .entry(pk)
+                                    .and_modify(|c| *c = (*c).max(cursor))
+                                    .or_insert(cursor);
                             }
                         }
                     }
                     if enrolled_vk {
-                        delta.record_global_struct();
+                        delta_global_struct = true;
                     }
                 }
             }
@@ -1144,8 +1521,8 @@ pub(crate) fn apply_batch_in_transaction(
                     "up_to_date",
                     ProjectionTerminalOwnerKind::NonCanonical,
                 )?;
-                if let Some(delta) = visibility_delta.as_deref_mut() {
-                    delta.record_global_struct();
+                if track_delta {
+                    delta_global_struct = true;
                 }
             }
             (
@@ -1164,8 +1541,13 @@ pub(crate) fn apply_batch_in_transaction(
                     "up_to_date",
                     ProjectionTerminalOwnerKind::NonCanonical,
                 )?;
-                if let Some(delta) = visibility_delta.as_deref_mut() {
-                    delta.record_add(scope, format!("op_log:{collection}"), cursor);
+                if track_delta {
+                    if let PreparedWrite::OpStore { collection, .. } = original_write {
+                        delta_op_logs
+                            .entry(collection.as_str())
+                            .and_modify(|c| *c = (*c).max(cursor))
+                            .or_insert(cursor);
+                    }
                 }
             }
             (
@@ -1188,13 +1570,58 @@ pub(crate) fn apply_batch_in_transaction(
                     "up_to_date",
                     ProjectionTerminalOwnerKind::NonCanonical,
                 )?;
-                if let Some(delta) = visibility_delta.as_deref_mut() {
-                    delta.record_add(scope, "op_state", cursor);
+                if track_delta {
+                    delta_op_state = Some(delta_op_state.map_or(cursor, |c| c.max(cursor)));
                 }
             }
             _ => return Err(rusqlite::Error::InvalidQuery.into()),
         }
-        register_artifact_identity(tx, scope, original_write, cursor)?;
+        register_artifact_identity(
+            tx,
+            scope,
+            original_write,
+            cursor,
+            runtime_revisions[i].as_deref(),
+            &mut registered_revisions,
+        )?;
+    }
+
+    if let Some(delta) = visibility_delta {
+        for (kind, max_cursor) in delta_node_kinds {
+            delta.record_add(scope, format!("node:{kind}"), max_cursor);
+        }
+        for (kind, max_cursor) in delta_prior_node_kinds {
+            delta.record_add(scope, format!("node:{kind}"), max_cursor);
+        }
+        if let Some(max_cursor) = delta_node_all {
+            delta.record_add(scope, "node_all", max_cursor);
+        }
+        for (kind, max_cursor) in delta_edge_kinds {
+            delta.record_add(scope, format!("edge:{kind}"), max_cursor);
+        }
+        for (kind, max_cursor) in delta_prior_edge_kinds {
+            delta.record_add(scope, format!("edge:{kind}"), max_cursor);
+        }
+        if let Some(max_cursor) = delta_edge_any {
+            delta.record_add(scope, "edge_any", max_cursor);
+        }
+        for (collection, max_cursor) in delta_op_logs {
+            delta.record_add(scope, format!("op_log:{collection}"), max_cursor);
+        }
+        if let Some(max_cursor) = delta_op_state {
+            delta.record_add(scope, "op_state", max_cursor);
+        }
+        if delta_destructive {
+            delta.record_destructive(scope);
+        }
+        if delta_soft_closure {
+            delta.record_add(scope, "scope_dependency", 0);
+            delta.record_add(scope, "edge_any", 0);
+            delta.record_add(scope, "vector_ready_all", 0);
+        }
+        if delta_global_struct {
+            delta.record_global_struct();
+        }
     }
 
     let dangling_edge_endpoints: u64 = match endpoint_validation {
@@ -1694,4 +2121,248 @@ fn coalescing_refuses_pre_disabled_native_triggers_without_mutation() {
         0
     );
     assert!(!tx.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER).unwrap());
+}
+
+#[cfg(test)]
+#[test]
+fn writer_connection_sets_cache_size_4mib_and_batch_write_eliminates_redundant_sql() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    let dir = tempfile::tempdir().unwrap();
+    let opened = Engine::open(dir.path().join("batch-perf-red.sqlite")).unwrap();
+
+    // Fix 2A: writer connection must configure PRAGMA cache_size = -4000 (4 MiB).
+    let writer_cache_size: i64 = {
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let conn = guard.as_mut().unwrap();
+        conn.query_row("PRAGMA cache_size", [], |row| row.get(0)).unwrap()
+    };
+    assert_eq!(writer_cache_size, -4000, "writer connection cache_size must be -4000 (4 MiB)");
+
+    // Fix 2B: instrument writer SQL statements across a 200-node batch.
+    let mark_dirty_calls = Arc::new(AtomicUsize::new(0));
+    let terminal_point_lookups = Arc::new(AtomicUsize::new(0));
+    let prior_node_point_lookups = Arc::new(AtomicUsize::new(0));
+    let revision_point_lookups = Arc::new(AtomicUsize::new(0));
+    let vector_kind_lookups = Arc::new(AtomicUsize::new(0));
+
+    {
+        let md = Arc::clone(&mark_dirty_calls);
+        let tp = Arc::clone(&terminal_point_lookups);
+        let pn = Arc::clone(&prior_node_point_lookups);
+        let rv = Arc::clone(&revision_point_lookups);
+        let vk = Arc::clone(&vector_kind_lookups);
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let conn = guard.as_mut().unwrap();
+        conn.trace_v2(
+            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+            Some(move |event: rusqlite::trace::TraceEvent<'_>| {
+                if let rusqlite::trace::TraceEvent::Stmt(_, sql) = event {
+                    if sql.contains("UPDATE _fathomdb_open_state") && sql.contains("dirty") {
+                        md.fetch_add(1, Ordering::Relaxed);
+                    }
+                    if sql.contains(
+                        "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor = ?1",
+                    ) {
+                        tp.fetch_add(1, Ordering::Relaxed);
+                    }
+                    if sql.contains("SELECT write_cursor FROM canonical_nodes")
+                        && sql.contains("logical_id = ?2")
+                    {
+                        pn.fetch_add(1, Ordering::Relaxed);
+                    }
+                    if sql.contains(
+                        "FROM _fathomdb_artifact_revisions WHERE scope = ?1 AND revision_id = ?2",
+                    ) {
+                        rv.fetch_add(1, Ordering::Relaxed);
+                    }
+                    if sql.contains("FROM _fathomdb_vector_kinds WHERE kind = ?1") {
+                        vk.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+            }),
+        )
+        .unwrap();
+    }
+
+    let batch: Vec<PreparedWrite> = (0..200)
+        .map(|i| PreparedWrite::Node {
+            kind: "note".to_string(),
+            body: format!("batch performance test body {i}"),
+            source_id: SourceId::new(format!("src:batch-{i}")).unwrap(),
+            logical_id: Some(format!("node:{i}")),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        })
+        .collect();
+    let receipt = opened.engine.write(&batch).unwrap();
+    assert_eq!(receipt.cursor, 200);
+
+    {
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let conn = guard.as_mut().unwrap();
+        conn.trace_v2(
+            rusqlite::trace::TraceEventCodes::empty(),
+            None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+        )
+        .unwrap();
+    }
+
+    assert!(
+        mark_dirty_calls.load(Ordering::Relaxed) <= 1,
+        "mark_dirty must be hoisted out of per-row loop, got {}",
+        mark_dirty_calls.load(Ordering::Relaxed)
+    );
+    assert_eq!(
+        terminal_point_lookups.load(Ordering::Relaxed),
+        0,
+        "advance_projection_cursor must use range fast-path instead of per-row point lookups"
+    );
+    assert_eq!(
+        prior_node_point_lookups.load(Ordering::Relaxed),
+        0,
+        "prior_node_cursors must use batched IN lookups instead of per-row point lookups"
+    );
+    assert_eq!(
+        revision_point_lookups.load(Ordering::Relaxed),
+        0,
+        "revision_is_registered must use batched IN lookups instead of per-row point lookups"
+    );
+    assert!(
+        vector_kind_lookups.load(Ordering::Relaxed) <= 4,
+        "kind_is_vector_indexed must deduplicate per distinct kind, got {}",
+        vector_kind_lookups.load(Ordering::Relaxed)
+    );
+
+    // Intra-batch supersession parity: duplicate node logical_id in one batch supersedes earlier item.
+    let dup_batch = vec![
+        PreparedWrite::Node {
+            kind: "note".to_string(),
+            body: "first version".to_string(),
+            source_id: SourceId::new("src:dup-1").unwrap(),
+            logical_id: Some("dup:node".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        },
+        PreparedWrite::Node {
+            kind: "note".to_string(),
+            body: "second version".to_string(),
+            source_id: SourceId::new("src:dup-2").unwrap(),
+            logical_id: Some("dup:node".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        },
+    ];
+    let dup_receipt = opened.engine.write(&dup_batch).unwrap();
+    assert_eq!(dup_receipt.cursor, 202);
+    let active_dup_bodies: Vec<String> = {
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let conn = guard.as_mut().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT body FROM canonical_nodes WHERE logical_id = 'dup:node' AND superseded_at IS NULL")
+            .unwrap();
+        stmt.query_map([], |r| r.get::<_, String>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap()
+    };
+    assert_eq!(active_dup_bodies, vec!["second version".to_string()]);
+
+    // Intra-batch duplicate explicit artifact_revision_id must still fail with RevisionIdConflict.
+    let conflict_batch = vec![
+        PreparedWrite::ProvenancedNode(crate::ProvenancedNodeV1 {
+            kind: "note".to_string(),
+            body: "rev one".to_string(),
+            source_id: SourceId::new("src:rev-1").unwrap(),
+            logical_id: Some("rev:1".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: crate::WriteProvenanceV1::canonical(
+                crate::ArtifactRevisionId::new("rev-dup-same-batch").unwrap(),
+                crate::SourceVersionId::new("ver-dup-1").unwrap(),
+            ),
+            properties: None,
+        }),
+        PreparedWrite::ProvenancedNode(crate::ProvenancedNodeV1 {
+            kind: "note".to_string(),
+            body: "rev two".to_string(),
+            source_id: SourceId::new("src:rev-2").unwrap(),
+            logical_id: Some("rev:2".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: crate::WriteProvenanceV1::canonical(
+                crate::ArtifactRevisionId::new("rev-dup-same-batch").unwrap(),
+                crate::SourceVersionId::new("ver-dup-2").unwrap(),
+            ),
+            properties: None,
+        }),
+    ];
+    let conflict_err = opened.engine.write(&conflict_batch).unwrap_err();
+    assert!(
+        matches!(
+            conflict_err,
+            EngineError::Provenance(ref e)
+                if e.reason == crate::ProvenanceErrorReason::RevisionIdConflict
+        ),
+        "intra-batch duplicate artifact_revision_id must fail with RevisionIdConflict, got {conflict_err:?}"
+    );
+    // Intra-batch duplicate edge logical_id must supersede earlier item cleanly.
+    let edge_dup_batch = vec![
+        PreparedWrite::Edge {
+            kind: "links".to_string(),
+            from: "node:0".to_string(),
+            to: "node:1".to_string(),
+            source_id: SourceId::new("src:edup-1").unwrap(),
+            logical_id: Some("dup:edge".to_string()),
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.5),
+            extractor_model_id: None,
+            temporal_fallback: None,
+            properties: None,
+        },
+        PreparedWrite::Edge {
+            kind: "links".to_string(),
+            from: "node:0".to_string(),
+            to: "node:2".to_string(),
+            source_id: SourceId::new("src:edup-2").unwrap(),
+            logical_id: Some("dup:edge".to_string()),
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.9),
+            extractor_model_id: None,
+            temporal_fallback: None,
+            properties: None,
+        },
+    ];
+    opened.engine.write(&edge_dup_batch).unwrap();
+    let active_dup_edges: i64 = {
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let conn = guard.as_mut().unwrap();
+        conn.query_row(
+            "SELECT COUNT(*) FROM canonical_edges WHERE logical_id = 'dup:edge' AND superseded_at IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap()
+    };
+    assert_eq!(active_dup_edges, 1);
+
+    opened.engine.close().unwrap();
 }

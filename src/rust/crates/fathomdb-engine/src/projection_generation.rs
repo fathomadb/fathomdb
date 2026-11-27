@@ -273,6 +273,42 @@ impl ProjectionGenerationStatusCache {
         Ok(())
     }
 
+    /// Seed a pooled reader slot at startup without querying any table (avoiding
+    /// eager SQLite `sqlite3Init()` schema parsing across all 8 reader connections
+    /// during `Engine::open`).
+    ///
+    /// Reads only `PRAGMA main.data_version` (and `total_changes`) on the reader
+    /// connection, and inherits `(visibility_generation, state_nonce)` from the
+    /// `Primary` slot that `Engine::open` already observed under the product lock.
+    /// If an external writer tampers after open (even without touching a
+    /// visibility-triggered table), the reader's `PRAGMA main.data_version` bumps
+    /// on its first read transaction and Subcase A1 invalidates immediately.
+    pub(crate) fn observe_reader_startup(
+        &self,
+        connection: &Connection,
+        slot: StatusCacheConnectionSlot,
+    ) -> Result<(), EngineError> {
+        let data_version: u64 = connection
+            .pragma_query_value(Some("main"), "data_version", |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        let total_changes = connection.total_changes();
+        let slot_idx = slot.index(self.reader_worker_count);
+        let primary_idx = StatusCacheConnectionSlot::Primary.index(self.reader_worker_count);
+        let mut state = self.state.lock().map_err(|_| EngineError::Storage)?;
+        let Some(primary) = state.slots[primary_idx].clone() else {
+            return Ok(());
+        };
+        let epoch = state.cache_epoch;
+        state.slots[slot_idx] = Some(SlotObservation {
+            data_version,
+            total_changes,
+            visibility_generation: primary.visibility_generation,
+            state_nonce: primary.state_nonce,
+            epoch,
+        });
+        Ok(())
+    }
+
     pub(crate) fn snapshot_epoch(&self) -> Result<u64, EngineError> {
         Ok(self.state.lock().map_err(|_| EngineError::Storage)?.cache_epoch)
     }
@@ -3284,5 +3320,53 @@ mod tests {
             "Primary mutation cache must detect same-connection total_changes mutation"
         );
         opened.engine.close().unwrap();
+    }
+
+    #[test]
+    fn observe_reader_startup_defers_sqlite_schema_init_and_detects_external_write() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("reader-startup-lazy.sqlite");
+        let opened = Engine::open(&path).unwrap();
+        opened.engine.close().unwrap();
+
+        let db_status = |c: &Connection| -> (i32, i32) {
+            let (mut cm, mut cm_hi, mut su, mut su_hi) = (0, 0, 0, 0);
+            unsafe {
+                rusqlite::ffi::sqlite3_db_status(
+                    c.handle(),
+                    rusqlite::ffi::SQLITE_DBSTATUS_CACHE_MISS,
+                    &mut cm,
+                    &mut cm_hi,
+                    0,
+                );
+                rusqlite::ffi::sqlite3_db_status(
+                    c.handle(),
+                    rusqlite::ffi::SQLITE_DBSTATUS_SCHEMA_USED,
+                    &mut su,
+                    &mut su_hi,
+                    0,
+                );
+            }
+            (cm, su)
+        };
+
+        let c = Connection::open(&path).unwrap();
+        c.pragma_update(None, "secure_delete", "ON").unwrap();
+        c.pragma_update(None, "query_only", "ON").unwrap();
+        let dv1: u64 = c.pragma_query_value(Some("main"), "data_version", |r| r.get(0)).unwrap();
+        let (cm_after_startup, schema_used_after_startup) = db_status(&c);
+        assert!(cm_after_startup <= 2, "expected <=2 cache misses, got {cm_after_startup}");
+        assert_eq!(
+            schema_used_after_startup, 0,
+            "reader startup must not eagerly run sqlite3Init()"
+        );
+
+        let ext = Connection::open(&path).unwrap();
+        ext.execute("INSERT INTO _fathomdb_open_state(key, value) VALUES('probe_k', 'v1')", [])
+            .unwrap();
+        drop(ext);
+
+        let dv2: u64 = c.pragma_query_value(Some("main"), "data_version", |r| r.get(0)).unwrap();
+        assert!(dv2 > dv1, "external write must bump PRAGMA main.data_version ({dv1} -> {dv2})");
     }
 }

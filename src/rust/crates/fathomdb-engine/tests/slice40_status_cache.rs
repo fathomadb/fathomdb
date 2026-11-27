@@ -653,3 +653,44 @@ fn interleaved_valid_as_of_no_thrash_and_multi_scope_isolation() {
         a.close().unwrap();
     }
 }
+
+#[test]
+fn primary_warmed_then_external_tamper_detected_by_cold_pooled_readers() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("tamper-primary-warm-cold-readers{SQLITE_SUFFIX}"));
+    let cursors = seed_store(&path);
+
+    let opened =
+        Engine::open_with_choice_and_config(&path, EmbedderChoice::None, EngineConfig::default())
+            .unwrap();
+
+    // Reader workers must start with zero page-cache misses/loads beyond header probe
+    // (lazy sqlite3Init: no full schema parse before first read).
+    let cold_cache_status = opened.engine.cache_status_per_worker_for_test("startup");
+    assert_eq!(cold_cache_status.len(), 8);
+    assert!(
+        cold_cache_status.iter().all(|reply| reply.cache_miss <= 2),
+        "reader startup should not eagerly scan sqlite_master/tables during Engine::open: {cold_cache_status:?}"
+    );
+
+    // Warm the shared status cache via Primary ONLY while all 8 reader workers remain cold.
+    let status = opened.engine.read_projection_generation_status().unwrap();
+    assert_eq!(status.readiness, ProjectionReadinessV1::Ready);
+
+    // External tamper on vector_default (no visibility_generation bump).
+    let ext = Connection::open(&path).unwrap();
+    ext.execute("DELETE FROM vector_default WHERE rowid=?1", [cursors[0]]).unwrap();
+    drop(ext);
+
+    // Every cold reader worker MUST detect the external tamper via PRAGMA data_version
+    // and refuse to serve Primary's stale cached Ready status!
+    for slot in 0..8 {
+        assert_corrupt_err(
+            opened.engine.search_explained("aurora quantum", None, 0, false, 0.3, 0),
+            &format!(
+                "cold pooled worker {slot} after Primary-warm + external vector_default tamper"
+            ),
+        );
+    }
+    opened.engine.close().unwrap();
+}

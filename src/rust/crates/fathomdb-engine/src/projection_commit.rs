@@ -59,11 +59,8 @@ fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite:
 
 pub(crate) fn load_projection_cursor(connection: &Connection) -> rusqlite::Result<u64> {
     connection
-        .query_row(
-            "SELECT value FROM _fathomdb_open_state WHERE key = ?1",
-            [PROJECTION_CURSOR_KEY],
-            |row| row.get::<_, String>(0),
-        )
+        .prepare_cached("SELECT value FROM _fathomdb_open_state WHERE key = ?1")?
+        .query_row([PROJECTION_CURSOR_KEY], |row| row.get::<_, String>(0))
         .map(|value| value.parse::<u64>().unwrap_or(0))
         .or_else(|err| match err {
             rusqlite::Error::QueryReturnedNoRows => Ok(0),
@@ -75,11 +72,12 @@ pub(crate) fn store_projection_cursor(
     connection: &Connection,
     cursor: u64,
 ) -> rusqlite::Result<()> {
-    connection.execute(
-        "INSERT INTO _fathomdb_open_state(key, value) VALUES(?1, ?2)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        params![PROJECTION_CURSOR_KEY, cursor.to_string()],
-    )?;
+    connection
+        .prepare_cached(
+            "INSERT INTO _fathomdb_open_state(key, value) VALUES(?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )?
+        .execute(params![PROJECTION_CURSOR_KEY, cursor.to_string()])?;
     Ok(())
 }
 
@@ -153,15 +151,39 @@ fn projection_tuple_corruption() -> rusqlite::Error {
 
 pub(crate) fn advance_projection_cursor(connection: &Connection) -> rusqlite::Result<u64> {
     let mut cursor = load_projection_cursor(connection)?;
-    loop {
-        if cursor >= i64::MAX as u64 {
-            break;
-        }
-        let next = cursor.saturating_add(1);
-        if terminal_state_for_cursor(connection, next)?.is_some() {
-            cursor = next;
-        } else {
-            break;
+    if cursor < i64::MAX as u64 {
+        let cursor_i64 = cursor as i64;
+        let (max_cursor, count): (Option<i64>, i64) = connection
+            .prepare_cached(
+                "SELECT MAX(write_cursor), COUNT(*) FROM _fathomdb_projection_terminal \
+                 WHERE write_cursor > ?1",
+            )?
+            .query_row([cursor_i64], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        if let Some(max_c) = max_cursor {
+            if max_c > cursor_i64 && count > 0 {
+                let span = max_c - cursor_i64;
+                if count == span {
+                    // Contiguous suffix with no gaps: jump straight to `max_c` in 1 query.
+                    cursor = max_c as u64;
+                } else {
+                    // A gap exists: single ordered scan stopping at the first missing cursor.
+                    let mut stmt = connection.prepare_cached(
+                        "SELECT write_cursor FROM _fathomdb_projection_terminal \
+                         WHERE write_cursor > ?1 ORDER BY write_cursor ASC",
+                    )?;
+                    let mut rows = stmt.query([cursor_i64])?;
+                    while let Some(row) = rows.next()? {
+                        let val: i64 = row.get(0)?;
+                        if val < 0 || val as u64 != cursor.saturating_add(1) {
+                            break;
+                        }
+                        cursor = val as u64;
+                        if cursor >= i64::MAX as u64 {
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
     store_projection_cursor(connection, cursor)?;

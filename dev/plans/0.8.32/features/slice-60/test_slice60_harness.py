@@ -483,3 +483,21 @@ def test_gate1_d10_workers_smoke_on_real_engine(tmp_path: Path) -> None:
     assert blk_res["explain_false_ids"] == blk_res["explain_true_ids"]
     assert all(len(ids) > 0 for ids in blk_res["explain_false_ids"])
 
+    # Verify realistic Gate1-D10 fixture shape: non-adopted `source` bodies are ~2.5 KB
+    # while `adopted` bodies stay concise.
+    import sqlite3
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        avg_source_len = conn.execute(
+            "SELECT AVG(LENGTH(body)) FROM canonical_nodes WHERE kind = 'source'"
+        ).fetchone()[0]
+        avg_adopted_len = conn.execute(
+            "SELECT AVG(LENGTH(body)) FROM canonical_nodes WHERE kind = 'adopted'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert 2000 <= avg_source_len <= 3200, f"expected ~2.5 KB source bodies, got {avg_source_len}"
+    assert avg_adopted_len < 300, f"expected concise adopted bodies, got {avg_adopted_len}"
+
+

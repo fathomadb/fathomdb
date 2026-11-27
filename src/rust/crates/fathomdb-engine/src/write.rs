@@ -427,17 +427,21 @@ impl Engine {
         // common case — every kind in the batch already enrolled, or no vector
         // projection declared at all — still pays only the probes it paid before
         // and never takes a write lock.
+        let mut seen_kinds: std::collections::HashSet<&str> = std::collections::HashSet::new();
         let mut to_enrol: Vec<String> = Vec::new();
         for write in batch {
-            let write = storage_write_shape(write);
             // Only `Node` writes: edge bodies enrol `'edge_fact'` themselves in
             // `project_canonical_edge_row` (G11), unconditionally and already.
-            let PreparedWrite::Node { kind, .. } = write.as_ref() else { continue };
-            if to_enrol.contains(kind) {
+            let kind = match write {
+                PreparedWrite::Node { kind, .. } => kind.as_str(),
+                PreparedWrite::ProvenancedNode(node) => node.kind.as_str(),
+                _ => continue,
+            };
+            if !seen_kinds.insert(kind) {
                 continue;
             }
             if self.vector_kind_needs_enrolment(connection, kind, RowKind::Leaf)? {
-                to_enrol.push(kind.clone());
+                to_enrol.push(kind.to_string());
             }
         }
         Ok(to_enrol)
@@ -540,12 +544,13 @@ impl Engine {
         let abort_next_commit_for_test =
             crate::write_commit::take_write_commit_abort_marker_for_test(connection)
                 .map_err(|_| EngineError::Storage)?;
-        erasure_queue::guard_plain(connection, &write_scope, batch)?;
-        if !physical_erasure::guard_plain_write(connection, &write_scope, batch)? {
+        let queued_erasure = erasure_queue::guard_plain(connection, &write_scope, batch)?;
+        let scoped_physical = physical_erasure::guard_plain_write(connection, &write_scope, batch)?;
+        if !scoped_physical {
             dependency_closure::maintain_before_writer(connection)?;
         }
         let plans = validate_batch(connection, batch)?;
-        validate_nested_projection_sources_for_write(connection, batch)?;
+        let preloaded_registry = validate_nested_projection_sources_for_write(connection, batch)?;
         // The enrolment decision is read-only here. Registration and stranded-row
         // repair commit inside the canonical batch transaction below, after all
         // provenance checks have succeeded.
@@ -566,11 +571,15 @@ impl Engine {
         let increment = u64::try_from(batch.len()).unwrap_or(u64::MAX);
         let last_cursor = base_cursor.saturating_add(increment);
         // G11 (Slice 15) — edge bodies also need projection-runtime notification.
-        // `collect_projection_jobs` only tracks Node items (pre-fetched for
-        // cursor assignment); edge bodies update `_fathomdb_projection_state` in
-        // `commit_batch` but need the scanner to wake up via `notify_new_work`.
+        // `collect_projection_jobs` only tracks Node items; edge bodies
+        // update `_fathomdb_projection_state` in `commit_batch` and need the
+        // scanner to wake up via `notify_new_work`.
         let has_edge_body_work = batch.iter().any(|write| {
-            matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { body: Some(_), .. })
+            matches!(
+                write,
+                PreparedWrite::Edge { body: Some(_), .. }
+                    | PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 { body: Some(_), .. })
+            )
         });
         let (dangling_edge_endpoints, unstranded, _closure_ids) = match commit_batch(
             connection,
@@ -581,6 +590,8 @@ impl Engine {
             self.provenance_row_cap.load(Ordering::Relaxed),
             &vector_kinds_to_enrol,
             endpoint_validation,
+            preloaded_registry.as_ref(),
+            Some(crate::write_commit::PrecheckedWriteGuards { scoped_physical, queued_erasure }),
             #[cfg(feature = "test-hooks")]
             abort_next_commit_for_test,
         ) {
@@ -698,6 +709,8 @@ impl Engine {
                 // `state = 'active'` (no state column in its INSERT), so the row
                 // is always active and its attributes project.
                 true,
+                None,
+                None,
                 None,
                 None,
             )

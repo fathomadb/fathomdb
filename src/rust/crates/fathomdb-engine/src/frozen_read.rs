@@ -604,17 +604,88 @@ pub(crate) fn require_clean_visibility(connection: &Connection) -> Result<(), En
     Ok(())
 }
 
+static EXPECTED_VISIBILITY_TRIGGERS_CURRENT: std::sync::LazyLock<Vec<(String, String)>> =
+    std::sync::LazyLock::new(|| {
+        let schema_version = fathomdb_schema::SCHEMA_VERSION;
+        let mut triggers = Vec::with_capacity(fathomdb_schema::TABLE_MANIFEST.len() * 3);
+        for entry in fathomdb_schema::TABLE_MANIFEST.iter().filter(|entry| {
+            entry.visibility_trigger_prefix.is_some()
+                && entry.visibility_trigger_min_version.is_some_and(|min| min <= schema_version)
+        }) {
+            let short = entry.visibility_trigger_prefix.expect("checked some");
+            for (suffix, operation) in [("ai", "INSERT"), ("au", "UPDATE"), ("ad", "DELETE")] {
+                let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
+                let expected = fathomdb_schema::expected_visibility_trigger_sql(
+                    entry,
+                    suffix,
+                    operation,
+                    schema_version,
+                );
+                triggers.push((name, expected));
+            }
+        }
+        triggers
+    });
+
+fn matches_visibility_trigger_like(name: &str) -> bool {
+    const PATTERN: &[u8] = b"_fathomdb_read_visibility_";
+    let bytes = name.as_bytes();
+    if bytes.len() < PATTERN.len() {
+        return false;
+    }
+    bytes.iter().zip(PATTERN.iter()).all(|(&b, &p)| p == b'_' || b.eq_ignore_ascii_case(&p))
+}
+
 pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> Result<(), String> {
     if schema_version < 31 {
         return Ok(());
     }
+    let mut master_tables: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    let mut master_indexes: std::collections::HashMap<(String, String), String> =
+        std::collections::HashMap::new();
+    let mut master_triggers: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    {
+        let mut stmt = connection
+            .prepare_cached(
+                "SELECT type, name, tbl_name, sql FROM sqlite_master \
+                 WHERE type IN ('table','index','trigger') AND sql IS NOT NULL",
+            )
+            .map_err(|error| error.to_string())?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .map_err(|error| error.to_string())?;
+        for row in rows {
+            let (obj_type, name, tbl_name, sql) = row.map_err(|error| error.to_string())?;
+            match obj_type.as_str() {
+                "table" => {
+                    master_tables.insert(name, sql);
+                }
+                "index" => {
+                    master_indexes.insert((name, tbl_name), sql);
+                }
+                "trigger" => {
+                    master_triggers.insert(name, sql);
+                }
+                _ => {}
+            }
+        }
+    }
+
     if schema_version >= 37 {
         require_clean_visibility(connection).map_err(|error| error.to_string())?;
-        let layout: String = connection.query_row(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name='_fathomdb_read_visibility_state'",
-            [], |row| row.get(0),
-        ).map_err(|error| error.to_string())?;
-        if !normalize_sql(&layout).contains("coalescing INTEGER NOT NULL DEFAULT 0 CHECK(typeof(coalescing)='integer' AND coalescing IN(0,1))") {
+        let layout = master_tables
+            .get("_fathomdb_read_visibility_state")
+            .ok_or_else(|| "missing _fathomdb_read_visibility_state table".to_string())?;
+        if !normalize_sql(layout).contains("coalescing INTEGER NOT NULL DEFAULT 0 CHECK(typeof(coalescing)='integer' AND coalescing IN(0,1))") {
             return Err("invalid read visibility coalescing layout".to_string());
         }
     }
@@ -638,112 +709,113 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
         if !is_lower_hex(&gs_nonce, 64) {
             return Err("invalid frozen-read global structural state".to_string());
         }
-        let has_watermarks: bool = connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='_fathomdb_scope_visibility_watermarks')",
-                [],
-                |row| row.get(0),
-            )
-            .map_err(|error| error.to_string())?;
-        if !has_watermarks {
+        if !master_tables.contains_key("_fathomdb_scope_visibility_watermarks") {
             return Err("missing _fathomdb_scope_visibility_watermarks table".to_string());
         }
         connection
-            .prepare(
+            .prepare_cached(
                 "SELECT scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce \
                  FROM _fathomdb_scope_visibility_watermarks LIMIT 0",
             )
             .map_err(|error| format!("invalid _fathomdb_scope_visibility_watermarks layout: {error}"))?;
     }
-    let mut trigger_table_count = 0usize;
-    for entry in fathomdb_schema::TABLE_MANIFEST.iter().filter(|entry| {
-        entry.visibility_trigger_prefix.is_some()
-            && entry.visibility_trigger_min_version.is_some_and(|min| min <= schema_version)
-    }) {
-        trigger_table_count += 1;
-        let short = entry.visibility_trigger_prefix.expect("checked some");
-        for (suffix, operation) in [("ai", "INSERT"), ("au", "UPDATE"), ("ad", "DELETE")] {
-            let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
-            let sql = connection
-                .query_row(
-                    "SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?1",
-                    [&name],
-                    |row| row.get::<_, String>(0),
-                )
-                .optional()
-                .map_err(|error| error.to_string())?
+    let expected_trigger_count: usize;
+    if schema_version == fathomdb_schema::SCHEMA_VERSION {
+        let expected_triggers = &*EXPECTED_VISIBILITY_TRIGGERS_CURRENT;
+        expected_trigger_count = expected_triggers.len();
+        for (name, expected) in expected_triggers {
+            let sql = master_triggers
+                .get(name.as_str())
                 .ok_or_else(|| format!("missing frozen-read visibility trigger {name}"))?;
-            let expected = fathomdb_schema::expected_visibility_trigger_sql(
-                entry,
-                suffix,
-                operation,
-                schema_version,
-            );
-            if normalize_sql(&sql) != normalize_sql(&expected) {
+            if !eq_collapsed_ws(sql, expected) {
                 return Err(format!("frozen-read visibility trigger {name} differs from manifest"));
             }
         }
+    } else {
+        let mut trigger_table_count = 0usize;
+        for entry in fathomdb_schema::TABLE_MANIFEST.iter().filter(|entry| {
+            entry.visibility_trigger_prefix.is_some()
+                && entry.visibility_trigger_min_version.is_some_and(|min| min <= schema_version)
+        }) {
+            trigger_table_count += 1;
+            let short = entry.visibility_trigger_prefix.expect("checked some");
+            for (suffix, operation) in [("ai", "INSERT"), ("au", "UPDATE"), ("ad", "DELETE")] {
+                let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
+                let sql = master_triggers
+                    .get(name.as_str())
+                    .ok_or_else(|| format!("missing frozen-read visibility trigger {name}"))?;
+                let expected = fathomdb_schema::expected_visibility_trigger_sql(
+                    entry,
+                    suffix,
+                    operation,
+                    schema_version,
+                );
+                if !eq_collapsed_ws(sql, &expected) {
+                    return Err(format!(
+                        "frozen-read visibility trigger {name} differs from manifest"
+                    ));
+                }
+            }
+        }
+        expected_trigger_count = trigger_table_count * 3;
     }
-    let count = connection.query_row(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE '_fathomdb_read_visibility_%'",
-        [],
-        |row| row.get::<_, i64>(0),
-    ).map_err(|error| error.to_string())?;
-    if count != i64::try_from(trigger_table_count * 3).unwrap_or(i64::MAX) {
+    let count = master_triggers.keys().filter(|name| matches_visibility_trigger_like(name)).count();
+    if count != expected_trigger_count {
         return Err("unexpected frozen-read visibility trigger".to_string());
     }
     if schema_version >= 35
-        && !crate::vector_spans::cleanup_trigger_is_valid(connection)
-            .map_err(|error| error.to_string())?
+        && !crate::vector_spans::cleanup_trigger_sql_is_valid(
+            master_triggers.get("_fathomdb_vector_spans_mapping_delete").map(String::as_str),
+        )
     {
         return Err("missing or altered vector span cleanup trigger".to_string());
     }
     if schema_version >= 39 {
         validate_page_index(
-            connection,
+            &master_indexes,
             "canonical_nodes_scope_kind_cursor_page_idx",
             "canonical_nodes",
             "CREATE UNIQUE INDEX canonical_nodes_scope_kind_cursor_page_idx ON canonical_nodes(scope, kind, write_cursor) WHERE logical_id IS NOT NULL",
         )?;
         validate_page_index(
-            connection,
+            &master_indexes,
             "operational_state_scope_collection_cursor_page_idx",
             "operational_state",
             "CREATE UNIQUE INDEX operational_state_scope_collection_cursor_page_idx ON operational_state(scope, collection_name, write_cursor)",
         )?;
         validate_page_index(
-            connection,
+            &master_indexes,
             "operational_state_write_cursor_idx",
             "operational_state",
             "CREATE INDEX operational_state_write_cursor_idx ON operational_state(write_cursor)",
         )?;
         validate_page_index(
-            connection,
+            &master_indexes,
             "_fathomdb_artifact_revisions_write_cursor_idx",
             "_fathomdb_artifact_revisions",
             "CREATE INDEX _fathomdb_artifact_revisions_write_cursor_idx ON _fathomdb_artifact_revisions(write_cursor)",
         )?;
     } else if schema_version >= 33 {
         validate_page_index(
-            connection,
+            &master_indexes,
             "canonical_nodes_kind_cursor_page_idx",
             "canonical_nodes",
             "CREATE UNIQUE INDEX canonical_nodes_kind_cursor_page_idx ON canonical_nodes(kind, write_cursor) WHERE logical_id IS NOT NULL",
         )?;
         validate_page_index(
-            connection,
+            &master_indexes,
             "operational_state_collection_cursor_page_idx",
             "operational_state",
             "CREATE UNIQUE INDEX operational_state_collection_cursor_page_idx ON operational_state(collection_name, write_cursor)",
         )?;
         validate_page_index(
-            connection,
+            &master_indexes,
             "operational_state_write_cursor_idx",
             "operational_state",
             "CREATE INDEX operational_state_write_cursor_idx ON operational_state(write_cursor)",
         )?;
         validate_page_index(
-            connection,
+            &master_indexes,
             "_fathomdb_artifact_revisions_write_cursor_idx",
             "_fathomdb_artifact_revisions",
             "CREATE INDEX _fathomdb_artifact_revisions_write_cursor_idx ON _fathomdb_artifact_revisions(write_cursor)",
@@ -753,24 +825,22 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
 }
 
 fn validate_page_index(
-    connection: &Connection,
+    master_indexes: &std::collections::HashMap<(String, String), String>,
     name: &str,
     table: &str,
     expected: &str,
 ) -> Result<(), String> {
-    let sql = connection
-        .query_row(
-            "SELECT sql FROM sqlite_master WHERE type='index' AND name=?1 AND tbl_name=?2",
-            [name, table],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()
-        .map_err(|error| error.to_string())?
+    let sql = master_indexes
+        .get(&(name.to_string(), table.to_string()))
         .ok_or_else(|| format!("missing pagination index {name}"))?;
-    if normalize_sql(&sql) != normalize_sql(expected) {
+    if !eq_collapsed_ws(sql, expected) {
         return Err(format!("pagination index {name} differs from manifest"));
     }
     Ok(())
+}
+
+pub(crate) fn eq_collapsed_ws(a: &str, b: &str) -> bool {
+    a.split_whitespace().eq(b.split_whitespace())
 }
 
 fn normalize_sql(sql: &str) -> String {
@@ -1943,5 +2013,44 @@ mod tests {
             validate_snapshot(&right, &left_frozen.context, &copied_binding, &unscoped, ReadSurface::Preflight),
             Err(error) if error.reason == FrozenReadErrorReason::StateDrifted
         ));
+    }
+
+    #[test]
+    fn validate_on_open_scans_sqlite_master_in_single_pass_and_catches_tamper() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("validate-single-pass.fathom.sqlite3");
+        let opened = crate::Engine::open(&path).unwrap();
+        opened.engine.close().unwrap();
+
+        let mut conn = Connection::open(&path).unwrap();
+        let master_queries = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = std::sync::Arc::clone(&master_queries);
+        conn.trace_v2(
+            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+            Some(move |event: rusqlite::trace::TraceEvent<'_>| {
+                if let rusqlite::trace::TraceEvent::Stmt(_, sql) = event {
+                    if sql.contains("sqlite_master") {
+                        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+            }),
+        )
+        .unwrap();
+        super::validate_on_open(&conn, 39).unwrap();
+        conn.trace_v2(
+            rusqlite::trace::TraceEventCodes::empty(),
+            None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+        )
+        .unwrap();
+
+        let count = master_queries.load(std::sync::atomic::Ordering::SeqCst);
+        assert!(
+            count <= 2,
+            "validate_on_open must scan sqlite_master in a single pass (<=2 queries), got {count}"
+        );
+
+        // Tampering a trigger must still be caught cleanly.
+        conn.execute_batch("DROP TRIGGER _fathomdb_read_visibility_cn_ai").unwrap();
+        assert!(super::validate_on_open(&conn, 39).is_err());
     }
 }

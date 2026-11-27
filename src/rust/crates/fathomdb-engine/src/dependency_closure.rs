@@ -927,12 +927,12 @@ pub(crate) fn maintain_before_writer(connection: &Connection) -> Result<(), Engi
 
 pub(crate) fn guard_no_pending_physical(connection: &Connection) -> Result<(), EngineError> {
     let physical: bool = connection
-        .query_row(
+        .prepare_cached(
             "SELECT EXISTS(SELECT 1 FROM _fathomdb_dependency_closures \
              WHERE phase!='complete' AND cause IN ('purged','source_erased'))",
-            [],
-            |row| row.get(0),
         )
+        .map_err(|_| EngineError::Storage)?
+        .query_row([], |row| row.get(0))
         .map_err(|_| EngineError::Storage)?;
     if physical || physical_erasure::active(connection)? {
         return Err(EngineError::ErasureIncomplete {

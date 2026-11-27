@@ -112,6 +112,8 @@ impl Engine {
         } else {
             None
         };
+        let mut fts_dirty = false;
+        let mut vector_kind_cache = std::collections::HashMap::new();
         let mut rows_rebuilt: u64 = 0;
         for row in canonical_node_rows(&tx).map_err(|_| EngineError::Storage)? {
             project_canonical_node_row(
@@ -127,6 +129,8 @@ impl Engine {
                 row.attr_projected,
                 row.properties.as_ref(),
                 registry.as_ref(),
+                Some(&mut fts_dirty),
+                Some(&mut vector_kind_cache),
             )
             .map_err(|_| EngineError::Storage)?;
             if include_fts {
@@ -189,6 +193,7 @@ impl Engine {
                 props.as_ref(),
                 superseded_at.is_none(),
                 registry.as_ref(),
+                Some(&mut fts_dirty),
             )
             .map_err(|_| EngineError::Storage)?;
             if include_fts && has_body {

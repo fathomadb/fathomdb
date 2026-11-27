@@ -864,19 +864,37 @@ fn validate_projection_source_backfill(
     Ok(())
 }
 
+pub(crate) type ProjectionRegistryMap = BTreeMap<(PropertyEntityClass, String), StoredProjection>;
+
 /// Validate every nested source present in a normal node write before the write
 /// transaction starts. This keeps an object/array terminal in the existing
 /// `WriteValidation` family and guarantees the whole batch is rejected.
+///
+/// Returns the loaded projection registry when canonical writes are present so
+/// the caller can reuse it inside `commit_batch` without reloading 3 registry
+/// tables while the writer connection lock is continuously held.
 pub(crate) fn validate_nested_projection_sources_for_write(
     conn: &Connection,
     batch: &[PreparedWrite],
-) -> Result<(), EngineError> {
+) -> Result<Option<ProjectionRegistryMap>, EngineError> {
+    let has_canonical = batch.iter().any(|write| {
+        matches!(
+            write,
+            PreparedWrite::Node { .. }
+                | PreparedWrite::Edge { .. }
+                | PreparedWrite::ProvenancedNode(_)
+                | PreparedWrite::ProvenancedEdge(_)
+        )
+    });
+    if !has_canonical {
+        return Ok(None);
+    }
     let registry = load_projection_registry(conn).map_err(|_| EngineError::Storage)?;
     if registry
         .values()
         .all(|stored| stored.entity_class != PropertyEntityClass::Node || stored.source.is_none())
     {
-        return Ok(());
+        return Ok(Some(registry));
     }
     for write in batch {
         let write = storage_write_shape(write);
@@ -888,7 +906,7 @@ pub(crate) fn validate_nested_projection_sources_for_write(
             &registry,
         )?;
     }
-    Ok(())
+    Ok(Some(registry))
 }
 
 pub(crate) fn validate_nested_projection_sources_for_body(
@@ -1339,6 +1357,7 @@ pub(crate) fn extract_typed_node_property(
     Ok(extract_typed_node_property_with_cache(body, properties, name, stored, &mut parsed_body))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn project_one_attribute(
     tx: &Connection,
     cursor: i64,
@@ -1347,6 +1366,7 @@ fn project_one_attribute(
     name: &str,
     stored: &StoredProjection,
     parsed_body: &mut Option<Option<serde_json::Value>>,
+    fts_dirty: Option<&mut bool>,
 ) -> rusqlite::Result<()> {
     if stored.entity_class != PropertyEntityClass::Node {
         return Ok(());
@@ -1370,7 +1390,15 @@ fn project_one_attribute(
         )?
         .execute(params![cursor, name, value])?;
         if stored.wants_property_fts() {
-            physical_erasure::mark_dirty(tx)?;
+            match fts_dirty {
+                Some(dirty) => {
+                    if !*dirty {
+                        physical_erasure::mark_dirty(tx)?;
+                        *dirty = true;
+                    }
+                }
+                None => physical_erasure::mark_dirty(tx)?,
+            }
             tx.prepare_cached(
                 "INSERT INTO property_search_index(attr_value, attr_name, write_cursor)
                  VALUES(?1, ?2, ?3)",
@@ -1507,6 +1535,19 @@ pub(crate) fn project_node_attributes_with_registry(
     properties: Option<&PropertyMap>,
     registry: Option<&BTreeMap<(PropertyEntityClass, String), StoredProjection>>,
 ) -> rusqlite::Result<()> {
+    project_node_attributes_with_registry_and_dirty_flag(
+        tx, cursor, body, properties, registry, None,
+    )
+}
+
+pub(crate) fn project_node_attributes_with_registry_and_dirty_flag(
+    tx: &Connection,
+    cursor: i64,
+    body: &str,
+    properties: Option<&PropertyMap>,
+    registry: Option<&BTreeMap<(PropertyEntityClass, String), StoredProjection>>,
+    mut fts_dirty: Option<&mut bool>,
+) -> rusqlite::Result<()> {
     let loaded;
     let registry = match registry {
         Some(reg) => reg,
@@ -1521,7 +1562,16 @@ pub(crate) fn project_node_attributes_with_registry(
     let mut parsed_body = None;
     for ((entity_class, name), stored) in registry {
         if *entity_class == PropertyEntityClass::Node {
-            project_one_attribute(tx, cursor, body, properties, name, stored, &mut parsed_body)?;
+            project_one_attribute(
+                tx,
+                cursor,
+                body,
+                properties,
+                name,
+                stored,
+                &mut parsed_body,
+                fts_dirty.as_deref_mut(),
+            )?;
         }
     }
     Ok(())
@@ -1589,6 +1639,7 @@ fn backfill_attribute(
                     .collect::<rusqlite::Result<Vec<_>>>()?;
                 collected
             };
+            let mut fts_dirty = false;
             for (cursor, body, properties) in rows {
                 let mut parsed_body = None;
                 project_one_attribute(
@@ -1599,6 +1650,7 @@ fn backfill_attribute(
                     name,
                     stored,
                     &mut parsed_body,
+                    Some(&mut fts_dirty),
                 )?;
             }
         }

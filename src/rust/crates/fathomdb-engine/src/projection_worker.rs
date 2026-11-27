@@ -388,15 +388,6 @@ pub(crate) fn projection_worker_loop(
             return;
         }
     };
-    let partition_setup = (|| {
-        let tx = crate::frozen_read::begin_visibility_writer(&connection)?;
-        ensure_vector_partition(&tx, shared.embedder_identity.dimension)?;
-        tx.commit()
-    })();
-    if partition_setup.is_err() {
-        report_projection_runtime_startup_failure(&startup, startup_role, "vector_partition_setup");
-        return;
-    }
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
         shared.managed_connections.register(WalAttributionRole::ProjectionWorker, worker_idx);

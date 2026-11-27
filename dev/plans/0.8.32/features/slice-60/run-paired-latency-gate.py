@@ -834,26 +834,36 @@ def _worker_build_gate1_d10_store(spec: dict[str, Any]) -> dict[str, Any]:
                 )
             ]
         )
+        source_padding = (
+            " ".join(
+                f"Historical corpus paragraph {p} documents operational telemetry, "
+                f"storage invariants, frozen snapshot verification, and longitudinal "
+                f"query scaling across multi-megabyte SQLite pages."
+                for p in range(16)
+            )
+        )
         for start in range(0, num_nodes, BATCH_SIZE):
             batch = []
             for i in range(start, min(start + BATCH_SIZE, num_nodes)):
                 is_adopted = i < adopted_nodes
                 kind = "adopted" if is_adopted else "source"
                 topic = TOPICS[i % len(TOPICS)]
+                base_body = (
+                    f"Record {i} ({kind}) discusses {topic} "
+                    f"metric_{i % 97} adopted_gate verification"
+                )
+                body = base_body if is_adopted else f"{base_body}. {source_padding}"
                 batch.append(
                     {
                         "kind": kind,
-                        "body": (
-                            f"Record {i} ({kind}) discusses {topic} "
-                            f"metric_{i % 97} adopted_gate verification"
-                        ),
-                        "source_id": f"src-d10-{i % 100}",
+                        "body": body,
+                        "source_id": f"src-d10-{i}",
                         "logical_id": f"{kind}:{i}",
                         "provenance": {
                             "schema_version": 1,
                             "role": "canonical",
                             "artifact_revision_id": f"rev-d10-{i}",
-                            "source_version_id": f"ver-d10-{i % 100}",
+                            "source_version_id": f"ver-d10-{i}",
                         },
                     }
                 )

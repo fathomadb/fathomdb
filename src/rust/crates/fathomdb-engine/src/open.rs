@@ -1425,8 +1425,9 @@ impl Engine {
         )
         .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
         // Keep all hot-path write-batch cached statements resident without LRU eviction
-        // (rusqlite defaults to 16, whereas a canonical batch touches ~20 distinct statements).
-        connection.set_prepared_statement_cache_capacity(64);
+        // (rusqlite defaults to 16, whereas a canonical batch touches ~30+ distinct statements
+        // including chunked IN lookups and provenance inserts).
+        connection.set_prepared_statement_cache_capacity(96);
         // Order pinned by `dev/design/errors.md` § OpenStage matrix: each
         // step routes its own SQLite-level error to a distinct
         // `CorruptionKind` (Header → WalReplay → Schema → EmbedderIdentity).
@@ -1437,6 +1438,13 @@ impl Engine {
         probe_database_header(&connection)?;
         probe_open_integrity(&connection)?;
         probe_wal_sidecar(&path)?;
+        // Size the single writer connection's page cache to 4 MiB (~1,000 pages)
+        // so 200-row batches (~550 touched pages) avoid mid-transaction dirty-page
+        // spills without increasing reader-worker RSS. Set before experiment
+        // overrides so `FATHOMDB_PERF_WRITER_PRAGMAS` can still override it.
+        connection
+            .pragma_update(None, "cache_size", -4000)
+            .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
         // 0.7.0 perf-experiments: apply writer-side experiment PRAGMAs
         // (page_size, etc.) BEFORE journal_mode + migrations. page_size
         // is silently ignored once any table exists; this is the only
@@ -1804,9 +1812,11 @@ impl Engine {
                 "sqlite3_db_config(LOOKASIDE) must return SQLITE_OK on a freshly opened reader",
             );
             lookaside_rcs.push(rc);
-            reader
-                .pragma_update(None, "journal_mode", "WAL")
-                .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
+            // The writer connection already ensured persistent WAL mode on the
+            // database file header above; skipping a redundant per-reader
+            // `PRAGMA journal_mode = WAL` avoids forcing eager `sqlite3Init()`
+            // across all 8 reader connections during `Engine::open`.
+            //
             // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `secure_delete=ON`
             // at EVERY connection open, not just the writer. `secure_delete` is a
             // per-connection pager flag, so a reader-pool connection that frees a

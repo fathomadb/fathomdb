@@ -1714,6 +1714,8 @@ fn simulate_request(
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
                         None,
+                        None,
+                        None,
                     ) {
                         Ok(_) => {
                             next_cursor = next_cursor.saturating_add(1);
@@ -1764,6 +1766,8 @@ fn simulate_request(
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
+                        None,
+                        None,
                         None,
                     ) {
                         Ok(_) => {
@@ -1864,6 +1868,8 @@ fn simulate_request(
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
+                        None,
+                        None,
                         None,
                     ) {
                         Ok(_) => {
@@ -2506,6 +2512,8 @@ impl Engine {
                             dependency_closure::SoftClosureMode::Proving,
                             CommitEndpointValidationMode::DeferredToActuationSimulation,
                             coalesce_visibility.then_some(&mut visibility_delta),
+                            None,
+                            None,
                         ) {
                             Ok((_, repaired, closure_ids)) => {
                                 unstranded |= repaired;
@@ -2577,6 +2585,8 @@ impl Engine {
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
                         coalesce_visibility.then_some(&mut visibility_delta),
+                        None,
+                        None,
                     ) {
                         Ok((_, repaired, closure_ids)) => {
                             unstranded |= repaired;
@@ -2763,6 +2773,8 @@ impl Engine {
                         dependency_closure::SoftClosureMode::Proving,
                         CommitEndpointValidationMode::DeferredToActuationSimulation,
                         coalesce_visibility.then_some(&mut visibility_delta),
+                        None,
+                        None,
                     ) {
                         Ok((_, repaired, closure_ids)) => {
                             unstranded |= repaired;

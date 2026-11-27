@@ -683,7 +683,7 @@ fn reader_worker_loop(
     let _connection_registration =
         managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
     wal_attribution.register(WalAttributionRole::ReaderWorker, worker_idx);
-    let _ = status_cache.observe_connection(
+    let _ = status_cache.observe_reader_startup(
         &connection,
         crate::projection_generation::StatusCacheConnectionSlot::ReaderWorker(worker_idx),
     );

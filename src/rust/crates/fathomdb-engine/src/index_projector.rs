@@ -86,6 +86,8 @@ pub(crate) fn restore_registered_derived_projections(
                 true,
                 properties,
                 None,
+                None,
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
         }
@@ -204,6 +206,7 @@ pub(crate) fn reproject_search_index_after_tokenizer_upgrade(
         // for this open-path repair (it postdates the step-11 upgrade and is
         // rebuilt by `rebuild_projections`).
         truncate_row_projections_in(connection, &[ProjectionClass::NodeFts])?;
+        let mut fts_dirty = false;
         for row in &rows {
             project_canonical_node_row(
                 connection,
@@ -218,6 +221,8 @@ pub(crate) fn reproject_search_index_after_tokenizer_upgrade(
                 // has a reader in every build configuration.
                 row.attr_projected,
                 row.properties.as_ref(),
+                None,
+                Some(&mut fts_dirty),
                 None,
             )?;
         }
@@ -370,10 +375,20 @@ pub(crate) fn project_canonical_node_row(
     node_active: bool,
     properties: Option<&crate::PropertyMap>,
     registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
+    mut fts_dirty: Option<&mut bool>,
+    vector_kind_cache: Option<&mut std::collections::HashMap<String, bool>>,
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
-        physical_erasure::mark_dirty(tx)?;
+        match fts_dirty.as_deref_mut() {
+            Some(dirty) => {
+                if !*dirty {
+                    physical_erasure::mark_dirty(tx)?;
+                    *dirty = true;
+                }
+            }
+            None => physical_erasure::mark_dirty(tx)?,
+        }
         tx.prepare_cached(
             "INSERT INTO search_index(rowid, body, kind, write_cursor) VALUES(?3, ?1, ?2, ?3)",
         )?
@@ -424,12 +439,13 @@ pub(crate) fn project_canonical_node_row(
     // `Engine::transition`). Passes where `writes_attributes()` is false ignore the
     // flag entirely.
     if pass.writes_attributes() && node_active {
-        crate::projection_registry::project_node_attributes_with_registry(
+        crate::projection_registry::project_node_attributes_with_registry_and_dirty_flag(
             tx,
             cursor as i64,
             body,
             properties,
             registry,
+            fts_dirty,
         )?;
     }
     // 0.8.20 Slice 20c (R-20-DR remainder) — UNCHANGED, deliberately. Late
@@ -438,7 +454,21 @@ pub(crate) fn project_canonical_node_row(
     // transaction, NOT here: the decision needs the engine's usable-runtime
     // predicate, which a free function holding only a `Connection` cannot see.
     // Enrolling without one would queue embeds that cannot safely run.
-    let enqueue_vector = targets.vector && kind_is_vector_indexed(tx, kind).unwrap_or(false);
+    let enqueue_vector = if targets.vector {
+        if let Some(cache) = vector_kind_cache {
+            if let Some(&indexed) = cache.get(kind) {
+                indexed
+            } else {
+                let indexed = kind_is_vector_indexed(tx, kind).unwrap_or(false);
+                cache.insert(kind.to_string(), indexed);
+                indexed
+            }
+        } else {
+            kind_is_vector_indexed(tx, kind).unwrap_or(false)
+        }
+    } else {
+        false
+    };
     if pass.writes_vector_state() {
         if enqueue_vector {
             tx.prepare_cached(
@@ -491,9 +521,18 @@ pub(crate) fn project_canonical_edge_row(
     properties: Option<&crate::PropertyMap>,
     edge_active: bool,
     registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
+    fts_dirty: Option<&mut bool>,
 ) -> rusqlite::Result<(bool, bool)> {
     if pass.writes_fts() {
-        physical_erasure::mark_dirty(tx)?;
+        match fts_dirty {
+            Some(dirty) => {
+                if !*dirty {
+                    physical_erasure::mark_dirty(tx)?;
+                    *dirty = true;
+                }
+            }
+            None => physical_erasure::mark_dirty(tx)?,
+        }
         if let Some(edge_body) = body {
             tx.prepare_cached(
                 "INSERT INTO search_index_edges(body, kind, write_cursor)

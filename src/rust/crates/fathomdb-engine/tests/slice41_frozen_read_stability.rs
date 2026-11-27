@@ -1484,3 +1484,140 @@ fn wire_token_size_legacy_compat_and_validate_latency_budget() {
     assert!(started.elapsed() < Duration::from_secs(5));
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn concurrent_readers_zero_false_generation_regression_and_real_rollback_rejected() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("gen-race{SQLITE_SUFFIX}"));
+    let engine = Arc::new(Engine::open(&path).unwrap().engine);
+    seed_doc_corpus(&engine, "gr");
+
+    let shared_frozen = engine.freeze_read_context(&doc_context()).unwrap();
+    let stop = Arc::new(AtomicBool::new(false));
+    let errors = Arc::new(AtomicUsize::new(0));
+    let cycles = Arc::new(AtomicUsize::new(0));
+    let barrier = Arc::new(Barrier::new(13)); // 12 concurrent readers + 1 rapid writer
+
+    let mut handles = Vec::new();
+    for reader_id in 0..12usize {
+        let engine = Arc::clone(&engine);
+        let frozen = shared_frozen.clone();
+        let stop = Arc::clone(&stop);
+        let errors = Arc::clone(&errors);
+        let cycles = Arc::clone(&cycles);
+        let barrier = Arc::clone(&barrier);
+        handles.push(thread::spawn(move || {
+            barrier.wait();
+            let mut iter = 0usize;
+            while !stop.load(Ordering::Relaxed) || iter < 25 {
+                iter += 1;
+                if reader_id % 3 == 0 {
+                    let mut ev_req = EvidenceSearchRequestV1::new("stellar".into(), frozen.clone());
+                    ev_req.limit = 5;
+                    if let Err(err) = engine.search_with_evidence(&ev_req) {
+                        eprintln!("reader {reader_id} search_with_evidence err: {err:?}");
+                        errors.fetch_add(1, Ordering::SeqCst);
+                    }
+                } else if reader_id % 3 == 1 {
+                    if let Err(err) =
+                        engine.search_frozen("stellar", &frozen, 0, false, 0.3, 0, false, 5)
+                    {
+                        eprintln!("reader {reader_id} search_frozen err: {err:?}");
+                        errors.fetch_add(1, Ordering::SeqCst);
+                    }
+                } else if let Err(err) = engine.read_visibility_state() {
+                    eprintln!("reader {reader_id} read_visibility_state err: {err:?}");
+                    errors.fetch_add(1, Ordering::SeqCst);
+                }
+                cycles.fetch_add(1, Ordering::Relaxed);
+                if iter >= 400 {
+                    break;
+                }
+            }
+        }));
+    }
+
+    let writer_engine = Arc::clone(&engine);
+    let writer_stop = Arc::clone(&stop);
+    let writer_barrier = Arc::clone(&barrier);
+    let writer = thread::spawn(move || {
+        writer_barrier.wait();
+        for step in 0..250usize {
+            writer_engine
+                .write(&[plain_node(
+                    &format!("race-turn-{step}"),
+                    "AppTurn",
+                    "src:race-appturn",
+                    &format!("rapid disjoint turn {step}"),
+                )])
+                .unwrap();
+        }
+        writer_stop.store(true, Ordering::Relaxed);
+    });
+
+    writer.join().unwrap();
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    assert!(cycles.load(Ordering::Relaxed) >= 300);
+    assert_eq!(
+        errors.load(Ordering::SeqCst),
+        0,
+        "concurrent WAL readers must never falsely trip StateUnavailable/EvidenceUnavailable across advancing generations"
+    );
+
+    // Real generation rollback must STILL fail closed across every visibility-guarded entry point.
+    let frozen_before_tamper = engine.freeze_read_context(&doc_context()).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let gen: i64 = conn
+        .query_row(
+            "SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton = 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    conn.execute(
+        "UPDATE _fathomdb_read_visibility_state SET generation = ?1 WHERE singleton = 1",
+        [gen + 1],
+    )
+    .unwrap();
+    // Observe gen + 1 via read_visibility_state so the causal floor rises to gen + 1.
+    let observed = engine.read_visibility_state().unwrap();
+    assert_eq!(observed.generation, (gen + 1) as u64);
+    // Tamper generation back down to gen.
+    conn.execute(
+        "UPDATE _fathomdb_read_visibility_state SET generation = ?1 WHERE singleton = 1",
+        [gen],
+    )
+    .unwrap();
+
+    assert!(matches!(
+        engine.search_frozen("stellar", &frozen_before_tamper, 0, false, 0.3, 0, false, 5),
+        Err(EngineError::FrozenRead(ref fe)) if fe.reason == FrozenReadErrorReason::StateUnavailable
+    ));
+    assert_evidence_unavailable(
+        engine.search_with_evidence(&EvidenceSearchRequestV1::new(
+            "stellar".into(),
+            frozen_before_tamper.clone(),
+        )),
+        "regressed generation must fail closed on search_with_evidence",
+    );
+    assert!(matches!(
+        engine.read_visibility_state(),
+        Err(EngineError::FrozenRead(ref fe)) if fe.reason == FrozenReadErrorReason::StateUnavailable
+    ));
+    assert!(matches!(
+        engine.freeze_read_context(&doc_context()),
+        Err(EngineError::FrozenRead(ref fe)) if fe.reason == FrozenReadErrorReason::StateUnavailable
+    ));
+
+    // Restore generation before clean close.
+    conn.execute(
+        "UPDATE _fathomdb_read_visibility_state SET generation = ?1 WHERE singleton = 1",
+        [gen + 1],
+    )
+    .unwrap();
+    drop(conn);
+    Arc::try_unwrap(engine).unwrap_or_else(|_| panic!("engine still shared")).close().unwrap();
+}

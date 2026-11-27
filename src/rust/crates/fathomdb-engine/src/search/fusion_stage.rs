@@ -230,6 +230,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         .then(|| status_cache.snapshot_epoch())
         .transpose()
         .map_err(SearchReaderError::Evidence)?;
+    // Snapshot the monotonic visibility floor strictly BEFORE acquiring the SQLite
+    // WAL read mark so concurrent readers opening valid older WAL snapshots across
+    // advancing generations never trip a false regression, while any true rollback
+    // (where a commit observed before `tx` started is no longer visible in `tx`)
+    // still fails closed with `StateUnavailable`.
+    let floor_before_tx = frozen_query_runtime
+        .as_ref()
+        .map(|runtime| runtime.observed_generation.load(Ordering::Acquire));
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
         let runtime = frozen_query_runtime.as_ref().ok_or_else(|| {
@@ -246,8 +254,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let generation =
             frozen_read::validate_snapshot(&tx, &runtime.context, expected, scope, surface)
                 .map_err(SearchReaderError::FrozenRead)?;
-        let observed = runtime.observed_generation.fetch_max(generation, Ordering::AcqRel);
-        if generation < observed {
+        let floor = floor_before_tx.unwrap_or(0);
+        runtime.observed_generation.fetch_max(generation, Ordering::AcqRel);
+        if generation < floor {
             return Err(SearchReaderError::FrozenRead(FrozenReadError {
                 reason: FrozenReadErrorReason::StateUnavailable,
                 field_path: "/token".to_string(),

@@ -12,9 +12,10 @@ impl Engine {
         let scope = self.scope_predicate();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let floor_before_mint = self.read_visibility_generation.load(Ordering::Acquire);
         let (frozen, generation) = frozen_read::mint(connection, context, &scope)?;
-        let previous = self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
-        if generation < previous {
+        self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
+        if generation < floor_before_mint {
             return Err(FrozenReadError {
                 reason: FrozenReadErrorReason::StateUnavailable,
                 field_path: "/token".to_string(),

@@ -197,16 +197,20 @@ impl Engine {
     /// `generation`.
     pub fn read_visibility_state(&self) -> Result<VisibilityStateV1, EngineError> {
         let _operation = self.ensure_open()?;
+        // Capture the causal floor strictly before dispatching so the reader
+        // transaction's WAL read mark happens-after any commit reflected in
+        // `floor_before_tx`, without falsely rejecting valid concurrent snapshots.
+        let floor_before_tx =
+            self.read_visibility_generation.load(std::sync::atomic::Ordering::Acquire);
         let (response_tx, response_rx) = mpsc::sync_channel(1);
         let request = ReaderRequest::visibility_state(response_tx);
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
         let state = response_rx.recv().map_err(|_| EngineError::Storage)??;
-        let previous = self
-            .read_visibility_generation
+        self.read_visibility_generation
             .fetch_max(state.generation, std::sync::atomic::Ordering::AcqRel);
-        if state.generation < previous {
+        if state.generation < floor_before_tx {
             return Err(FrozenReadError {
                 reason: FrozenReadErrorReason::StateUnavailable,
                 field_path: "/token".to_string(),

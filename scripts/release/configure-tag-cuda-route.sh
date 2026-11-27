@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Safely configure GitHub deployment policies and runner group 3 for a vX.Y.Z
-# release tag while preserving selected_repository_ids (preventing the PATCH
-# quirk that wipes selected_repositories when omitted).
+# release tag, restoring selected_repository_ids via PUT .../repositories after
+# PATCH (GitHub's PATCH endpoint rejects selected_repository_ids with HTTP 422
+# and may clear selected repositories when visibility=selected).
 set -euo pipefail
 
 usage() {
@@ -15,9 +16,9 @@ Modes:
                       branch policy release/<X.Y.Z> to github-pages, then run
                       bootstrap check-tag-cuda-route.sh.
   <vX.Y.Z>            Post-tag: add release.yml@refs/tags/<vX.Y.Z> to org
-                      runner group 3 (preserving selected_repository_ids),
-                      verify fathomadb/fathomdb remains attached, and run
-                      marker-free check-tag-cuda-route.sh.
+                      runner group 3, restore selected_repository_ids via PUT
+                      if cleared by PATCH, verify fathomadb/fathomdb remains
+                      attached, and run marker-free check-tag-cuda-route.sh.
 USAGE
 }
 
@@ -85,19 +86,29 @@ if ! jq -e '.repositories | any(.full_name == "fathomadb/fathomdb")' <<<"$repos_
   exit 1
 fi
 
-patch_body="$(jq -c --arg wf "$workflow_ref" --argjson repo_ids "$repo_ids" '{
+# GitHub's PATCH /orgs/{org}/actions/runner-groups/{id} rejects
+# selected_repository_ids (HTTP 422) yet may clear selected repositories when
+# visibility=selected; restore selected_repository_ids via PUT .../repositories.
+patch_body="$(jq -c --arg wf "$workflow_ref" '{
   name: .name,
   visibility: .visibility,
   allows_public_repositories: .allows_public_repositories,
   restricted_to_workflows: .restricted_to_workflows,
-  selected_repository_ids: $repo_ids,
   selected_workflows: ((.selected_workflows + [$wf]) | unique)
 }' <<<"$group_json")"
 
 gh api -X PATCH orgs/fathomadb/actions/runner-groups/3 --input - <<<"$patch_body" >/dev/null
 
-# Verify repository attachment survived PATCH before running the route check.
 post_repos_json="$(gh api orgs/fathomadb/actions/runner-groups/3/repositories)"
+if ! jq -e '.repositories | any(.full_name == "fathomadb/fathomdb")' <<<"$post_repos_json" >/dev/null; then
+  if ! gh api -X PUT orgs/fathomadb/actions/runner-groups/3/repositories --input - <<<"{\"selected_repository_ids\":${repo_ids}}" >/dev/null; then
+    printf 'configure-tag-cuda-route: PATCH cleared runner group 3 repositories and PUT restore failed; restore selected_repository_ids=%s manually\n' "$repo_ids" >&2
+    exit 1
+  fi
+  post_repos_json="$(gh api orgs/fathomadb/actions/runner-groups/3/repositories)"
+fi
+
+# Verify repository attachment survived PATCH (+ PUT restore if needed) before running the route check.
 if ! jq -e '.repositories | any(.full_name == "fathomadb/fathomdb")' <<<"$post_repos_json" >/dev/null; then
   printf 'configure-tag-cuda-route: post-PATCH verification lost fathomadb/fathomdb from runner group 3\n' >&2
   exit 1

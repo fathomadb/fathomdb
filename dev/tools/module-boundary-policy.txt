@@ -119,9 +119,11 @@ reported runtime_configuration
 reported runtime_configuration::tests
 reported runtime_lifecycle
 governed scope
+reported scope::default_scope_cache_tests
 governed search
 governed search::bm25f
 governed search::fts_fast_path
+reported search::fts_fast_path::fts_reprepare_tests
 governed search::fusion_stage
 governed search::graph_arm
 governed search::projected_text

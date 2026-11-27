@@ -23,7 +23,7 @@ def test_registry_covers_each_live_governed_operation():
         if operation["state"] == "live"
     }
     registry = sdk_registry.load_registry()
-    assert len(live) == 44
+    assert len(live) == 58
     assert live <= set(registry)
     for operation_id in live:
         entry = registry[operation_id]

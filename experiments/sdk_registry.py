@@ -23,6 +23,7 @@ _SETUP = {
     "engine.open",
     "admin.configure",
     "engine.write",
+    "engine.write_with_options",
     "engine.actuate",
     "engine.register_source_dependency",
     "engine.transition",
@@ -58,6 +59,7 @@ _OBSERVE = {
     "read.operational_collections",
     "read.operational_state",
     "read.operational_state_page",
+    "read.visibility_state",
     "read.get_many",
 }
 _EXCLUDED = {

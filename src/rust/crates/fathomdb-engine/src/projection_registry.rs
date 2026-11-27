@@ -1230,16 +1230,22 @@ fn clear_attribute_projection(
     Ok(())
 }
 
-fn property_value_to_eav_string(value: &PropertyValue) -> String {
+fn property_value_to_eav_cow(value: &PropertyValue) -> std::borrow::Cow<'_, str> {
     match value {
-        PropertyValue::String(s) => s.clone(),
-        PropertyValue::Int(i) => i.to_string(),
+        PropertyValue::String(s) => std::borrow::Cow::Borrowed(s.as_str()),
+        PropertyValue::Int(i) => std::borrow::Cow::Owned(i.to_string()),
         PropertyValue::Float(f) => {
             let norm = crate::properties::normalize_finite_f64(*f).unwrap_or(*f);
-            serde_json::to_string(&norm).unwrap_or_else(|_| norm.to_string())
+            std::borrow::Cow::Owned(
+                serde_json::to_string(&norm).unwrap_or_else(|_| norm.to_string()),
+            )
         }
-        PropertyValue::Bool(b) => if *b { "true" } else { "false" }.to_string(),
+        PropertyValue::Bool(b) => std::borrow::Cow::Borrowed(if *b { "true" } else { "false" }),
     }
+}
+
+fn property_value_to_eav_string(value: &PropertyValue) -> String {
+    property_value_to_eav_cow(value).into_owned()
 }
 
 fn insert_canonical_property_value(
@@ -3056,61 +3062,87 @@ pub(crate) fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Resul
 struct StreamDigest {
     count: u64,
     hasher: Sha256,
+    buf: Vec<u8>,
 }
 
 impl StreamDigest {
+    const FLUSH_THRESHOLD: usize = 4096;
+
     fn new(domain: &[u8]) -> Self {
-        let mut hasher = Sha256::new();
-        hasher.update((domain.len() as u64).to_be_bytes());
-        hasher.update(domain);
-        Self { count: 0, hasher }
+        let mut digest = Self {
+            count: 0,
+            hasher: Sha256::new(),
+            buf: Vec::with_capacity(Self::FLUSH_THRESHOLD + 256),
+        };
+        digest.write_raw(&(domain.len() as u64).to_be_bytes());
+        digest.write_raw(domain);
+        digest
     }
 
+    #[inline]
+    fn write_raw(&mut self, bytes: &[u8]) {
+        if self.buf.len() + bytes.len() >= Self::FLUSH_THRESHOLD {
+            if !self.buf.is_empty() {
+                self.hasher.update(&self.buf);
+                self.buf.clear();
+            }
+            if bytes.len() >= Self::FLUSH_THRESHOLD {
+                self.hasher.update(bytes);
+                return;
+            }
+        }
+        self.buf.extend_from_slice(bytes);
+    }
+
+    #[inline]
     fn update_bytes(&mut self, bytes: &[u8]) {
-        self.hasher.update((bytes.len() as u64).to_be_bytes());
-        self.hasher.update(bytes);
+        self.write_raw(&(bytes.len() as u64).to_be_bytes());
+        self.write_raw(bytes);
     }
 
+    #[inline]
     fn update_opt_str(&mut self, value: Option<&str>) {
         match value {
-            None => self.hasher.update([0u8]),
+            None => self.write_raw(&[0u8]),
             Some(s) => {
-                self.hasher.update([1u8]);
+                self.write_raw(&[1u8]);
                 self.update_bytes(s.as_bytes());
             }
         }
     }
 
+    #[inline]
     fn update_opt_i64(&mut self, value: Option<i64>) {
         match value {
-            None => self.hasher.update([0u8]),
+            None => self.write_raw(&[0u8]),
             Some(v) => {
-                self.hasher.update([1u8]);
-                self.hasher.update(v.to_be_bytes());
+                self.write_raw(&[1u8]);
+                self.write_raw(&v.to_be_bytes());
             }
         }
     }
 
+    #[inline]
     fn update_opt_u64(&mut self, value: Option<u64>) {
         match value {
-            None => self.hasher.update([0u8]),
+            None => self.write_raw(&[0u8]),
             Some(v) => {
-                self.hasher.update([1u8]);
-                self.hasher.update(v.to_be_bytes());
+                self.write_raw(&[1u8]);
+                self.write_raw(&v.to_be_bytes());
             }
         }
     }
 
     fn push_attribute(&mut self, write_cursor: i64, attr_name: &str, attr_value: Option<&str>) {
         self.count = self.count.saturating_add(1);
-        self.hasher.update(write_cursor.to_be_bytes());
+        self.write_raw(&write_cursor.to_be_bytes());
         self.update_bytes(attr_name.as_bytes());
         self.update_opt_str(attr_value);
     }
 
     fn push_property_fts(&mut self, write_cursor: i64, attr_name: &str, attr_value: &str) {
         self.count = self.count.saturating_add(1);
-        self.hasher.update(write_cursor.to_be_bytes());
+        self.write_raw(&write_cursor.to_be_bytes());
         self.update_bytes(attr_name.as_bytes());
         self.update_bytes(attr_value.as_bytes());
     }
@@ -3129,7 +3161,7 @@ impl StreamDigest {
     ) {
         self.count = self.count.saturating_add(1);
         self.update_bytes(entity_class.as_bytes());
-        self.hasher.update(write_cursor.to_be_bytes());
+        self.write_raw(&write_cursor.to_be_bytes());
         self.update_bytes(attr_name.as_bytes());
         self.update_bytes(value_type.as_bytes());
         self.update_opt_str(text_val);
@@ -3201,7 +3233,11 @@ impl StreamDigest {
         Ok(())
     }
 
-    fn finish(self) -> (u64, [u8; 32]) {
+    fn finish(mut self) -> (u64, [u8; 32]) {
+        if !self.buf.is_empty() {
+            self.hasher.update(&self.buf);
+            self.buf.clear();
+        }
         (self.count, self.hasher.finalize().into())
     }
 }
@@ -3243,12 +3279,12 @@ fn expected_projection_registry_cache_digest(
         let mut rows = statement.query([])?;
         while let Some(row) = rows.next()? {
             let cursor: i64 = row.get(0)?;
-            let body: String = row.get(1)?;
+            let body = row.get_ref(1)?.as_str()?;
             let properties = crate::properties::decode_properties_row_col(row, 2)?;
             let mut parsed_body = None;
             for &(name, stored) in &node_specs {
                 if let Some(typed) = extract_typed_node_property_with_cache(
-                    &body,
+                    body,
                     properties.as_ref(),
                     name,
                     stored,
@@ -3263,10 +3299,10 @@ fn expected_projection_registry_cache_digest(
                         )?;
                     }
                     if stored.wants_eav() {
-                        let value = property_value_to_eav_string(&typed);
-                        attributes.push_attribute(cursor, name, Some(value.as_str()));
+                        let value = property_value_to_eav_cow(&typed);
+                        attributes.push_attribute(cursor, name, Some(value.as_ref()));
                         if stored.wants_property_fts() {
-                            property_fts.push_property_fts(cursor, name, value.as_str());
+                            property_fts.push_property_fts(cursor, name, value.as_ref());
                         }
                     }
                 }
@@ -3329,18 +3365,18 @@ fn stream_persisted_cpv_digest(
     let mut rows = statement.query([entity_class])?;
     while let Some(row) = rows.next()? {
         let write_cursor: i64 = row.get(0)?;
-        let attr_name: String = row.get(1)?;
-        let value_type: String = row.get(2)?;
-        let text_val: Option<String> = row.get(3)?;
-        let num_val: rusqlite::types::Value = row.get(4)?;
+        let attr_name = row.get_ref(1)?.as_str()?;
+        let value_type = row.get_ref(2)?.as_str()?;
+        let text_val = row.get_ref(3)?.as_str_or_null()?;
+        let num_val = row.get_ref(4)?;
         let bool_val: Option<i64> = row.get(5)?;
-        let (num_int, num_real_bits) = match (value_type.as_str(), num_val) {
-            ("integer", rusqlite::types::Value::Integer(i)) => (Some(i), None),
-            ("float", rusqlite::types::Value::Real(f)) => {
+        let (num_int, num_real_bits) = match (value_type, num_val) {
+            ("integer", rusqlite::types::ValueRef::Integer(i)) => (Some(i), None),
+            ("float", rusqlite::types::ValueRef::Real(f)) => {
                 let norm = crate::properties::normalize_finite_f64(f).unwrap_or(f);
                 (None, Some(norm.to_bits()))
             }
-            ("float", rusqlite::types::Value::Integer(i)) => {
+            ("float", rusqlite::types::ValueRef::Integer(i)) => {
                 let norm = crate::properties::normalize_finite_f64(i as f64).unwrap_or(0.0);
                 (None, Some(norm.to_bits()))
             }
@@ -3349,9 +3385,9 @@ fn stream_persisted_cpv_digest(
         digest.push_property_value(
             entity_class,
             write_cursor,
-            &attr_name,
-            &value_type,
-            text_val.as_deref(),
+            attr_name,
+            value_type,
+            text_val,
             num_int,
             num_real_bits,
             bool_val,
@@ -3374,29 +3410,48 @@ fn persisted_projection_registry_cache_digest(
         let mut rows = statement.query([])?;
         let mut current_cursor: Option<i64> = None;
         let mut group: Vec<(String, Option<String>)> = Vec::new();
-        let flush_group =
-            |cursor: i64, group: &mut Vec<(String, Option<String>)>, digest: &mut StreamDigest| {
+        let mut pool: Vec<(String, Option<String>)> = Vec::new();
+        let flush_group = |cursor: i64,
+                           group: &mut Vec<(String, Option<String>)>,
+                           pool: &mut Vec<(String, Option<String>)>,
+                           digest: &mut StreamDigest| {
+            if group.len() > 1 {
                 group.sort();
-                for (name, value) in group.drain(..) {
-                    digest.push_attribute(cursor, &name, value.as_deref());
-                }
-            };
+            }
+            for (name, value) in group.drain(..) {
+                digest.push_attribute(cursor, &name, value.as_deref());
+                pool.push((name, value));
+            }
+        };
         while let Some(row) = rows.next()? {
             let cursor: i64 = row.get(0)?;
-            let attr_name: String = row.get(1)?;
-            let attr_value: Option<String> = row.get(2)?;
+            let attr_name_ref = row.get_ref(1)?.as_str()?;
+            let attr_value_ref = row.get_ref(2)?.as_str_or_null()?;
             if let Some(prev) = current_cursor {
                 if prev != cursor {
-                    flush_group(prev, &mut group, &mut attributes);
+                    flush_group(prev, &mut group, &mut pool, &mut attributes);
                     current_cursor = Some(cursor);
                 }
             } else {
                 current_cursor = Some(cursor);
             }
-            group.push((attr_name, attr_value));
+            let (mut name_buf, mut val_buf) = pool.pop().unwrap_or_else(|| (String::new(), None));
+            name_buf.clear();
+            name_buf.push_str(attr_name_ref);
+            match attr_value_ref {
+                Some(v) => {
+                    let s = val_buf.get_or_insert_with(String::new);
+                    s.clear();
+                    s.push_str(v);
+                }
+                None => {
+                    val_buf = None;
+                }
+            }
+            group.push((name_buf, val_buf));
         }
         if let Some(prev) = current_cursor {
-            flush_group(prev, &mut group, &mut attributes);
+            flush_group(prev, &mut group, &mut pool, &mut attributes);
         }
     }
 
@@ -3409,9 +3464,9 @@ fn persisted_projection_registry_cache_digest(
         let mut rows = statement.query([])?;
         while let Some(row) = rows.next()? {
             let write_cursor: i64 = row.get(0)?;
-            let attr_name: String = row.get(1)?;
-            let attr_value: String = row.get(2)?;
-            property_fts.push_property_fts(write_cursor, &attr_name, &attr_value);
+            let attr_name = row.get_ref(1)?.as_str()?;
+            let attr_value = row.get_ref(2)?.as_str()?;
+            property_fts.push_property_fts(write_cursor, attr_name, attr_value);
         }
     }
 

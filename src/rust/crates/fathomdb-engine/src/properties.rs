@@ -299,8 +299,8 @@ pub(crate) fn decode_properties_row_col(
     row: &rusqlite::Row<'_>,
     col_idx: usize,
 ) -> rusqlite::Result<Option<PropertyMap>> {
-    let raw: Option<String> = row.get(col_idx)?;
-    decode_properties_json(raw.as_deref()).map_err(|_| {
+    let raw = row.get_ref(col_idx)?.as_str_or_null()?;
+    decode_properties_json(raw).map_err(|_| {
         rusqlite::Error::FromSqlConversionFailure(
             col_idx,
             rusqlite::types::Type::Text,

@@ -9,13 +9,12 @@ use std::sync::Once;
 /// cover the small allocations from `sqlite3DbMallocRaw`,
 /// `sqlite3Fts5ExprNew`, and `vec0Filter_knn` visible at the top of the
 /// concurrent profile.
-const READER_LOOKASIDE_SLOT_SIZE: std::os::raw::c_int = 1200;
+const READER_LOOKASIDE_SLOT_SIZE: std::os::raw::c_int = 512;
 
 /// Per-reader-connection lookaside slot count. SQLite default is 128;
-/// we use 500 to absorb the per-statement allocation footprint of the
-/// hybrid search workload across a sticky worker connection without
-/// falling back to the glibc malloc-arena mutex.
-const READER_LOOKASIDE_SLOT_COUNT: std::os::raw::c_int = 500;
+/// 256 slots × 512 bytes (128 KiB/worker, 1 MiB across 8 readers) absorbs
+/// per-statement lookaside allocations without inflating small-store RSS.
+const READER_LOOKASIDE_SLOT_COUNT: std::os::raw::c_int = 256;
 
 /// Per-connection profile-callback context.
 ///

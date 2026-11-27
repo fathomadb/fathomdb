@@ -677,7 +677,7 @@ fn reader_worker_loop(
     physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
-    connection.set_prepared_statement_cache_capacity(12);
+    connection.set_prepared_statement_cache_capacity(24);
     let mut default_scope_cache = crate::scope::DefaultScopeCache::default();
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =

@@ -681,7 +681,7 @@ fn reader_worker_loop(
     physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
-    connection.set_prepared_statement_cache_capacity(16);
+    connection.set_prepared_statement_cache_capacity(12);
     let mut default_scope_cache = crate::scope::DefaultScopeCache::default();
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
@@ -701,7 +701,7 @@ fn reader_worker_loop(
         }
     }
     let _guard = LiveGuard(live_workers);
-    // Defer `PRAGMA cache_size = -1500` (1.5 MiB / 375 pages per reader × 8 = 12 MiB vs
+    // Defer `PRAGMA cache_size = -1750` (1.75 MiB / 437 pages per reader × 8 = 14 MiB vs
     // SQLite's 16 MiB default) until each reader's first actual query so `Engine::open`
     // does not trigger eager `sqlite3Init()` across idle reader connections while keeping
     // 50k/100k FTS working sets resident without page-cache thrashing.
@@ -733,7 +733,7 @@ fn reader_worker_loop(
             _ => true,
         };
         if !cache_size_configured && is_data_query {
-            let _ = connection.pragma_update(None, "cache_size", -1500);
+            let _ = connection.pragma_update(None, "cache_size", -1750);
             crate::connection_runtime::apply_perf_experiment_reader_pragmas(&connection);
             cache_size_configured = true;
         }

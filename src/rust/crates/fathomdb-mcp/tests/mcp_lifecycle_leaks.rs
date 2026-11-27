@@ -16,6 +16,14 @@ fn count_open_fds() -> usize {
     std::fs::read_dir("/proc/self/fd").expect("read /proc/self/fd").filter_map(Result::ok).count()
 }
 
+#[cfg(target_os = "linux")]
+fn count_threads() -> usize {
+    std::fs::read_dir("/proc/self/task")
+        .expect("read /proc/self/task")
+        .filter_map(Result::ok)
+        .count()
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn mcp_repeated_open_write_search_idle_drain_close_has_zero_fd_or_lock_leaks() {
     let fixture = Fixture::new();
@@ -79,6 +87,8 @@ async fn mcp_repeated_open_write_search_idle_drain_close_has_zero_fd_or_lock_lea
 
     #[cfg(target_os = "linux")]
     let fds_before = count_open_fds();
+    #[cfg(target_os = "linux")]
+    let threads_before = count_threads();
 
     let mut last_epoch = 1_u64;
     for cycle in 1..=4_u64 {
@@ -125,9 +135,14 @@ async fn mcp_repeated_open_write_search_idle_drain_close_has_zero_fd_or_lock_lea
     #[cfg(target_os = "linux")]
     {
         let fds_after = count_open_fds();
+        let threads_after = count_threads();
         assert!(
             fds_after <= fds_before + 2,
             "open FD leak across MCP open/write/search/idle-close cycles: before={fds_before}, after={fds_after}"
+        );
+        assert!(
+            threads_after <= threads_before + 2,
+            "thread leak across MCP open/write/search/idle-close cycles: before={threads_before}, after={threads_after}"
         );
     }
 

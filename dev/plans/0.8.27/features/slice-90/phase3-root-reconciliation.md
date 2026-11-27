@@ -188,3 +188,9 @@ the source blob above tracks these composition updates.
 `CommitEndpointValidationMode`. All 49 root storage fields, root declarations,
 and root method ownership remain unchanged; the source blob above tracks this
 composition update.
+
+2026-11-26: 0.8.32 Slice 50 (WP-50A / WP-50B) re-exports `SyncMode` from
+`runtime_configuration` and adds the feature-gated `logical_export` module and
+its `any(test, feature = "test-hooks", feature = "operator")` re-exports. All 49
+root storage fields, root declarations, and root method ownership remain
+unchanged; the source blob above tracks these composition updates.

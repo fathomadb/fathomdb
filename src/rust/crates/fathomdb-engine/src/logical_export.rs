@@ -174,6 +174,8 @@ pub struct LogicalExportAuthorityTablesV1 {
     pub projection_registry: Vec<ProjectionRegistryExportRowV1>,
     pub vector_kinds: Vec<VectorKindExportRowV1>,
     pub commit_timestamps: Vec<CommitTimestampExportRowV1>,
+    #[serde(default)]
+    pub non_canonical_terminal_cursors: Vec<i64>,
 }
 
 /// All 3 `TableExportClass::OptInAudit` tables.
@@ -558,6 +560,14 @@ pub fn validate_logical_export_v1(archive: &LogicalExportV1) -> Result<(), Logic
             ));
         }
     }
+    for &cursor in &archive.authority.non_canonical_terminal_cursors {
+        if cursor <= 0 {
+            return Err(LogicalExportError::new(
+                LogicalExportErrorCode::MalformedArchive,
+                "non_canonical_terminal_cursors entries must be positive",
+            ));
+        }
+    }
     for row in &archive.authority.source_dependencies {
         if row.registered_dependency_generation <= 0
             || (row.registered_dependency_generation as u64) > archive.dependency_generation
@@ -730,6 +740,7 @@ pub fn export_logical_archive_v1(
         projection_registry: export_projection_registry(&tx)?,
         vector_kinds: export_vector_kinds(&tx)?,
         commit_timestamps: export_commit_timestamps(&tx)?,
+        non_canonical_terminal_cursors: export_non_canonical_terminal_cursors(&tx)?,
     };
 
     let audit = if options.include_audit {
@@ -907,8 +918,17 @@ pub fn restore_logical_archive_v1(
         .map_err(|err| LogicalExportError::storage("project canonical edge", err))?;
     }
 
-    // Record `non_canonical` terminal rows for non-canonical write cursors.
+    // Record `non_canonical` terminal rows for non-canonical write cursors,
+    // including orphaned non-canonical cursors (multi-op AdminSchema, overwritten
+    // LatestState, retention-pruned AppendOnlyLog) exported from
+    // `_fathomdb_projection_terminal`.
     let mut non_canonical_cursors: BTreeSet<u64> = BTreeSet::new();
+    for &cursor in &archive.authority.non_canonical_terminal_cursors {
+        let cursor = cursor as u64;
+        if !canonical_cursors.contains(&cursor) {
+            non_canonical_cursors.insert(cursor);
+        }
+    }
     for row in &archive.authority.operational_mutations {
         let cursor = row.write_cursor as u64;
         if !canonical_cursors.contains(&cursor) {
@@ -1616,6 +1636,16 @@ fn export_commit_timestamps(
                 committed_at_ms: row.get(1)?,
             })
         },
+    )
+}
+
+fn export_non_canonical_terminal_cursors(tx: &Connection) -> Result<Vec<i64>, LogicalExportError> {
+    query_rows(
+        tx,
+        "SELECT write_cursor FROM _fathomdb_projection_terminal \
+         WHERE owner_kind = 'non_canonical' ORDER BY write_cursor ASC",
+        "_fathomdb_projection_terminal(non_canonical)",
+        |row| row.get(0),
     )
 }
 

@@ -206,10 +206,11 @@ verify_cloud_image() {
   [ -f "$img" ] || die "cloud image missing: $img"
   [ -f "$sums" ] || die "SHA256SUMS missing: $sums"
 
-  local expected actual
+  local expected sum_line actual
   expected="$(awk '$2 ~ /noble-server-cloudimg-amd64\.img$/ { print $1; exit }' "$sums")"
   [ -n "$expected" ] || die "noble-server-cloudimg-amd64.img entry missing from $sums"
-  actual="$(sha256sum "$img" | awk '{ print $1 }')"
+  sum_line="$(sha256sum "$img")" || die "sha256sum failed for $img"
+  read -r actual _ <<<"$sum_line"
   if [ "$expected" != "$actual" ]; then
     die "SHA-256 mismatch for $img: expected=$expected actual=$actual"
   fi
@@ -405,8 +406,10 @@ prepare_guest_template() {
   local base_img="$VM_DIR/noble-server-cloudimg-amd64.img"
   local prepared_root="$VM_DIR/root-prepared.qcow2"
   local stamp="$VM_DIR/root-prepared.sha256"
-  local bin_hash
-  bin_hash="$(sha256sum "$HARNESS_BIN" "$CLI_BIN" | sha256sum | awk '{ print $1 }')"
+  local raw_sums hash_line bin_hash
+  raw_sums="$(sha256sum "$HARNESS_BIN" "$CLI_BIN")" || die "sha256sum failed for campaign binaries"
+  hash_line="$(sha256sum <<<"$raw_sums")" || die "sha256sum digest failed for campaign binaries"
+  read -r bin_hash _ <<<"$hash_line"
 
   if [ -f "$prepared_root" ] && [ -f "$stamp" ]; then
     local prev_hash
@@ -625,6 +628,11 @@ for line in lines:
 
 if not verify_result or not verify_result.get("ok"):
     raise SystemExit(f"case {case_id}: VERIFY_RESULT failed: {verify_result}")
+if scenario == "erasure_lock_fault" and verify_result.get("stale_lock_present_before_open") is not True:
+    raise SystemExit(
+        f"case {case_id}: erasure_lock_fault expected stale_lock_present_before_open == true, "
+        f"got {verify_result.get('stale_lock_present_before_open')!r}"
+    )
 if not doctor_check:
     raise SystemExit(f"case {case_id}: missing DOCTOR_CHECK_INTEGRITY output")
 if not doctor_dpi or doctor_dpi.get("status") != "clean":
@@ -687,7 +695,7 @@ run_single_cut_case() {
   if [ "$fault_mode" = "drop_writes" ] || [ "$fault_mode" = "error_writes" ]; then
     extra_run_flags="--wait-signal-file /tmp/flakey-signal --step-delay-ms 30"
   else
-    extra_run_flags="--step-delay-ms 35 --hold-after-ms 5000"
+    extra_run_flags="--step-delay-ms 120 --hold-after-ms 1000"
   fi
   if [ "$fault_mode" = "error_writes" ]; then
     marker="READY_FOR_ERROR_WRITES"
@@ -713,8 +721,8 @@ run_single_cut_case() {
     guest_ssh "touch /tmp/flakey-signal"
     wait_for_oracle_marker "$oracle_log" "ERROR_WRITES_OBSERVED" 45 || die "$case_id: timed out waiting for ERROR_WRITES_OBSERVED"
   else
-    # up_interval hard power-off: let active writes/purge/erase_source run mid-stream, then cut power.
-    sleep 0.35
+    # up_interval hard power-off: cut power genuinely mid-stream BEFORE SCENARIO_COMPLETE.
+    sleep 0.20
   fi
 
   log "CUT_POWER $case_id via QMP quit"
@@ -726,8 +734,9 @@ run_single_cut_case() {
 run_reopen_replay_case() {
   local case_id="$1"
   local sync_mode="$2"
+  local phase2_fault_mode="$3"
 
-  log "START $case_id (sync_mode=$sync_mode scenario=reopen_replay two-cut)"
+  log "START $case_id (sync_mode=$sync_mode scenario=reopen_replay phase2_fault_mode=$phase2_fault_mode two-cut)"
   local run_dir="$VM_DIR/work/$case_id"
   rm -rf "$run_dir"
   mkdir -p "$run_dir"
@@ -739,7 +748,7 @@ run_reopen_replay_case() {
   local oracle1="$run_dir/oracle-phase1.log"
   local oracle2="$run_dir/oracle-phase2.log"
 
-  # Cut 1: seed un-checkpointed WAL accumulation and hard power-off.
+  # Cut 1: seed un-checkpointed WAL accumulation and hard power-off mid-stream.
   create_fresh_data_disk "$data_disk"
   create_ephemeral_root "$phase1_root"
   start_vm "$phase1_root" "$data_disk" "$oracle1" "$run_dir/p1-qmp.sock" "$run_dir/p1-console.log"
@@ -751,38 +760,56 @@ run_reopen_replay_case() {
     --sync-mode '$sync_mode' \
     --scenario wal_accum \
     --count 24 \
-    --step-delay-ms 30 \
-    --hold-after-ms 5000 \
+    --step-delay-ms 120 \
+    --hold-after-ms 1000 \
     --oracle-device /dev/virtio-ports/oracle.0 \
     >/tmp/harness-p1.out 2>/tmp/harness-p1.err </dev/null &"
 
   wait_for_oracle_marker "$oracle1" "READY_FOR_CUT" 90 || die "$case_id: phase1 timed out waiting for READY_FOR_CUT"
-  sleep 0.30
+  sleep 0.20
   log "CUT_POWER_1 $case_id via QMP quit"
   qmp_hard_poweroff "$run_dir/p1-qmp.sock"
 
-  # Cut 2: reboot cleanly (NO verify yet!), run reopen_replay as FIRST Engine::open to replay dirty WAL + write more, then cut power #2.
+  # Cut 2: reboot cleanly (NO verify yet!), run reopen_replay as FIRST Engine::open to replay dirty WAL + write more, then inject phase-2 fault.
   create_ephemeral_root "$phase2_root"
   start_vm "$phase2_root" "$data_disk" "$oracle2" "$run_dir/p2-qmp.sock" "$run_dir/p2-console.log"
   wait_for_ssh 120
   guest_setup_flakey_mount "reuse"
+
+  local phase2_flags=""
+  local allow_drop_rollback="0"
+  if [ "$phase2_fault_mode" = "drop_writes" ]; then
+    phase2_flags="--wait-signal-file /tmp/flakey-signal --step-delay-ms 60"
+    allow_drop_rollback="1"
+  elif [ "$phase2_fault_mode" = "poweroff" ]; then
+    phase2_flags="--step-delay-ms 100 --hold-after-ms 1000"
+    allow_drop_rollback="0"
+  else
+    die "$case_id: unknown phase2_fault_mode: $phase2_fault_mode"
+  fi
 
   guest_ssh "nohup /usr/local/bin/fathomdb-dmflakey-harness run \
     --db /mnt/flakey/fathom.db \
     --sync-mode '$sync_mode' \
     --scenario reopen_replay \
     --count 24 \
-    --step-delay-ms 30 \
-    --hold-after-ms 5000 \
+    $phase2_flags \
     --oracle-device /dev/virtio-ports/oracle.0 \
     >/tmp/harness-p2.out 2>/tmp/harness-p2.err </dev/null &"
 
   wait_for_oracle_marker "$oracle2" "READY_FOR_CUT" 90 || die "$case_id: phase2 timed out waiting for READY_FOR_CUT"
-  sleep 0.30
+  if [ "$phase2_fault_mode" = "drop_writes" ]; then
+    guest_switch_flakey_mode "drop_writes"
+    guest_ssh "touch /tmp/flakey-signal"
+    wait_for_oracle_marker "$oracle2" "SCENARIO_COMPLETE" 4 || true
+    sleep 0.25
+  else
+    sleep 0.25
+  fi
   log "CUT_POWER_2 $case_id via QMP quit"
   qmp_hard_poweroff "$run_dir/p2-qmp.sock"
 
-  verify_after_reboot "$case_id" "$sync_mode" "reopen_replay" "$data_disk" "$oracle2" "$oracle1" "0" "$run_dir"
+  verify_after_reboot "$case_id" "$sync_mode" "reopen_replay" "$data_disk" "$oracle2" "$oracle1" "$allow_drop_rollback" "$run_dir"
 }
 
 run_case() {
@@ -798,7 +825,7 @@ run_case() {
       run_single_cut_case "$case_id" "normal" "checkpoint_erasure" "drop_writes" "1"
       ;;
     normal_reopen_replay_double_cut)
-      run_reopen_replay_case "$case_id" "normal"
+      run_reopen_replay_case "$case_id" "normal" "drop_writes"
       ;;
     normal_erasure_lock_fault)
       run_single_cut_case "$case_id" "normal" "erasure_lock_fault" "poweroff" "0"
@@ -813,7 +840,7 @@ run_case() {
       run_single_cut_case "$case_id" "full" "checkpoint_erasure" "poweroff" "0"
       ;;
     full_reopen_replay_double_cut)
-      run_reopen_replay_case "$case_id" "full"
+      run_reopen_replay_case "$case_id" "full" "poweroff"
       ;;
     full_erasure_lock_fault)
       run_single_cut_case "$case_id" "full" "erasure_lock_fault" "poweroff" "0"

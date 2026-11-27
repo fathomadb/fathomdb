@@ -764,8 +764,8 @@ fn run_scenario(args: &RunArgs) -> Result<(), String> {
             let keep_end = total_seed / 2;
             let rem = total_seed - keep_end;
             let del_count = (rem / 3).max(1);
-            let purge_count = (rem / 3).max(1);
-            let erase_count = rem.saturating_sub(del_count + purge_count).max(1);
+            let purge_count = (rem / 3).max(2);
+            let erase_count = rem.saturating_sub(del_count + purge_count).max(2);
             let actual_seed = keep_end + del_count + purge_count + erase_count;
 
             for record_num in 1..=actual_seed {
@@ -782,8 +782,6 @@ fn run_scenario(args: &RunArgs) -> Result<(), String> {
                     return Err(format!("checkpoint_erasure seed write failed at {record_num}"));
                 }
             }
-            oracle.emit(&format!("READY_FOR_CUT checkpoint_erasure {event_seq}"))?;
-            wait_for_signal_file(args.wait_signal_file.as_deref(), args.wait_timeout_secs)?;
 
             let del_start = keep_end + 1;
             let del_end = keep_end + del_count;
@@ -797,7 +795,6 @@ fn run_scenario(args: &RunArgs) -> Result<(), String> {
                 )? {
                     return Err(format!("checkpoint_erasure transition_delete failed on {base}-a"));
                 }
-                maybe_pace(args.step_delay_ms);
                 if !emit_transition_delete(
                     &engine,
                     &mut oracle,
@@ -806,47 +803,56 @@ fn run_scenario(args: &RunArgs) -> Result<(), String> {
                 )? {
                     return Err(format!("checkpoint_erasure transition_delete failed on {base}-b"));
                 }
-                maybe_pace(args.step_delay_ms);
             }
 
+            // Pre-delete purge candidates before READY_FOR_CUT so phase 2 immediately
+            // streams interleaved purge / erase_source / checkpoint operations.
             let purge_start = del_end + 1;
             let purge_end = del_end + purge_count;
             for r in purge_start..=purge_end {
                 let base = base_id_for_record(r);
-                let id_a = format!("{base}-a");
-                let id_b = format!("{base}-b");
-                if !emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id_a)? {
-                    return Err(format!("checkpoint_erasure pre-purge delete failed on {id_a}"));
+                for suffix in ['a', 'b'] {
+                    let id = format!("{base}-{suffix}");
+                    if !emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id)? {
+                        return Err(format!("checkpoint_erasure pre-purge delete failed on {id}"));
+                    }
                 }
-                maybe_pace(args.step_delay_ms);
-                if !emit_purge(&engine, &mut oracle, &mut event_seq, &id_a)? {
-                    return Err(format!("checkpoint_erasure purge failed on {id_a}"));
-                }
-                maybe_pace(args.step_delay_ms);
-                if !emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id_b)? {
-                    return Err(format!("checkpoint_erasure pre-purge delete failed on {id_b}"));
-                }
-                maybe_pace(args.step_delay_ms);
-                if !emit_purge(&engine, &mut oracle, &mut event_seq, &id_b)? {
-                    return Err(format!("checkpoint_erasure purge failed on {id_b}"));
-                }
-                maybe_pace(args.step_delay_ms);
             }
+
+            oracle.emit(&format!("READY_FOR_CUT checkpoint_erasure {event_seq}"))?;
+            wait_for_signal_file(args.wait_signal_file.as_deref(), args.wait_timeout_secs)?;
 
             let erase_start = purge_end + 1;
             let erase_end = purge_end + erase_count;
-            for r in erase_start..=erase_end {
-                let src = source_id_for_record(r);
-                if !emit_erase_source(&engine, &mut oracle, &mut event_seq, &src)? {
-                    return Err(format!("checkpoint_erasure erase_source failed on {src}"));
-                }
-                maybe_pace(args.step_delay_ms);
-            }
+            let purge_records: Vec<u64> = (purge_start..=purge_end).collect();
+            let erase_records: Vec<u64> = (erase_start..=erase_end).collect();
+            let rounds = purge_records.len().max(erase_records.len());
 
-            if !emit_checkpoint(&engine, &mut oracle, &mut event_seq)? {
-                return Err("checkpoint_erasure first checkpoint failed".to_string());
+            for idx in 0..rounds {
+                if let Some(&r) = purge_records.get(idx) {
+                    let base = base_id_for_record(r);
+                    for suffix in ['a', 'b'] {
+                        let id = format!("{base}-{suffix}");
+                        if !emit_purge(&engine, &mut oracle, &mut event_seq, &id)? {
+                            return Err(format!("checkpoint_erasure purge failed on {id}"));
+                        }
+                        maybe_pace(args.step_delay_ms);
+                    }
+                }
+                if let Some(&r) = erase_records.get(idx) {
+                    let src = source_id_for_record(r);
+                    if !emit_erase_source(&engine, &mut oracle, &mut event_seq, &src)? {
+                        return Err(format!("checkpoint_erasure erase_source failed on {src}"));
+                    }
+                    maybe_pace(args.step_delay_ms);
+                }
+                if idx == 0 {
+                    if !emit_checkpoint(&engine, &mut oracle, &mut event_seq)? {
+                        return Err("checkpoint_erasure first checkpoint failed".to_string());
+                    }
+                    maybe_pace(args.step_delay_ms);
+                }
             }
-            maybe_pace(args.step_delay_ms);
 
             for r in (actual_seed + 1)..=(actual_seed + 2) {
                 if !emit_write_or_actuate(
@@ -896,12 +902,12 @@ fn run_scenario(args: &RunArgs) -> Result<(), String> {
             }
         }
         Scenario::ErasureLockFault => {
-            let total_seed = count.max(8);
-            let keep_end = total_seed / 2;
+            let total_seed = count.max(12);
+            let keep_end = total_seed / 3;
             let rem = total_seed - keep_end;
-            let del_count = (rem / 3).max(1);
-            let purge_count = (rem / 3).max(2);
-            let erase_count = rem.saturating_sub(del_count + purge_count).max(2);
+            let del_count = (rem / 4).max(1);
+            let purge_count = ((rem - del_count) / 2).max(3);
+            let erase_count = rem.saturating_sub(del_count + purge_count).max(3);
             let actual_seed = keep_end + del_count + purge_count + erase_count;
 
             for r in 1..=actual_seed {
@@ -923,53 +929,87 @@ fn run_scenario(args: &RunArgs) -> Result<(), String> {
             let del_end = keep_end + del_count;
             for r in del_start..=del_end {
                 let base = base_id_for_record(r);
-                emit_transition_delete(&engine, &mut oracle, &mut event_seq, &format!("{base}-a"))?;
-                emit_transition_delete(&engine, &mut oracle, &mut event_seq, &format!("{base}-b"))?;
+                for suffix in ['a', 'b'] {
+                    let id = format!("{base}-{suffix}");
+                    if !emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id)? {
+                        return Err(format!("erasure_lock_fault soft-delete failed on {id}"));
+                    }
+                }
             }
 
             let purge_start = del_end + 1;
-            let purge_mid = purge_start + (purge_count / 2);
+            let purge_mid = purge_start + 1;
             let purge_end = del_end + purge_count;
             for r in purge_start..purge_mid {
                 let base = base_id_for_record(r);
-                let id_a = format!("{base}-a");
-                let id_b = format!("{base}-b");
-                emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id_a)?;
-                emit_purge(&engine, &mut oracle, &mut event_seq, &id_a)?;
-                emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id_b)?;
-                emit_purge(&engine, &mut oracle, &mut event_seq, &id_b)?;
+                for suffix in ['a', 'b'] {
+                    let id = format!("{base}-{suffix}");
+                    if !emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id)? {
+                        return Err(format!("erasure_lock_fault pre-purge delete failed on {id}"));
+                    }
+                    if !emit_purge(&engine, &mut oracle, &mut event_seq, &id)? {
+                        return Err(format!("erasure_lock_fault baseline purge failed on {id}"));
+                    }
+                }
             }
 
             let erase_start = purge_end + 1;
-            let erase_mid = erase_start + (erase_count / 2);
+            let erase_mid = erase_start + 1;
             let erase_end = purge_end + erase_count;
             for r in erase_start..erase_mid {
                 let src = source_id_for_record(r);
-                emit_erase_source(&engine, &mut oracle, &mut event_seq, &src)?;
+                if !emit_erase_source(&engine, &mut oracle, &mut event_seq, &src)? {
+                    return Err(format!(
+                        "erasure_lock_fault baseline erase_source failed on {src}"
+                    ));
+                }
+            }
+
+            // Pre-delete phase-2 purge targets so READY_FOR_CUT enters an immediate,
+            // sustained stream of paced purge + erase_source operations well BEFORE
+            // the trailing checkpoint.
+            for r in purge_mid..=purge_end {
+                let base = base_id_for_record(r);
+                for suffix in ['a', 'b'] {
+                    let id = format!("{base}-{suffix}");
+                    if !emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id)? {
+                        return Err(format!(
+                            "erasure_lock_fault phase2 pre-purge delete failed on {id}"
+                        ));
+                    }
+                }
             }
 
             oracle.emit(&format!("READY_FOR_CUT erasure_lock_fault {event_seq}"))?;
             wait_for_signal_file(args.wait_signal_file.as_deref(), args.wait_timeout_secs)?;
 
-            for r in purge_mid..=purge_end {
-                let base = base_id_for_record(r);
-                let id_a = format!("{base}-a");
-                let id_b = format!("{base}-b");
-                emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id_a)?;
-                maybe_pace(args.step_delay_ms);
-                emit_purge(&engine, &mut oracle, &mut event_seq, &id_a)?;
-                maybe_pace(args.step_delay_ms);
-                emit_transition_delete(&engine, &mut oracle, &mut event_seq, &id_b)?;
-                maybe_pace(args.step_delay_ms);
-                emit_purge(&engine, &mut oracle, &mut event_seq, &id_b)?;
-                maybe_pace(args.step_delay_ms);
+            let phase2_purges: Vec<u64> = (purge_mid..=purge_end).collect();
+            let phase2_erases: Vec<u64> = (erase_mid..=erase_end).collect();
+            let rounds = phase2_purges.len().max(phase2_erases.len());
+            for idx in 0..rounds {
+                if let Some(&r) = phase2_purges.get(idx) {
+                    let base = base_id_for_record(r);
+                    for suffix in ['a', 'b'] {
+                        let id = format!("{base}-{suffix}");
+                        if !emit_purge(&engine, &mut oracle, &mut event_seq, &id)? {
+                            return Err(format!("erasure_lock_fault phase2 purge failed on {id}"));
+                        }
+                        maybe_pace(args.step_delay_ms);
+                    }
+                }
+                if let Some(&r) = phase2_erases.get(idx) {
+                    let src = source_id_for_record(r);
+                    if !emit_erase_source(&engine, &mut oracle, &mut event_seq, &src)? {
+                        return Err(format!(
+                            "erasure_lock_fault phase2 erase_source failed on {src}"
+                        ));
+                    }
+                    maybe_pace(args.step_delay_ms);
+                }
             }
-            for r in erase_mid..=erase_end {
-                let src = source_id_for_record(r);
-                emit_erase_source(&engine, &mut oracle, &mut event_seq, &src)?;
-                maybe_pace(args.step_delay_ms);
+            if !emit_checkpoint(&engine, &mut oracle, &mut event_seq)? {
+                return Err("erasure_lock_fault trailing checkpoint failed".to_string());
             }
-            emit_checkpoint(&engine, &mut oracle, &mut event_seq)?;
         }
         Scenario::ErrorWritesFull => {
             let baseline = count.max(4);
@@ -1333,6 +1373,12 @@ fn verify_state_against_oracle(
 
 fn verify_database(args: &VerifyArgs) -> Result<VerifySummary, String> {
     let stale_lock_present_before_open = lock_file_path(&args.db).exists();
+    if args.scenario == Scenario::ErasureLockFault && !stale_lock_present_before_open {
+        return Err(
+            "erasure_lock_fault expected stale .lock sidecar before Engine::open, but none was present"
+                .into(),
+        );
+    }
     let raw_oracle = fs::read_to_string(&args.oracle_log)
         .map_err(|e| format!("read oracle log {}: {e}", args.oracle_log.display()))?;
     let timeline = parse_oracle_log(&raw_oracle)?;
@@ -2064,5 +2110,144 @@ ERROR_WRITES_OBSERVED 0 1
         .expect("verify reopen_replay");
         assert!(summary.ok);
         assert_eq!(summary.active_nodes, 36); // (10 + 8) * 2
+    }
+
+    #[test]
+    fn erasure_lock_fault_fails_closed_when_stale_lock_is_absent() {
+        let dir = TempDir::new().expect("tempdir");
+        let db = dir.path().join("fathom.db");
+        let oracle = dir.path().join("oracle.log");
+
+        run_scenario(&RunArgs {
+            db: db.clone(),
+            sync_mode: SyncMode::Full,
+            scenario: Scenario::ErasureLockFault,
+            oracle_device: oracle.to_string_lossy().into_owned(),
+            count: Some(12),
+            scope: DEFAULT_SCOPE.to_string(),
+            step_delay_ms: 0,
+            wait_signal_file: None,
+            wait_timeout_secs: 5,
+            hold_after_ms: 0,
+            keep_lock_on_exit: false,
+        })
+        .expect("run erasure_lock_fault without stale lock");
+        let _ = fs::remove_file(lock_file_path(&db));
+        assert!(!lock_file_path(&db).exists(), "lock sidecar removed before verify");
+
+        let err = verify_database(&VerifyArgs {
+            db,
+            sync_mode: SyncMode::Full,
+            scenario: Scenario::ErasureLockFault,
+            oracle_log: oracle,
+            prev_oracle_log: None,
+            scope: DEFAULT_SCOPE.to_string(),
+            allow_drop_writes_rollback: false,
+            skip_post_write: true,
+        })
+        .expect_err("erasure_lock_fault verify must fail closed when stale .lock is absent");
+        assert!(
+            err.contains("erasure_lock_fault expected stale .lock sidecar before Engine::open"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn erasure_lock_fault_mid_stream_inflight_purge_and_erase_verify_cleanly() {
+        // Trailing INFLIGHT purge (max_inflight_index == last_acked_index + 1):
+        // both rollback (node still deleted) and atomic commit (node purged) must verify cleanly.
+        let purge_log = "\
+SESSION_START erasure_lock_fault full tenant-flakey
+INFLIGHT 1 write dmf-000001
+ACK 1 2 write dmf-000001
+INFLIGHT 2 write dmf-000002
+ACK 2 4 write dmf-000002
+INFLIGHT 3 transition_delete dmf-000002-a
+ACK 3 0 transition_delete dmf-000002-a
+INFLIGHT 4 purge dmf-000002-a
+";
+        let tl_purge = parse_oracle_log(purge_log).expect("parse purge mid-flight log");
+        assert_eq!(tl_purge.last_acked_index(), 3);
+        assert_eq!(tl_purge.events.len(), 4);
+
+        // Case 1: trailing INFLIGHT purge rolled back (dmf-000002-a still deleted).
+        let mut rolled_back = BTreeMap::new();
+        for (k, v) in pair_nodes(1, StoredNodeState::Active) {
+            rolled_back.insert(k, v);
+        }
+        for (k, mut v) in pair_nodes(2, StoredNodeState::Active) {
+            if k == "dmf-000002-a" {
+                v.state = StoredNodeState::Deleted;
+            }
+            rolled_back.insert(k, v);
+        }
+        let m_rb = verify_state_against_oracle(
+            SyncMode::Full,
+            Scenario::ErasureLockFault,
+            &tl_purge,
+            None,
+            &rolled_back,
+            false,
+        )
+        .expect("rolled-back mid-flight purge must verify at last_acked_index");
+        assert_eq!(m_rb.matched_prefix_index, 3);
+        assert_eq!(m_rb.last_acked_index, 3);
+        assert_eq!(m_rb.max_inflight_index, 4);
+
+        // Case 2: trailing INFLIGHT purge committed atomically before ACK.
+        let mut committed = rolled_back;
+        committed.remove("dmf-000002-a");
+        let m_cm = verify_state_against_oracle(
+            SyncMode::Full,
+            Scenario::ErasureLockFault,
+            &tl_purge,
+            None,
+            &committed,
+            false,
+        )
+        .expect("committed mid-flight purge must verify at max_inflight_index");
+        assert_eq!(m_cm.matched_prefix_index, 4);
+
+        // Trailing INFLIGHT erase_source (max_inflight_index == last_acked_index + 1).
+        let erase_log = "\
+SESSION_START erasure_lock_fault normal tenant-flakey
+INFLIGHT 1 write dmf-000001
+ACK 1 2 write dmf-000001
+INFLIGHT 2 write dmf-000002
+ACK 2 4 write dmf-000002
+INFLIGHT 3 erase_source src-dmf-000002
+";
+        let tl_erase = parse_oracle_log(erase_log).expect("parse erase mid-flight log");
+        let mut before_erase = BTreeMap::new();
+        for seq in 1..=2 {
+            for (k, v) in pair_nodes(seq, StoredNodeState::Active) {
+                before_erase.insert(k, v);
+            }
+        }
+        let m_eb = verify_state_against_oracle(
+            SyncMode::Normal,
+            Scenario::ErasureLockFault,
+            &tl_erase,
+            None,
+            &before_erase,
+            false,
+        )
+        .expect("rolled-back mid-flight erase_source must verify");
+        assert_eq!(m_eb.matched_prefix_index, 2);
+
+        let mut after_erase = BTreeMap::new();
+        for (k, v) in pair_nodes(1, StoredNodeState::Active) {
+            after_erase.insert(k, v);
+        }
+        let m_ea = verify_state_against_oracle(
+            SyncMode::Normal,
+            Scenario::ErasureLockFault,
+            &tl_erase,
+            None,
+            &after_erase,
+            false,
+        )
+        .expect("committed mid-flight erase_source must verify");
+        assert_eq!(m_ea.matched_prefix_index, 3);
     }
 }

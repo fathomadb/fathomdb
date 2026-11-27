@@ -6,7 +6,11 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+
+// Serialize process-global FD/thread leak checks against sibling tests in this binary
+// while allowing all non-leak tests to run concurrently.
+static RESOURCE_GATE: RwLock<()> = RwLock::new(());
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
@@ -120,8 +124,17 @@ fn count_open_fds() -> usize {
     std::fs::read_dir("/proc/self/fd").expect("read /proc/self/fd").filter_map(Result::ok).count()
 }
 
+#[cfg(target_os = "linux")]
+fn count_threads() -> usize {
+    std::fs::read_dir("/proc/self/task")
+        .expect("read /proc/self/task")
+        .filter_map(Result::ok)
+        .count()
+}
+
 #[test]
 fn logical_export_round_trip_multi_scope_unpinned_mean_and_full_parity() {
+    let _shared = RESOURCE_GATE.read().unwrap_or_else(|e| e.into_inner());
     let dir = TempDir::new().expect("tempdir");
     let src_path = dir.path().join(format!("source{SQLITE_SUFFIX}"));
     let dst_path = dir.path().join(format!("restored{SQLITE_SUFFIX}"));
@@ -557,6 +570,7 @@ fn logical_export_round_trip_multi_scope_unpinned_mean_and_full_parity() {
 
 #[test]
 fn logical_export_round_trip_pinned_mean_at_or_above_256_vectors() {
+    let _shared = RESOURCE_GATE.read().unwrap_or_else(|e| e.into_inner());
     let dir = TempDir::new().expect("tempdir");
     let src_path = dir.path().join(format!("pinned-src{SQLITE_SUFFIX}"));
     let dst_path = dir.path().join(format!("pinned-dst{SQLITE_SUFFIX}"));
@@ -652,6 +666,7 @@ fn logical_export_round_trip_pinned_mean_at_or_above_256_vectors() {
 
 #[test]
 fn logical_export_fails_closed_on_all_four_pending_erasure_conditions_and_manifest_coverage() {
+    let _shared = RESOURCE_GATE.read().unwrap_or_else(|e| e.into_inner());
     // Verify complete TableExportClass coverage across all 36 TABLE_MANIFEST tables.
     assert_eq!(TABLE_MANIFEST.len(), 36);
     let count_class =
@@ -745,6 +760,7 @@ fn logical_export_fails_closed_on_all_four_pending_erasure_conditions_and_manife
 
 #[test]
 fn logical_export_rejects_malformed_and_truncated_archives_without_mutating_target() {
+    let _shared = RESOURCE_GATE.read().unwrap_or_else(|e| e.into_inner());
     let dir = TempDir::new().expect("tempdir");
     let src_path = dir.path().join(format!("valid-src{SQLITE_SUFFIX}"));
     let dst_path = dir.path().join(format!("untouched-dst{SQLITE_SUFFIX}"));
@@ -794,6 +810,20 @@ fn logical_export_rejects_malformed_and_truncated_archives_without_mutating_targ
         LogicalExportErrorCode::UnsupportedSchemaVersion
     );
 
+    // 5b. Non-positive entry in non_canonical_terminal_cursors is rejected,
+    //     while omitting the field deserializes cleanly via #[serde(default)].
+    let mut bad_nc = valid.clone();
+    bad_nc.authority.non_canonical_terminal_cursors = vec![0];
+    assert_eq!(
+        decode_logical_export_v1(&serde_json::to_vec(&bad_nc).unwrap()).unwrap_err().code,
+        LogicalExportErrorCode::MalformedArchive
+    );
+    let mut without_nc: serde_json::Value = serde_json::from_slice(&valid_bytes).unwrap();
+    without_nc["authority"].as_object_mut().unwrap().remove("non_canonical_terminal_cursors");
+    let decoded_without_nc =
+        decode_logical_export_v1(&serde_json::to_vec(&without_nc).unwrap()).unwrap();
+    assert!(decoded_without_nc.authority.non_canonical_terminal_cursors.is_empty());
+
     // 6. Malformed archive passed directly to restore must NOT mutate target DB.
     let mut dst_conn = open_empty_schema39_db(&dst_path);
     let mut invalid_flag = valid.clone();
@@ -826,6 +856,7 @@ fn logical_export_rejects_malformed_and_truncated_archives_without_mutating_targ
 
 #[test]
 fn engine_repeated_open_write_search_close_drop_lifecycle_leaks_and_closing_state() {
+    let _exclusive = RESOURCE_GATE.write().unwrap_or_else(|e| e.into_inner());
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join(format!("lifecycle{SQLITE_SUFFIX}"));
 
@@ -851,6 +882,8 @@ fn engine_repeated_open_write_search_close_drop_lifecycle_leaks_and_closing_stat
 
     #[cfg(target_os = "linux")]
     let fds_before = count_open_fds();
+    #[cfg(target_os = "linux")]
+    let threads_before = count_threads();
 
     for i in 0..10 {
         let eng = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap().engine;
@@ -909,9 +942,287 @@ fn engine_repeated_open_write_search_close_drop_lifecycle_leaks_and_closing_stat
     #[cfg(target_os = "linux")]
     {
         let fds_after = count_open_fds();
+        let threads_after = count_threads();
         assert!(
             fds_after <= fds_before + 2,
             "open FD leak across 10 open/write/search/close/drop cycles: before={fds_before}, after={fds_after}"
         );
+        assert!(
+            threads_after <= threads_before + 2,
+            "thread leak across 10 open/write/search/close/drop cycles: before={threads_before}, after={threads_after}"
+        );
     }
+}
+
+#[test]
+fn engine_dense_embedder_repeated_open_write_drain_search_close_drop_lifecycle_leaks() {
+    let _exclusive = RESOURCE_GATE.write().unwrap_or_else(|e| e.into_inner());
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("dense-lifecycle{SQLITE_SUFFIX}"));
+
+    let open_dense = || {
+        Engine::open_with_test_choice_for_test(
+            &path,
+            TestEmbedderChoice::Caller(Arc::new(SimulatedBgeEmbedder::default())),
+        )
+        .expect("open dense lifecycle engine")
+        .engine
+    };
+
+    // Warmup cycles (configure vector kind + stabilize projection/embedder worker threads).
+    for i in 0..2 {
+        let eng = open_dense();
+        if i == 0 {
+            eng.configure_vector_kind_for_test("doc").expect("configure doc vector kind");
+        }
+        eng.write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: format!("dense warmup payload {i} telemetry calibration"),
+            source_id: SourceId::new("dense-warmup").unwrap(),
+            logical_id: Some(format!("dense-warmup:{i}")),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        }])
+        .unwrap();
+        eng.drain(10_000).unwrap();
+        let _ = eng.search("telemetry calibration").unwrap();
+        eng.close().unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    let fds_before = count_open_fds();
+    #[cfg(target_os = "linux")]
+    let threads_before = count_threads();
+
+    for i in 0..8 {
+        let eng = open_dense();
+        eng.write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: format!("dense lifecycle cycle {i} orbital propulsion vector-{i}"),
+            source_id: SourceId::new("dense-cycle").unwrap(),
+            logical_id: Some(format!("dense-cycle:{i}")),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        }])
+        .unwrap();
+        eng.drain(10_000).unwrap();
+        let hits = eng.search(&format!("vector-{i}")).unwrap();
+        assert!(!hits.results.is_empty(), "dense cycle {i} search returned no results");
+
+        if i % 2 == 0 {
+            eng.close().unwrap();
+        } else {
+            drop(eng);
+        }
+
+        // Immediate sidecar `.lock` release check.
+        let probe = open_dense();
+        probe.close().unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let fds_after = count_open_fds();
+        let threads_after = count_threads();
+        assert!(
+            fds_after <= fds_before + 2,
+            "dense embedder FD leak across 8 open/write/drain/search/close/drop cycles: before={fds_before}, after={fds_after}"
+        );
+        assert!(
+            threads_after <= threads_before + 2,
+            "dense embedder thread leak across 8 open/write/drain/search/close/drop cycles: before={threads_before}, after={threads_after}"
+        );
+    }
+}
+
+#[test]
+fn logical_export_preserves_orphaned_non_canonical_terminal_cursors_without_cursor_stall() {
+    let _shared = RESOURCE_GATE.read().unwrap_or_else(|e| e.into_inner());
+    let dir = TempDir::new().expect("tempdir");
+    let src_path = dir.path().join(format!("orphan-nc-src{SQLITE_SUFFIX}"));
+    let dst_path = dir.path().join(format!("orphan-nc-dst{SQLITE_SUFFIX}"));
+
+    let (admin_orphan_cursor, latest_orphan_cursor, pruned_log_orphan_cursor, max_write_cursor): (
+        i64,
+        i64,
+        i64,
+        u64,
+    );
+
+    {
+        let eng = open_bge_scoped(&src_path, ScopePolicy::default());
+        eng.configure_vector_kind_for_test("doc").expect("vector kind doc");
+
+        // 1. Multi-op AdminSchema batch: cursor 1 is non_canonical and appears in neither
+        //    operational_collections (no write_cursor col) nor _fathomdb_commit_timestamps
+        //    (which only records the batch tail cursor).
+        let admin_receipt = eng
+            .write(&[
+                PreparedWrite::AdminSchema {
+                    name: "audit_log".into(),
+                    kind: "append_only_log".into(),
+                    schema_json: r#"{"type":"object","properties":{"seq":{"type":"integer"}},"required":["seq"]}"#.into(),
+                    retention_json: "{}".into(),
+                },
+                PreparedWrite::AdminSchema {
+                    name: "checkpoints".into(),
+                    kind: "latest_state".into(),
+                    schema_json: r#"{"type":"object","properties":{"v":{"type":"integer"}},"required":["v"]}"#.into(),
+                    retention_json: "{}".into(),
+                },
+            ])
+            .expect("register two operational collections");
+        admin_orphan_cursor = (admin_receipt.cursor - 1) as i64;
+
+        // 2. Overwritten LatestState: same collection + key written twice inside a multi-op
+        //    batch so the earlier cursor is overwritten in operational_state and omitted
+        //    from _fathomdb_commit_timestamps.
+        let latest_receipt = eng
+            .write(&[
+                PreparedWrite::OpStore {
+                    collection: "checkpoints".into(),
+                    record_key: "slot-1".into(),
+                    body: r#"{"v":1}"#.into(),
+                    schema_id: None,
+                },
+                PreparedWrite::OpStore {
+                    collection: "checkpoints".into(),
+                    record_key: "slot-1".into(),
+                    body: r#"{"v":2}"#.into(),
+                    schema_id: None,
+                },
+            ])
+            .expect("overwrite latest_state twice in one batch");
+        latest_orphan_cursor = (latest_receipt.cursor - 1) as i64;
+
+        // 3. Retention-pruned AppendOnlyLog: configure provenance_row_cap=2 and append 4
+        //    entries in one batch so the oldest 2 rows are pruned from operational_mutations
+        //    while their non_canonical terminal rows remain.
+        eng.set_provenance_row_cap_for_test(Some(2));
+        let log_receipt = eng
+            .write(&[
+                PreparedWrite::OpStore {
+                    collection: "audit_log".into(),
+                    record_key: "ev-1".into(),
+                    body: r#"{"seq":1}"#.into(),
+                    schema_id: None,
+                },
+                PreparedWrite::OpStore {
+                    collection: "audit_log".into(),
+                    record_key: "ev-2".into(),
+                    body: r#"{"seq":2}"#.into(),
+                    schema_id: None,
+                },
+                PreparedWrite::OpStore {
+                    collection: "audit_log".into(),
+                    record_key: "ev-3".into(),
+                    body: r#"{"seq":3}"#.into(),
+                    schema_id: None,
+                },
+                PreparedWrite::OpStore {
+                    collection: "audit_log".into(),
+                    record_key: "ev-4".into(),
+                    body: r#"{"seq":4}"#.into(),
+                    schema_id: None,
+                },
+            ])
+            .expect("append and retention-prune append_only_log");
+        pruned_log_orphan_cursor = (log_receipt.cursor - 3) as i64;
+
+        // 4. Write a trailing canonical node after all three non-canonical orphans so any
+        //    missing non_canonical terminal row stalls advance_projection_cursor before it.
+        let tail_receipt = eng
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "Trailing canonical document after orphaned non-canonical cursors".into(),
+                source_id: SourceId::new("src-tail").unwrap(),
+                logical_id: Some("doc:tail".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .expect("write trailing canonical node");
+        max_write_cursor = tail_receipt.cursor;
+
+        eng.drain(15_000).expect("drain source engine");
+        assert_integrity_clean(&eng);
+        eng.close().expect("close source engine");
+    }
+
+    recover_complete_erasures(&src_path).expect("complete erasures before export");
+
+    let mut src_conn = Connection::open(&src_path).expect("open source raw");
+    // Confirm all three orphaned non_canonical cursors exist ONLY in _fathomdb_projection_terminal
+    // and NOT in operational_mutations, operational_state, or _fathomdb_commit_timestamps.
+    for (label, orphan_cursor) in [
+        ("admin_schema", admin_orphan_cursor),
+        ("overwritten_latest_state", latest_orphan_cursor),
+        ("pruned_append_only_log", pruned_log_orphan_cursor),
+    ] {
+        let owner_kind: Option<String> = src_conn
+            .query_row(
+                "SELECT owner_kind FROM _fathomdb_projection_terminal WHERE write_cursor = ?1",
+                [orphan_cursor],
+                |r| r.get(0),
+            )
+            .ok();
+        assert_eq!(
+            owner_kind.as_deref(),
+            Some("non_canonical"),
+            "expected {label} cursor {orphan_cursor} in _fathomdb_projection_terminal as non_canonical"
+        );
+        let ref_count: i64 = src_conn
+            .query_row(
+                "SELECT \
+                   (SELECT COUNT(*) FROM operational_mutations WHERE write_cursor = ?1) \
+                 + (SELECT COUNT(*) FROM operational_state WHERE write_cursor = ?1) \
+                 + (SELECT COUNT(*) FROM _fathomdb_commit_timestamps WHERE write_cursor = ?1)",
+                [orphan_cursor],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            ref_count, 0,
+            "expected {label} cursor {orphan_cursor} to be orphaned from operational_mutations/operational_state/commit_timestamps"
+        );
+    }
+
+    let archive = export_logical_archive_v1(
+        &mut src_conn,
+        LogicalExportOptionsV1 { include_audit: false, include_vectors: true },
+    )
+    .expect("export logical archive with orphaned non-canonical cursors");
+    let encoded = encode_logical_export_v1(&archive).expect("encode archive");
+    let decoded = decode_logical_export_v1(&encoded).expect("decode archive");
+    assert_eq!(decoded, archive);
+    drop(src_conn);
+
+    let mut dst_conn = open_empty_schema39_db(&dst_path);
+    let report = restore_logical_archive_v1(&mut dst_conn, &decoded).expect("restore archive");
+    assert_eq!(
+        report.projection_cursor_after, max_write_cursor,
+        "advance_projection_cursor must reach full write_cursor without stalling on orphaned non_canonical cursors"
+    );
+
+    let persisted_cursor: u64 = dst_conn
+        .query_row(
+            "SELECT CAST(value AS INTEGER) FROM _fathomdb_open_state WHERE key = 'projection_cursor'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(persisted_cursor, max_write_cursor);
+    drop(dst_conn);
+
+    let eng_dst = open_bge_scoped(&dst_path, ScopePolicy::default());
+    assert_integrity_clean(&eng_dst);
+    eng_dst.close().expect("close restored engine");
 }

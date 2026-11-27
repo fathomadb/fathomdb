@@ -1424,10 +1424,9 @@ impl Engine {
             &managed_connections,
         )
         .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
-        // Keep all hot-path write-batch cached statements resident without LRU eviction
-        // (rusqlite defaults to 16, whereas a canonical batch touches ~30+ distinct statements
-        // including chunked IN lookups and provenance inserts).
-        connection.set_prepared_statement_cache_capacity(96);
+        // Keep hot-path write-batch cached statements resident without LRU eviction
+        // while avoiding excessive VDBE memory overhead on smaller stores.
+        connection.set_prepared_statement_cache_capacity(64);
         // Order pinned by `dev/design/errors.md` § OpenStage matrix: each
         // step routes its own SQLite-level error to a distinct
         // `CorruptionKind` (Header → WalReplay → Schema → EmbedderIdentity).
@@ -2875,4 +2874,60 @@ fn ep07_deleted_under_admission_lock_returns_database_not_found_without_artifact
     );
     assert!(!path.exists(), "must not recreate deleted database");
     assert!(!lock_path(&path).exists(), "must remove newly created lockfile on refusal");
+}
+
+#[cfg(test)]
+#[test]
+fn reader_connections_set_cache_size_1000kib_without_eager_schema_init() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join(format!("reader-cache-1000{}", fathomdb_schema::SQLITE_SUFFIX));
+    let (embedder_identity, stop_words_sha256) = {
+        let opened = Engine::open(&path).unwrap();
+        let id = opened.report.default_embedder.clone();
+        let sw = opened.report.stop_words_sha256.clone();
+        opened.engine.close().unwrap();
+        (id, sw)
+    };
+    let managed = Arc::new(ManagedConnectionRegistry::default());
+    let mut noop_emit = |_: &MigrationStepReport| {};
+    let (_writer, readers, _report, _rcs, _seed) = Engine::open_locked(
+        path,
+        fathomdb_schema::MIGRATIONS,
+        false,
+        &embedder_identity,
+        false,
+        &stop_words_sha256,
+        None,
+        SyncMode::Normal,
+        &mut noop_emit,
+        managed,
+    )
+    .unwrap();
+    assert!(!readers.is_empty());
+    for (idx, reader) in readers.iter().enumerate() {
+        let mut schema_used: i32 = -1;
+        let mut schema_hi: i32 = 0;
+        unsafe {
+            rusqlite::ffi::sqlite3_db_status(
+                reader.handle(),
+                rusqlite::ffi::SQLITE_DBSTATUS_SCHEMA_USED,
+                &mut schema_used,
+                &mut schema_hi,
+                0,
+            );
+        }
+        assert_eq!(schema_used, 0, "reader {idx} must defer sqlite3Init() during Engine::open");
+    }
+    drop((_writer, readers));
+    // Verify a live engine reader worker caps its page cache at -1000 KiB lazily on first query.
+    let opened = Engine::open(
+        dir.path().join(format!("reader-cache-1000{}", fathomdb_schema::SQLITE_SUFFIX)),
+    )
+    .unwrap();
+    for _ in 0..READER_POOL_SIZE {
+        let _ = opened.engine.search_text_only("nonexistent_probe_term").unwrap();
+    }
+    let cache_sizes = opened.engine.reader_pool.cache_size_per_worker();
+    assert_eq!(cache_sizes, vec![-1000; READER_POOL_SIZE]);
+    opened.engine.close().unwrap();
 }

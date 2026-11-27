@@ -839,7 +839,7 @@ def _worker_build_gate1_d10_store(spec: dict[str, Any]) -> dict[str, Any]:
                 f"Historical corpus paragraph {p} documents operational telemetry, "
                 f"storage invariants, frozen snapshot verification, and longitudinal "
                 f"query scaling across multi-megabyte SQLite pages."
-                for p in range(16)
+                for p in range(46)
             )
         )
         for start in range(0, num_nodes, BATCH_SIZE):

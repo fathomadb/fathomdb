@@ -375,8 +375,41 @@ pub(crate) fn project_canonical_node_row(
     node_active: bool,
     properties: Option<&crate::PropertyMap>,
     registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
+    fts_dirty: Option<&mut bool>,
+    vector_kind_cache: Option<&mut std::collections::HashMap<String, bool>>,
+) -> rusqlite::Result<bool> {
+    project_canonical_node_row_with_terminal_sink(
+        tx,
+        cursor,
+        kind,
+        body,
+        row_kind,
+        pass,
+        node_active,
+        properties,
+        registry,
+        fts_dirty,
+        vector_kind_cache,
+        None,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn project_canonical_node_row_with_terminal_sink(
+    tx: &Connection,
+    cursor: u64,
+    kind: &str,
+    body: &str,
+    row_kind: RowKind,
+    pass: ProjectionPass,
+    node_active: bool,
+    properties: Option<&crate::PropertyMap>,
+    registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
     mut fts_dirty: Option<&mut bool>,
     vector_kind_cache: Option<&mut std::collections::HashMap<String, bool>>,
+    pending_terminals: Option<&mut Vec<(u64, ProjectionTerminalOwnerKind)>>,
+    pending_node_attrs: Option<&mut crate::projection_registry::PendingNodeAttributeInserts>,
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
@@ -439,13 +472,14 @@ pub(crate) fn project_canonical_node_row(
     // `Engine::transition`). Passes where `writes_attributes()` is false ignore the
     // flag entirely.
     if pass.writes_attributes() && node_active {
-        crate::projection_registry::project_node_attributes_with_registry_and_dirty_flag(
+        crate::projection_registry::project_node_attributes_with_batch_sink(
             tx,
             cursor as i64,
             body,
             properties,
             registry,
             fts_dirty,
+            pending_node_attrs,
         )?;
     }
     // 0.8.20 Slice 20c (R-20-DR remainder) — UNCHANGED, deliberately. Late
@@ -480,12 +514,16 @@ pub(crate) fn project_canonical_node_row(
         } else {
             // Never-vector-projected rows terminate the cursor up-front so
             // `advance_projection_cursor` can advance the readiness watermark.
-            record_projection_terminal(
-                tx,
-                cursor,
-                "up_to_date",
-                ProjectionTerminalOwnerKind::Canonical,
-            )?;
+            if let Some(sink) = pending_terminals {
+                sink.push((cursor, ProjectionTerminalOwnerKind::Canonical));
+            } else {
+                record_projection_terminal(
+                    tx,
+                    cursor,
+                    "up_to_date",
+                    ProjectionTerminalOwnerKind::Canonical,
+                )?;
+            }
         }
     }
     Ok(enqueue_vector)
@@ -522,6 +560,33 @@ pub(crate) fn project_canonical_edge_row(
     edge_active: bool,
     registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
     fts_dirty: Option<&mut bool>,
+) -> rusqlite::Result<(bool, bool)> {
+    project_canonical_edge_row_with_terminal_sink(
+        tx,
+        cursor,
+        kind,
+        body,
+        pass,
+        properties,
+        edge_active,
+        registry,
+        fts_dirty,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn project_canonical_edge_row_with_terminal_sink(
+    tx: &Connection,
+    cursor: u64,
+    kind: &str,
+    body: Option<&str>,
+    pass: ProjectionPass,
+    properties: Option<&crate::PropertyMap>,
+    edge_active: bool,
+    registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
+    fts_dirty: Option<&mut bool>,
+    pending_terminals: Option<&mut Vec<(u64, ProjectionTerminalOwnerKind)>>,
 ) -> rusqlite::Result<(bool, bool)> {
     if pass.writes_fts() {
         match fts_dirty {
@@ -572,6 +637,8 @@ pub(crate) fn project_canonical_edge_row(
             .execute(params![cursor])?;
             // Do NOT call record_projection_terminal — let the scheduler embed
             // the body and mark it terminal after projection.
+        } else if let Some(sink) = pending_terminals {
+            sink.push((cursor, ProjectionTerminalOwnerKind::Canonical));
         } else {
             record_projection_terminal(
                 tx,

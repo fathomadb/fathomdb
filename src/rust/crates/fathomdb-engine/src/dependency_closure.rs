@@ -887,7 +887,7 @@ pub(crate) fn maintain_before_writer(connection: &Connection) -> Result<(), Engi
     guard_no_pending_physical(connection)?;
     let ids = {
         let mut statement = connection
-            .prepare(
+            .prepare_cached(
                 "SELECT closure_operation_id FROM _fathomdb_dependency_closures \
                  WHERE phase IN ('proving','incomplete') \
                    AND cause IN ('superseded','soft_deleted') \

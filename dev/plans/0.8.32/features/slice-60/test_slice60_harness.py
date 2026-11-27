@@ -483,8 +483,9 @@ def test_gate1_d10_workers_smoke_on_real_engine(tmp_path: Path) -> None:
     assert blk_res["explain_false_ids"] == blk_res["explain_true_ids"]
     assert all(len(ids) > 0 for ids in blk_res["explain_false_ids"])
 
-    # Verify realistic Gate1-D10 fixture shape: non-adopted `source` bodies are ~2.5 KB
-    # while `adopted` bodies stay concise.
+    # Verify realistic Gate1-D10 fixture shape: non-adopted `source` bodies are ~8.4 KB
+    # (crossing 2 SQLite overflow pages so v0.8.31's uncached scan is ~120+ ms) while
+    # `adopted` bodies stay concise.
     import sqlite3
 
     conn = sqlite3.connect(str(db_path))
@@ -497,7 +498,7 @@ def test_gate1_d10_workers_smoke_on_real_engine(tmp_path: Path) -> None:
         ).fetchone()[0]
     finally:
         conn.close()
-    assert 2000 <= avg_source_len <= 3200, f"expected ~2.5 KB source bodies, got {avg_source_len}"
+    assert 8000 <= avg_source_len <= 9000, f"expected ~8.4 KB source bodies, got {avg_source_len}"
     assert avg_adopted_len < 300, f"expected concise adopted bodies, got {avg_adopted_len}"
 
 

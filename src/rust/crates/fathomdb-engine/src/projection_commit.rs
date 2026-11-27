@@ -110,6 +110,56 @@ pub(crate) fn record_projection_terminal(
     Ok(())
 }
 
+static BATCH_UP_TO_DATE_TERMINAL_SQL_64: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| build_up_to_date_terminal_insert_sql(64));
+
+fn build_up_to_date_terminal_insert_sql(count: usize) -> String {
+    let mut sql = String::from(
+        "INSERT OR IGNORE INTO _fathomdb_projection_terminal(write_cursor, state, owner_kind) VALUES ",
+    );
+    for idx in 0..count {
+        if idx > 0 {
+            sql.push(',');
+        }
+        let c_param = idx * 2 + 1;
+        let k_param = idx * 2 + 2;
+        sql.push_str(&format!("(?{c_param},'up_to_date',?{k_param})"));
+    }
+    sql
+}
+
+pub(crate) fn record_up_to_date_projection_terminals_batch(
+    connection: &Connection,
+    entries: &[(u64, ProjectionTerminalOwnerKind)],
+) -> rusqlite::Result<()> {
+    if entries.is_empty() {
+        return Ok(());
+    }
+    const CHUNK_SIZE: usize = 64;
+    let mut bound: Vec<rusqlite::types::ToSqlOutput<'_>> = Vec::with_capacity(CHUNK_SIZE * 2);
+    for chunk in entries.chunks(CHUNK_SIZE) {
+        bound.clear();
+        for (cursor, owner_kind) in chunk {
+            let cursor_i64 = i64::try_from(*cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            bound.push(rusqlite::types::ToSqlOutput::Borrowed(rusqlite::types::ValueRef::Integer(
+                cursor_i64,
+            )));
+            bound.push(rusqlite::types::ToSqlOutput::Borrowed(rusqlite::types::ValueRef::Text(
+                owner_kind.as_str().as_bytes(),
+            )));
+        }
+        if chunk.len() == CHUNK_SIZE {
+            connection
+                .prepare_cached(BATCH_UP_TO_DATE_TERMINAL_SQL_64.as_str())?
+                .execute(rusqlite::params_from_iter(bound.iter()))?;
+        } else {
+            let sql = build_up_to_date_terminal_insert_sql(chunk.len());
+            connection.prepare_cached(&sql)?.execute(rusqlite::params_from_iter(bound.iter()))?;
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn terminal_state_for_cursor(
     connection: &Connection,
     cursor: u64,

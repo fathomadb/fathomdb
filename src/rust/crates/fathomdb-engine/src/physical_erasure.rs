@@ -181,16 +181,19 @@ pub(crate) fn active(c: &Connection) -> Result<bool, EngineError> {
         return Ok(true);
     }
     let has_closures: bool = c
-        .query_row(
+        .prepare_cached(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_fathomdb_dependency_closures')",
-            [],
-            |r| r.get(0),
         )
+        .and_then(|mut s| s.query_row([], |r| r.get(0)))
         .map_err(|_| EngineError::Storage)?;
     if !has_closures {
         return Ok(false);
     }
-    c.query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE phase!='complete' AND cause IN ('purged','source_erased'))", [], |r| r.get(0)).map_err(|_| EngineError::Storage)
+    c.prepare_cached(
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE phase!='complete' AND cause IN ('purged','source_erased'))",
+    )
+    .and_then(|mut s| s.query_row([], |r| r.get(0)))
+    .map_err(|_| EngineError::Storage)
 }
 
 pub(crate) fn cursor_floor(c: &Connection) -> Result<u64, EngineError> {

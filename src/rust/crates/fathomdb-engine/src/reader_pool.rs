@@ -340,6 +340,10 @@ pub(crate) enum ReaderRequest {
     SecureDeleteStatus {
         respond: SyncSender<i64>,
     },
+    #[cfg(test)]
+    CacheSizeStatus {
+        respond: SyncSender<i64>,
+    },
     /// Slice 65 test-only real SQLite control. The worker opens a deferred
     /// transaction, executes a query to acquire its WAL snapshot, reports the
     /// rendezvous, and holds the snapshot until released. It is never compiled
@@ -677,7 +681,7 @@ fn reader_worker_loop(
     physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
-    connection.set_prepared_statement_cache_capacity(32);
+    connection.set_prepared_statement_cache_capacity(16);
     let mut default_scope_cache = crate::scope::DefaultScopeCache::default();
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
@@ -697,6 +701,10 @@ fn reader_worker_loop(
         }
     }
     let _guard = LiveGuard(live_workers);
+    // Defer `PRAGMA cache_size = -1000` (1.0 MiB / 250 pages per reader × 8 = 8 MiB vs
+    // SQLite's 16 MiB default) until each reader's first actual query so `Engine::open`
+    // does not trigger eager `sqlite3Init()` across idle reader connections.
+    let mut cache_size_configured = false;
 
     while let Ok(request) = rx.recv() {
         if shutdown.load(Ordering::Acquire) {
@@ -711,6 +719,23 @@ fn reader_worker_loop(
             | ReaderRequest::WalNativeStateInventory { .. } => None,
             _ => Some(physical_admission.enter()),
         };
+        let is_data_query = match &request {
+            ReaderRequest::Shutdown => false,
+            #[cfg(any(test, feature = "test-hooks"))]
+            ReaderRequest::WalConnectionInventory { .. }
+            | ReaderRequest::WalNativeStateInventory { .. }
+            | ReaderRequest::LookasideStatus { .. }
+            | ReaderRequest::CacheStatus { .. }
+            | ReaderRequest::SecureDeleteStatus { .. } => false,
+            #[cfg(test)]
+            ReaderRequest::CacheSizeStatus { .. } => false,
+            _ => true,
+        };
+        if !cache_size_configured && is_data_query {
+            let _ = connection.pragma_update(None, "cache_size", -1000);
+            crate::connection_runtime::apply_perf_experiment_reader_pragmas(&connection);
+            cache_size_configured = true;
+        }
         match request {
             ReaderRequest::Shutdown => break,
             #[cfg(feature = "tc5-benchmark")]
@@ -1129,6 +1154,12 @@ fn reader_worker_loop(
             ReaderRequest::SecureDeleteStatus { respond } => {
                 let value: i64 =
                     connection.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap_or(-1);
+                let _ = respond.send(value);
+            }
+            #[cfg(test)]
+            ReaderRequest::CacheSizeStatus { respond } => {
+                let value: i64 =
+                    connection.query_row("PRAGMA cache_size", [], |r| r.get(0)).unwrap_or(0);
                 let _ = respond.send(value);
             }
             #[cfg(any(test, feature = "test-hooks"))]
@@ -1620,6 +1651,20 @@ impl ReaderWorkerPool {
                 cache_miss: -1,
                 cache_used_bytes: -1,
             });
+        }
+        results
+    }
+
+    #[cfg(test)]
+    pub(crate) fn cache_size_per_worker(&self) -> Vec<i64> {
+        let mut results = Vec::with_capacity(self.senders.len());
+        for sender in &self.senders {
+            let (tx, rx) = mpsc::sync_channel::<i64>(1);
+            if sender.send(ReaderRequest::CacheSizeStatus { respond: tx }).is_ok() {
+                results.push(rx.recv().unwrap_or(0));
+            } else {
+                results.push(0);
+            }
         }
         results
     }

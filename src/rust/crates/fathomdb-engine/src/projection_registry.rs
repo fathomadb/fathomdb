@@ -1357,6 +1357,153 @@ pub(crate) fn extract_typed_node_property(
     Ok(extract_typed_node_property_with_cache(body, properties, name, stored, &mut parsed_body))
 }
 
+#[derive(Default)]
+pub(crate) struct PendingNodeAttributeInserts {
+    property_values: Vec<(i64, String, PropertyValue)>,
+    eav_rows: Vec<(i64, String, String)>,
+}
+
+static BATCH_NODE_PROP_VALUE_SQL_64: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| build_node_prop_value_insert_sql(64));
+
+fn build_node_prop_value_insert_sql(count: usize) -> String {
+    let mut sql = String::from(
+        "INSERT OR REPLACE INTO canonical_property_values(\
+            entity_class, write_cursor, attr_name, value_type, text_val, num_val, bool_val\
+         ) VALUES ",
+    );
+    for idx in 0..count {
+        if idx > 0 {
+            sql.push(',');
+        }
+        let base = idx * 6 + 1;
+        sql.push_str(&format!(
+            "('node',?{},?{},?{},?{},?{},?{})",
+            base,
+            base + 1,
+            base + 2,
+            base + 3,
+            base + 4,
+            base + 5
+        ));
+    }
+    sql
+}
+
+static BATCH_CANONICAL_ATTR_SQL_64: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| build_canonical_attr_insert_sql(64));
+
+fn build_canonical_attr_insert_sql(count: usize) -> String {
+    let mut sql = String::from(
+        "INSERT INTO canonical_attributes(write_cursor, attr_name, attr_value) VALUES ",
+    );
+    for idx in 0..count {
+        if idx > 0 {
+            sql.push(',');
+        }
+        let base = idx * 3 + 1;
+        sql.push_str(&format!("(?{},?{},?{})", base, base + 1, base + 2));
+    }
+    sql
+}
+
+impl PendingNodeAttributeInserts {
+    pub(crate) fn flush(&mut self, tx: &Connection) -> rusqlite::Result<()> {
+        const CHUNK_SIZE: usize = 64;
+        if !self.property_values.is_empty() {
+            let mut bound: Vec<rusqlite::types::ToSqlOutput<'_>> =
+                Vec::with_capacity(CHUNK_SIZE * 6);
+            for chunk in self.property_values.chunks(CHUNK_SIZE) {
+                bound.clear();
+                for (cursor, name, value) in chunk {
+                    let (value_type, text_val, num_val, bool_val): (
+                        &str,
+                        rusqlite::types::ValueRef<'_>,
+                        rusqlite::types::ValueRef<'_>,
+                        rusqlite::types::ValueRef<'_>,
+                    ) = match value {
+                        PropertyValue::String(s) => (
+                            "string",
+                            rusqlite::types::ValueRef::Text(s.as_bytes()),
+                            rusqlite::types::ValueRef::Null,
+                            rusqlite::types::ValueRef::Null,
+                        ),
+                        PropertyValue::Int(i) => (
+                            "integer",
+                            rusqlite::types::ValueRef::Null,
+                            rusqlite::types::ValueRef::Integer(*i),
+                            rusqlite::types::ValueRef::Null,
+                        ),
+                        PropertyValue::Float(f) => {
+                            let norm = crate::properties::normalize_finite_f64(*f)
+                                .ok_or(rusqlite::Error::InvalidQuery)?;
+                            (
+                                "float",
+                                rusqlite::types::ValueRef::Null,
+                                rusqlite::types::ValueRef::Real(norm),
+                                rusqlite::types::ValueRef::Null,
+                            )
+                        }
+                        PropertyValue::Bool(b) => (
+                            "boolean",
+                            rusqlite::types::ValueRef::Null,
+                            rusqlite::types::ValueRef::Null,
+                            rusqlite::types::ValueRef::Integer(i64::from(*b)),
+                        ),
+                    };
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(
+                        rusqlite::types::ValueRef::Integer(*cursor),
+                    ));
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(
+                        rusqlite::types::ValueRef::Text(name.as_bytes()),
+                    ));
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(
+                        rusqlite::types::ValueRef::Text(value_type.as_bytes()),
+                    ));
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(text_val));
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(num_val));
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(bool_val));
+                }
+                if chunk.len() == CHUNK_SIZE {
+                    tx.prepare_cached(BATCH_NODE_PROP_VALUE_SQL_64.as_str())?
+                        .execute(rusqlite::params_from_iter(bound.iter()))?;
+                } else {
+                    let sql = build_node_prop_value_insert_sql(chunk.len());
+                    tx.prepare_cached(&sql)?.execute(rusqlite::params_from_iter(bound.iter()))?;
+                }
+            }
+            self.property_values.clear();
+        }
+        if !self.eav_rows.is_empty() {
+            let mut bound: Vec<rusqlite::types::ToSqlOutput<'_>> =
+                Vec::with_capacity(CHUNK_SIZE * 3);
+            for chunk in self.eav_rows.chunks(CHUNK_SIZE) {
+                bound.clear();
+                for (cursor, name, value) in chunk {
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(
+                        rusqlite::types::ValueRef::Integer(*cursor),
+                    ));
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(
+                        rusqlite::types::ValueRef::Text(name.as_bytes()),
+                    ));
+                    bound.push(rusqlite::types::ToSqlOutput::Borrowed(
+                        rusqlite::types::ValueRef::Text(value.as_bytes()),
+                    ));
+                }
+                if chunk.len() == CHUNK_SIZE {
+                    tx.prepare_cached(BATCH_CANONICAL_ATTR_SQL_64.as_str())?
+                        .execute(rusqlite::params_from_iter(bound.iter()))?;
+                } else {
+                    let sql = build_canonical_attr_insert_sql(chunk.len());
+                    tx.prepare_cached(&sql)?.execute(rusqlite::params_from_iter(bound.iter()))?;
+                }
+            }
+            self.eav_rows.clear();
+        }
+        Ok(())
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn project_one_attribute(
     tx: &Connection,
@@ -1367,6 +1514,7 @@ fn project_one_attribute(
     stored: &StoredProjection,
     parsed_body: &mut Option<Option<serde_json::Value>>,
     fts_dirty: Option<&mut bool>,
+    pending_inserts: Option<&mut PendingNodeAttributeInserts>,
 ) -> rusqlite::Result<()> {
     if stored.entity_class != PropertyEntityClass::Node {
         return Ok(());
@@ -1379,16 +1527,22 @@ fn project_one_attribute(
     else {
         return Ok(());
     };
+    let mut pending_inserts = pending_inserts;
     if stored.wants_property_value() {
-        insert_canonical_property_value(tx, PropertyEntityClass::Node, cursor, name, &typed_value)?;
+        if let Some(sink) = pending_inserts.as_deref_mut() {
+            sink.property_values.push((cursor, name.to_string(), typed_value.clone()));
+        } else {
+            insert_canonical_property_value(
+                tx,
+                PropertyEntityClass::Node,
+                cursor,
+                name,
+                &typed_value,
+            )?;
+        }
     }
     if stored.wants_eav() {
         let value = property_value_to_eav_string(&typed_value);
-        tx.prepare_cached(
-            "INSERT INTO canonical_attributes(write_cursor, attr_name, attr_value)
-             VALUES(?1, ?2, ?3)",
-        )?
-        .execute(params![cursor, name, value])?;
         if stored.wants_property_fts() {
             match fts_dirty {
                 Some(dirty) => {
@@ -1404,6 +1558,15 @@ fn project_one_attribute(
                  VALUES(?1, ?2, ?3)",
             )?
             .execute(params![value, name, cursor])?;
+        }
+        if let Some(sink) = pending_inserts {
+            sink.eav_rows.push((cursor, name.to_string(), value));
+        } else {
+            tx.prepare_cached(
+                "INSERT INTO canonical_attributes(write_cursor, attr_name, attr_value)
+                 VALUES(?1, ?2, ?3)",
+            )?
+            .execute(params![cursor, name, value])?;
         }
     }
     Ok(())
@@ -1546,7 +1709,20 @@ pub(crate) fn project_node_attributes_with_registry_and_dirty_flag(
     body: &str,
     properties: Option<&PropertyMap>,
     registry: Option<&BTreeMap<(PropertyEntityClass, String), StoredProjection>>,
+    fts_dirty: Option<&mut bool>,
+) -> rusqlite::Result<()> {
+    project_node_attributes_with_batch_sink(tx, cursor, body, properties, registry, fts_dirty, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn project_node_attributes_with_batch_sink(
+    tx: &Connection,
+    cursor: i64,
+    body: &str,
+    properties: Option<&PropertyMap>,
+    registry: Option<&BTreeMap<(PropertyEntityClass, String), StoredProjection>>,
     mut fts_dirty: Option<&mut bool>,
+    mut pending_inserts: Option<&mut PendingNodeAttributeInserts>,
 ) -> rusqlite::Result<()> {
     let loaded;
     let registry = match registry {
@@ -1571,6 +1747,7 @@ pub(crate) fn project_node_attributes_with_registry_and_dirty_flag(
                 stored,
                 &mut parsed_body,
                 fts_dirty.as_deref_mut(),
+                pending_inserts.as_deref_mut(),
             )?;
         }
     }
@@ -1651,6 +1828,7 @@ fn backfill_attribute(
                     stored,
                     &mut parsed_body,
                     Some(&mut fts_dirty),
+                    None,
                 )?;
             }
         }

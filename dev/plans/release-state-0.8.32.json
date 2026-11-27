@@ -135,13 +135,19 @@
       "depends_on": [
         50
       ],
-      "status": "NOT_STARTED",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "1be91d322",
       "design_refs": [
+        "dev/plans/0.8.32/features/slice-60/plan.md",
+        "dev/plans/0.8.32/features/slice-60/status.md",
+        "dev/plans/0.8.32/features/slice-60/paired-latency-report.json",
+        "dev/plans/0.8.32/features/slice-60/golden-0.8.32-manifest.json",
+        "dev/plans/0.8.32/features/slice-70/plan.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
-      ]
+      ],
+      "evidence": "WP-60A..WP-60G + FIX-PERF-1..8 (d887e4465) + STEP_39_SQL AdminSchema backfill fix (579165215) + frozen product SHA 8c0021f05 + 4-tier pre-publication docs sync (7d1dd4f6b, 17/17 scoped validators EXIT 0) + deduplicated Slice 70 plan (1be91d322) landed locally; full unconfined agent-verify.sh EXIT 0 (246/249 suites, 0 security violations), 7/7 AGENT_LONG=1/--release perf gates PASS, paired v0.8.31 vs. 0.8.32 10k/50k/100k + Gate1-D10 latency report passed=true (0 parity mismatches), RTX 3090 GPU test-feature-complete.sh 227/227 PASS (0 failures), Inspector local-ci.sh --full-workspace 89/89 Playwright PASS + qualify-installed-network.sh 0 outbound attempts + dual-feature cargo test PASS, clean-venv 3-wheel + stripped-PATH migrate 38->39 + R32-04 backup/restore/rebuild + 690/690 TS tests PASS, Schema 39 golden archive sealed (mode 0444, sha256 e232232e2c669a53400bdd78e655efad16c3d92b2e6305ba6d6431d41e3ffaa8), and independent pro adversarial review VERDICT: APPROVE (0 P1, 0 P2). Stops strictly before Slice 70 with Axis-W=0.8.31, published=null, publication_authorized=false."
     },
     {
       "slice": 70,
@@ -153,6 +159,7 @@
       "status": "NOT_STARTED",
       "sha": null,
       "design_refs": [
+        "dev/plans/0.8.32/features/slice-70/plan.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
@@ -165,13 +172,13 @@
     30,
     40,
     41,
-    50
+    50,
+    60
   ],
   "remaining_ladder": [
-    60,
     70
   ],
-  "next_slice": 60,
+  "next_slice": 70,
   "decisions": {
     "ruled": [
       {
@@ -251,9 +258,9 @@
     ]
   },
   "publish_gate": {
-    "status": "HELD_PENDING_QUALIFICATION_AND_HITL_APPROVAL",
+    "status": "HELD_PENDING_HITL_APPROVAL",
     "publication_authorized": false,
-    "scope": "Slice 70 publication requires Slice 60 qualification completion and explicit HITL publication authorization."
+    "scope": "Slice 60 qualification complete (frozen product SHA 8c0021f05); Slice 70 publication remains held pending explicit owner HITL publication authorization."
   },
   "generated_views": [
     {

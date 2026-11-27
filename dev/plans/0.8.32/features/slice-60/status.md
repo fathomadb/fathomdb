@@ -75,3 +75,5 @@ date: 2026-11-27
 - `02cdafdc1` — `chore(slice-60): land final d887e4465 WP-60B paired latency report (10k/50k/100k + Gate1-D10 all PASS)`
 - `ce267cb15` — `chore(slice-60): register FIX-PERF-1 unit test modules in module-boundary-policy.txt`
 - `8c0021f05` — `refactor(slice-60): fold terminal-sink helpers into project_canonical_{node,edge}_row to preserve slice35 manifest coupling`
+- `7d1dd4f6b` — `docs(slice-60): land golden manifest, status, deduplicated Slice 70 plan, and 4-tier docs sync` (`17/17` scoped doc/truth/MkDocs validators EXIT `0`)
+- `1be91d322` — `fix(slice-60): remediate Slice 70 draft plan review findings (pre-tag CUDA route, live manifest flags, published schema)` (independent `pro` adversarial review **`VERDICT: APPROVE`**, `0` P1 / `0` P2)

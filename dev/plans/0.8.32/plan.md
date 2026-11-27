@@ -18,9 +18,9 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 60** (`QUALIFICATION`) — Full-workspace qualification, paired 0.8.31 vs. 0.8.32 10k/50k/100k latency/RSS/DB-size gate, candidate smokes, release docs, and golden 0.8.32 archive
+**IMMEDIATE NEXT: Slice 70** (`PUBLICATION`) — Authorized 0.8.32 publication (crates.io incl. fathomdb-mcp, PyPI fathomdb/fathomdb-cli/fathomdb-mcp, npm, 5-target GH Releases incl. Inspector & fathomdb-mcp, Tegra Pages)
 
-**Remaining ladder:** 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**Remaining ladder:** 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
 ## Goal and scope
 

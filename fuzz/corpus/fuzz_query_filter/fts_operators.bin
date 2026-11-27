@@ -1,0 +1,1 @@
+alpha OR "beta*" NEAR/3 (gamma NOT delta) ^10 :col

@@ -638,6 +638,147 @@ fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> Sha
     }
 }
 
+/// Strictly parse and validate MCP tool JSON arguments without opening any store
+/// or touching the protocol edge (feature `test-seams`).
+///
+/// Covers all 9 declared MCP tools (`list_stores`, `use_store`, `orient`,
+/// `search`, `fetch`, `expand`, `feedback`, `actuate`, `put_latest_state`),
+/// forbidden operator/bulk tool names, `#[serde(deny_unknown_fields)]` strictness,
+/// store-name grammar, and strict-only `ActuationBatchV1` operation parsing.
+///
+/// # Errors
+/// Returns a diagnostic string when `tool_name` is forbidden/unknown or when
+/// `raw_json` violates JSON syntax, strict schema fields, or argument invariants.
+pub fn parse_tool_arguments_for_fuzz(tool_name: &str, raw_json: &str) -> Result<(), String> {
+    if crate::actuate::is_forbidden_tool_name(tool_name) {
+        return Err("forbidden tool name".to_string());
+    }
+    let value: serde_json::Value =
+        serde_json::from_str(raw_json).map_err(|err| format!("json parse error: {err}"))?;
+    let Some(map) = value.as_object() else {
+        return Err("tool arguments must be a JSON object".to_string());
+    };
+    let obj_value = serde_json::Value::Object(map.clone());
+    match tool_name {
+        "list_stores" => {
+            let _: crate::tools::ListStoresArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+        }
+        "use_store" => {
+            let args: crate::tools::UseStoreArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            crate::names::validate_store_name(&args.store).map_err(|err| format!("{err:?}"))?;
+        }
+        "orient" => {
+            let args: crate::tools::OrientArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            if let Some(store) = &args.store {
+                crate::names::validate_store_name(store).map_err(|err| format!("{err:?}"))?;
+            }
+        }
+        "search" => {
+            let args: crate::tools::SearchArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            if let Some(store) = &args.store {
+                crate::names::validate_store_name(store).map_err(|err| format!("{err:?}"))?;
+            }
+            if let Some(limit) = args.limit {
+                if limit == 0 || limit > 100 {
+                    return Err("search limit out of range 1..=100".to_string());
+                }
+            }
+            if let Some(max_tokens) = args.max_tokens {
+                if max_tokens < 256 {
+                    return Err("search max_tokens below 256".to_string());
+                }
+            }
+        }
+        "fetch" => {
+            let args: crate::tools::FetchArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            if let Some(store) = &args.store {
+                crate::names::validate_store_name(store).map_err(|err| format!("{err:?}"))?;
+            }
+            if args.refs.len() > 50 {
+                return Err("fetch refs exceeds 50".to_string());
+            }
+        }
+        "expand" => {
+            let args: crate::tools::ExpandArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            if let Some(store) = &args.store {
+                crate::names::validate_store_name(store).map_err(|err| format!("{err:?}"))?;
+            }
+            if args.refs.is_empty() || args.refs.len() > 10 {
+                return Err("expand refs must contain 1..=10 items".to_string());
+            }
+        }
+        "feedback" => {
+            let args: crate::tools::FeedbackArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            if let Some(store) = &args.store {
+                crate::names::validate_store_name(store).map_err(|err| format!("{err:?}"))?;
+            }
+        }
+        "actuate" => {
+            let args: crate::actuate::ActuateArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            if let Some(store) = &args.store {
+                crate::names::validate_store_name(store).map_err(|err| format!("{err:?}"))?;
+            }
+            if args.operations.is_empty() || args.operations.len() > 128 {
+                return Err("actuate operations must contain 1..=128 entries".to_string());
+            }
+            let policy = crate::registry::StorePolicy {
+                allow_writes: true,
+                scope: fathomdb_sdk::ScopePolicy::single("fuzz-scope"),
+                scope_key: "fuzz-scope".to_string(),
+                ..Default::default()
+            };
+            let mut ops = Vec::with_capacity(args.operations.len());
+            for raw in &args.operations {
+                let op =
+                    crate::actuate::parse_operation(raw, &policy).map_err(|err| err.render())?;
+                ops.push(op);
+            }
+            let mut batch = fathomdb_sdk::ActuationBatchV1::new(args.operation_id, ops)
+                .map_err(|err| err.to_string())?;
+            if let Some(policy_id) = args.decision_policy_id {
+                batch = batch.with_decision_policy_id(policy_id).map_err(|err| err.to_string())?;
+            }
+            if let Some(boundary) = args.expected_write_boundary {
+                let _ = batch.with_expected_write_boundary(boundary);
+            }
+        }
+        "put_latest_state" => {
+            let args: crate::actuate::PutLatestStateArgs =
+                serde_json::from_value(obj_value).map_err(|err| err.to_string())?;
+            if let Some(store) = &args.store {
+                crate::names::validate_store_name(store).map_err(|err| format!("{err:?}"))?;
+            }
+            let op = fathomdb_sdk::LatestStateActuationV1::new(
+                args.collection,
+                args.record_key,
+                args.payload_json,
+            )
+            .map_err(|err| err.to_string())?;
+            let mut batch = fathomdb_sdk::ActuationBatchV1::new(
+                args.operation_id,
+                vec![fathomdb_sdk::ActuationOperationV1::PutLatestState(op)],
+            )
+            .map_err(|err| err.to_string())?;
+            if let Some(policy_id) = args.decision_policy_id {
+                batch = batch.with_decision_policy_id(policy_id).map_err(|err| err.to_string())?;
+            }
+            if let Some(boundary) = args.expected_write_boundary {
+                let _ = batch.with_expected_write_boundary(boundary);
+            }
+        }
+        _ => return Err("unknown tool name".to_string()),
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod pre_enqueue_tests {
     use super::*;
@@ -677,5 +818,30 @@ mod pre_enqueue_tests {
         assert!(!next.is_active());
         let other = seams.observe_pre_enqueue("a");
         drop(other);
+    }
+
+    #[test]
+    fn parse_tool_arguments_enforces_strict_schema_and_forbidden_tools() {
+        assert!(parse_tool_arguments_for_fuzz("recover", "{}").is_err());
+        assert!(parse_tool_arguments_for_fuzz("sql", "{}").is_err());
+        assert!(parse_tool_arguments_for_fuzz("search", r#"{"unknown_key": 1}"#).is_err());
+        assert!(
+            parse_tool_arguments_for_fuzz("search", r#"{"query": "hello", "limit": 5}"#).is_ok()
+        );
+        assert!(parse_tool_arguments_for_fuzz(
+            "actuate",
+            r#"{"operation_id": "op-1", "operations": [{"op": "put_canonical_node", "scope": "spoof"}]}"#,
+        )
+        .is_err());
+        assert!(parse_tool_arguments_for_fuzz(
+            "actuate",
+            r#"{"operation_id": "op-1", "operations": [{"op": "put_latest_state", "collection": "c", "record_key": "k", "payload_json": "{}"}]}"#,
+        )
+        .is_ok());
+        assert!(parse_tool_arguments_for_fuzz(
+            "put_latest_state",
+            r#"{"operation_id": "op-2", "collection": "c", "record_key": "k", "payload_json": "{\"a\":1}"}"#,
+        )
+        .is_ok());
     }
 }

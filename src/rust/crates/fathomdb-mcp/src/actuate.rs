@@ -351,7 +351,10 @@ fn render_actuate(output: &ActuateOutput) -> String {
 
 // --------------------------------------------------------- strict op parsing
 
-fn parse_operation(raw: &Value, policy: &StorePolicy) -> Result<ActuationOperationV1, ToolError> {
+pub(crate) fn parse_operation(
+    raw: &Value,
+    policy: &StorePolicy,
+) -> Result<ActuationOperationV1, ToolError> {
     let Some(obj) = raw.as_object() else {
         return Err(ToolError::bad_argument("each actuation operation must be an object"));
     };

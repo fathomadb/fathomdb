@@ -184,3 +184,12 @@ dev/experiments/queue-sim/results/**/*.tsv
 dev/experiments/mcp-hybrid-vs-keyword/results/per_query.jsonl
 dev/experiments/long-record-embedding/results/*per_question.jsonl
 experiments/runs/mcp-agent-loop-*/
+
+# 0.8.32 Slice 50 (AC32-FUZZ-01) — standalone fuzz/ workspace build/run artifacts.
+# Keep fuzz/Cargo.toml, fuzz/fuzz_targets/*.rs, and small curated seed corpora tracked.
+fuzz/target/
+fuzz/artifacts/
+fuzz/coverage/
+fuzz/Cargo.lock
+*.profraw
+*.profdata

@@ -60,6 +60,12 @@ tier   = "dev-tooling"
 note   = "this tool surveys itself"
 
 [[rule]]
+prefix = "fuzz/"
+action = "tier"
+tier   = "dev-tooling"
+note   = "standalone coverage-guided fuzzing workspace; excluded from root Cargo workspace and never shipped"
+
+[[rule]]
 prefix = "dev/experiments/"
 action = "tier"
 tier = "eval-only"

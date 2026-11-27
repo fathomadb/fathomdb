@@ -14,6 +14,7 @@ members = [
     "src/rust/crates/fathomdb-sdk",
     "src/rust/crates/fathomdb-tc5-benchmark",
 ]
+exclude = ["fuzz"]
 resolver = "2"
 
 [workspace.package]

@@ -1059,3 +1059,7 @@ required-features = ["operator", "test-hooks"]
 [[test]]
 name = "slice50_logical_export_and_rebuild"
 required-features = ["operator", "test-hooks"]
+
+[[test]]
+name = "slice50_fuzz_regressions"
+required-features = ["operator", "test-hooks"]

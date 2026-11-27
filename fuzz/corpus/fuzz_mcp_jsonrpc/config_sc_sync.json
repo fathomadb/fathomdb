@@ -1,0 +1,1 @@
+{"allow_writes":true,"stores":{"s1":{"path":"/tmp/s1.sqlite","allow_writes":true,"scope":{"read":["a"],"write":"a"},"sync_mode":"full"}}}

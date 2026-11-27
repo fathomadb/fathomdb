@@ -661,7 +661,7 @@ jobs:
           TARGET_TRIPLE: ${{ matrix.target }}
         run: |
           set -euo pipefail
-          out_dir="$RUNNER_TEMP/mcp-release-assets"
+          out_dir="src/python-mcp/release-assets"
           mkdir -p "$out_dir"
           archive_path="$(python3 - "$out_dir" "$TARGET_TRIPLE" src/python-mcp/dist/*.whl <<'PY'
           import hashlib
@@ -723,7 +723,7 @@ jobs:
       - uses: ./.github/actions/upload-artifact-retry
         with:
           name: mcp-${{ matrix.target }}
-          path: ${{ runner.temp }}/mcp-release-assets/*
+          path: src/python-mcp/release-assets/*
           if-no-files-found: error
 
   # Native binding prebuilds for npm. The napi-rs CLI handles the rename to

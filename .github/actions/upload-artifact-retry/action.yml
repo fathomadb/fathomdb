@@ -25,6 +25,7 @@ runs:
       run: |
         found=0
         while IFS= read -r pattern || [ -n "$pattern" ]; do
+          pattern="${pattern//\\//}"
           if [ -n "$pattern" ] && compgen -G "$pattern" >/dev/null; then
             found=1
             break

@@ -754,26 +754,42 @@ macro_rules! visibility_coalescing_trigger_sql {
     };
 }
 
-macro_rules! s39_upsert_add {
+macro_rules! s39_row_add {
     ($scope:literal, $pk:literal, $cursor:literal) => {
+        concat!("(", $scope, ",", $pk, ",1,", $cursor, ",0,lower(hex(randomblob(32))))")
+    };
+}
+
+macro_rules! s39_row_dest {
+    ($scope:literal, $pk:literal) => {
+        concat!("(", $scope, ",", $pk, ",0,0,1,lower(hex(randomblob(32))))")
+    };
+}
+
+macro_rules! s39_upsert_add_many {
+    ($first:expr $(, $rest:expr)* $(,)?) => {
         concat!(
-            " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) VALUES(",
-            $scope, ",", $pk, ",1,MAX(0,", $cursor, "),0,lower(hex(randomblob(32))))",
-            " ON CONFLICT(scope,partition_kind) DO UPDATE SET",
-            " add_generation=CASE WHEN add_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE add_generation+1 END,",
+            " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) VALUES ",
+            $first,
+            $(",", $rest,)*
+            " ON CONFLICT(scope,partition_kind) DO UPDATE SET ",
+            "add_generation=CASE WHEN add_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE add_generation+1 END,",
             "max_cursor=MAX(max_cursor,excluded.max_cursor),",
             "state_nonce=lower(hex(randomblob(32)));"
         )
     };
 }
 
-macro_rules! s39_upsert_dest {
-    ($scope:literal, $pk:literal) => {
+macro_rules! s39_upsert_mixed_many {
+    ($first:expr $(, $rest:expr)* $(,)?) => {
         concat!(
-            " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) VALUES(",
-            $scope, ",", $pk, ",0,0,1,lower(hex(randomblob(32))))",
-            " ON CONFLICT(scope,partition_kind) DO UPDATE SET",
-            " destructive_generation=CASE WHEN destructive_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE destructive_generation+1 END,",
+            " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) VALUES ",
+            $first,
+            $(",", $rest,)*
+            " ON CONFLICT(scope,partition_kind) DO UPDATE SET ",
+            "add_generation=CASE WHEN excluded.add_generation=0 THEN add_generation WHEN add_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE add_generation+excluded.add_generation END,",
+            "max_cursor=MAX(max_cursor,excluded.max_cursor),",
+            "destructive_generation=CASE WHEN excluded.destructive_generation=0 THEN destructive_generation WHEN destructive_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE destructive_generation+excluded.destructive_generation END,",
             "state_nonce=lower(hex(randomblob(32)));"
         )
     };
@@ -805,47 +821,205 @@ macro_rules! s39_update_global_struct {
     };
 }
 
+macro_rules! s39_body_canonical_node_ai {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_add_many!(
+                s39_row_add!("NEW.scope", "'node:'||NEW.kind", "MAX(0,NEW.write_cursor)"),
+                s39_row_add!("NEW.scope", "'node_all'", "MAX(0,NEW.write_cursor)")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_canonical_node_au {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_dest!("OLD.scope", "'scope_destructive'"),
+                s39_row_dest!("NEW.scope", "'scope_destructive'"),
+                s39_row_add!("OLD.scope", "'node:'||OLD.kind", "MAX(0,OLD.write_cursor)"),
+                s39_row_add!("NEW.scope", "'node:'||NEW.kind", "MAX(0,NEW.write_cursor)"),
+                s39_row_add!("OLD.scope", "'node_all'", "MAX(0,OLD.write_cursor)"),
+                s39_row_add!("NEW.scope", "'node_all'", "MAX(0,NEW.write_cursor)")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_canonical_node_ad {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_dest!("OLD.scope", "'scope_destructive'"),
+                s39_row_add!("OLD.scope", "'node:'||OLD.kind", "0"),
+                s39_row_add!("OLD.scope", "'node_all'", "0")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_canonical_edge_ai {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_add_many!(
+                s39_row_add!("NEW.scope", "'edge:'||NEW.kind", "MAX(0,NEW.write_cursor)"),
+                s39_row_add!("NEW.scope", "'edge_any'", "MAX(0,NEW.write_cursor)")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_canonical_edge_au {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_dest!("OLD.scope", "'scope_destructive'"),
+                s39_row_dest!("NEW.scope", "'scope_destructive'"),
+                s39_row_add!("OLD.scope", "'edge:'||OLD.kind", "MAX(0,OLD.write_cursor)"),
+                s39_row_add!("NEW.scope", "'edge:'||NEW.kind", "MAX(0,NEW.write_cursor)"),
+                s39_row_add!("OLD.scope", "'edge_any'", "MAX(0,OLD.write_cursor)"),
+                s39_row_add!("NEW.scope", "'edge_any'", "MAX(0,NEW.write_cursor)")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_canonical_edge_ad {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_dest!("OLD.scope", "'scope_destructive'"),
+                s39_row_add!("OLD.scope", "'edge:'||OLD.kind", "0"),
+                s39_row_add!("OLD.scope", "'edge_any'", "0")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_provenance_ai {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_dest!("NEW.scope", "'scope_destructive'"),
+                s39_row_add!("NEW.scope", "'node_all'", "0"),
+                s39_row_add!("NEW.scope", "'edge_any'", "0")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_provenance_au {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_dest!("OLD.scope", "'scope_destructive'"),
+                s39_row_dest!("NEW.scope", "'scope_destructive'"),
+                s39_row_add!("OLD.scope", "'node_all'", "0"),
+                s39_row_add!("NEW.scope", "'node_all'", "0"),
+                s39_row_add!("OLD.scope", "'edge_any'", "0"),
+                s39_row_add!("NEW.scope", "'edge_any'", "0")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_provenance_ad {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_dest!("OLD.scope", "'scope_destructive'"),
+                s39_row_add!("OLD.scope", "'node_all'", "0"),
+                s39_row_add!("OLD.scope", "'edge_any'", "0")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_dependency_ai {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_add_many!(s39_row_add!("NEW.scope", "'scope_dependency'", "0"))
+        )
+    };
+}
+
+macro_rules! s39_body_dependency_au {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_add!("OLD.scope", "'scope_dependency'", "0"),
+                s39_row_add!("NEW.scope", "'scope_dependency'", "0"),
+                s39_row_dest!("OLD.scope", "'scope_destructive'"),
+                s39_row_dest!("NEW.scope", "'scope_destructive'")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_dependency_ad {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_mixed_many!(
+                s39_row_add!("OLD.scope", "'scope_dependency'", "0"),
+                s39_row_dest!("OLD.scope", "'scope_destructive'")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_op_state_ai {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_add_many!(s39_row_add!(
+                "NEW.scope",
+                "'op_state'",
+                "MAX(0,NEW.write_cursor)"
+            ))
+        )
+    };
+}
+
+macro_rules! s39_body_op_state_au {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_add_many!(
+                s39_row_add!("OLD.scope", "'op_state'", "MAX(0,OLD.write_cursor)"),
+                s39_row_add!("NEW.scope", "'op_state'", "MAX(0,NEW.write_cursor)")
+            )
+        )
+    };
+}
+
+macro_rules! s39_body_op_state_ad {
+    () => {
+        concat!(
+            s39_update_global!(),
+            s39_upsert_add_many!(s39_row_add!("OLD.scope", "'op_state'", "0"))
+        )
+    };
+}
+
 macro_rules! s39_triggers_canonical_node {
     ($short:literal, $table:literal) => {
         concat!(
-            s39_trigger_wrap!(
-                $short,
-                "ai",
-                "INSERT",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_add!("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
-                    s39_upsert_add!("NEW.scope", "'node_all'", "NEW.write_cursor")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "au",
-                "UPDATE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
-                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
-                    s39_upsert_add!("OLD.scope", "'node:'||OLD.kind", "OLD.write_cursor"),
-                    s39_upsert_add!("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
-                    s39_upsert_add!("OLD.scope", "'node_all'", "OLD.write_cursor"),
-                    s39_upsert_add!("NEW.scope", "'node_all'", "NEW.write_cursor")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "ad",
-                "DELETE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
-                    s39_upsert_add!("OLD.scope", "'node:'||OLD.kind", "0"),
-                    s39_upsert_add!("OLD.scope", "'node_all'", "0")
-                )
-            )
+            s39_trigger_wrap!($short, "ai", "INSERT", $table, s39_body_canonical_node_ai!()),
+            s39_trigger_wrap!($short, "au", "UPDATE", $table, s39_body_canonical_node_au!()),
+            s39_trigger_wrap!($short, "ad", "DELETE", $table, s39_body_canonical_node_ad!())
         )
     };
 }
@@ -853,44 +1027,9 @@ macro_rules! s39_triggers_canonical_node {
 macro_rules! s39_triggers_canonical_edge {
     ($short:literal, $table:literal) => {
         concat!(
-            s39_trigger_wrap!(
-                $short,
-                "ai",
-                "INSERT",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_add!("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
-                    s39_upsert_add!("NEW.scope", "'edge_any'", "NEW.write_cursor")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "au",
-                "UPDATE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
-                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
-                    s39_upsert_add!("OLD.scope", "'edge:'||OLD.kind", "OLD.write_cursor"),
-                    s39_upsert_add!("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
-                    s39_upsert_add!("OLD.scope", "'edge_any'", "OLD.write_cursor"),
-                    s39_upsert_add!("NEW.scope", "'edge_any'", "NEW.write_cursor")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "ad",
-                "DELETE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
-                    s39_upsert_add!("OLD.scope", "'edge:'||OLD.kind", "0"),
-                    s39_upsert_add!("OLD.scope", "'edge_any'", "0")
-                )
-            )
+            s39_trigger_wrap!($short, "ai", "INSERT", $table, s39_body_canonical_edge_ai!()),
+            s39_trigger_wrap!($short, "au", "UPDATE", $table, s39_body_canonical_edge_au!()),
+            s39_trigger_wrap!($short, "ad", "DELETE", $table, s39_body_canonical_edge_ad!())
         )
     };
 }
@@ -898,45 +1037,9 @@ macro_rules! s39_triggers_canonical_edge {
 macro_rules! s39_triggers_provenance {
     ($short:literal, $table:literal) => {
         concat!(
-            s39_trigger_wrap!(
-                $short,
-                "ai",
-                "INSERT",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
-                    s39_upsert_add!("NEW.scope", "'node_all'", "0"),
-                    s39_upsert_add!("NEW.scope", "'edge_any'", "0")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "au",
-                "UPDATE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
-                    s39_upsert_dest!("NEW.scope", "'scope_destructive'"),
-                    s39_upsert_add!("OLD.scope", "'node_all'", "0"),
-                    s39_upsert_add!("NEW.scope", "'node_all'", "0"),
-                    s39_upsert_add!("OLD.scope", "'edge_any'", "0"),
-                    s39_upsert_add!("NEW.scope", "'edge_any'", "0")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "ad",
-                "DELETE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
-                    s39_upsert_add!("OLD.scope", "'node_all'", "0"),
-                    s39_upsert_add!("OLD.scope", "'edge_any'", "0")
-                )
-            )
+            s39_trigger_wrap!($short, "ai", "INSERT", $table, s39_body_provenance_ai!()),
+            s39_trigger_wrap!($short, "au", "UPDATE", $table, s39_body_provenance_au!()),
+            s39_trigger_wrap!($short, "ad", "DELETE", $table, s39_body_provenance_ad!())
         )
     };
 }
@@ -944,40 +1047,9 @@ macro_rules! s39_triggers_provenance {
 macro_rules! s39_triggers_dependency {
     ($short:literal, $table:literal) => {
         concat!(
-            s39_trigger_wrap!(
-                $short,
-                "ai",
-                "INSERT",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_add!("NEW.scope", "'scope_dependency'", "0")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "au",
-                "UPDATE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_add!("OLD.scope", "'scope_dependency'", "0"),
-                    s39_upsert_add!("NEW.scope", "'scope_dependency'", "0"),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'"),
-                    s39_upsert_dest!("NEW.scope", "'scope_destructive'")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "ad",
-                "DELETE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_add!("OLD.scope", "'scope_dependency'", "0"),
-                    s39_upsert_dest!("OLD.scope", "'scope_destructive'")
-                )
-            )
+            s39_trigger_wrap!($short, "ai", "INSERT", $table, s39_body_dependency_ai!()),
+            s39_trigger_wrap!($short, "au", "UPDATE", $table, s39_body_dependency_au!()),
+            s39_trigger_wrap!($short, "ad", "DELETE", $table, s39_body_dependency_ad!())
         )
     };
 }
@@ -985,34 +1057,9 @@ macro_rules! s39_triggers_dependency {
 macro_rules! s39_triggers_op_state {
     ($short:literal, $table:literal) => {
         concat!(
-            s39_trigger_wrap!(
-                $short,
-                "ai",
-                "INSERT",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_add!("NEW.scope", "'op_state'", "NEW.write_cursor")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "au",
-                "UPDATE",
-                $table,
-                concat!(
-                    s39_update_global!(),
-                    s39_upsert_add!("OLD.scope", "'op_state'", "OLD.write_cursor"),
-                    s39_upsert_add!("NEW.scope", "'op_state'", "NEW.write_cursor")
-                )
-            ),
-            s39_trigger_wrap!(
-                $short,
-                "ad",
-                "DELETE",
-                $table,
-                concat!(s39_update_global!(), s39_upsert_add!("OLD.scope", "'op_state'", "0"))
-            )
+            s39_trigger_wrap!($short, "ai", "INSERT", $table, s39_body_op_state_ai!()),
+            s39_trigger_wrap!($short, "au", "UPDATE", $table, s39_body_op_state_au!()),
+            s39_trigger_wrap!($short, "ad", "DELETE", $table, s39_body_op_state_ad!())
         )
     };
 }
@@ -1025,27 +1072,6 @@ macro_rules! s39_triggers_global_struct {
             s39_trigger_wrap!($short, "ad", "DELETE", $table, s39_update_global_struct!())
         )
     };
-}
-
-fn s39_upsert_add_str(scope: &str, pk: &str, cursor: &str) -> String {
-    format!(
-        " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) \
-         VALUES({scope},{pk},1,MAX(0,{cursor}),0,lower(hex(randomblob(32)))) \
-         ON CONFLICT(scope,partition_kind) DO UPDATE SET \
-         add_generation=CASE WHEN add_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE add_generation+1 END,\
-         max_cursor=MAX(max_cursor,excluded.max_cursor),\
-         state_nonce=lower(hex(randomblob(32)));"
-    )
-}
-
-fn s39_upsert_dest_str(scope: &str, pk: &str) -> String {
-    format!(
-        " INSERT INTO _fathomdb_scope_visibility_watermarks(scope,partition_kind,add_generation,max_cursor,destructive_generation,state_nonce) \
-         VALUES({scope},{pk},0,0,1,lower(hex(randomblob(32)))) \
-         ON CONFLICT(scope,partition_kind) DO UPDATE SET \
-         destructive_generation=CASE WHEN destructive_generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE destructive_generation+1 END,\
-         state_nonce=lower(hex(randomblob(32)));"
-    )
 }
 
 /// Single-source expected `CREATE TRIGGER` SQL for a manifest visibility trigger
@@ -1085,98 +1111,23 @@ pub fn expected_visibility_trigger_sql(
     }
 
     let class = entry.visibility_trigger_class.expect("entry must have visibility_trigger_class");
-    let update_global = s39_update_global!();
-    let update_global_struct = s39_update_global_struct!();
     let body = match (class, suffix) {
-        (VisibilityTriggerClass::ScopedCanonicalNode, "ai") => format!(
-            "{update_global}{}{}",
-            s39_upsert_add_str("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
-            s39_upsert_add_str("NEW.scope", "'node_all'", "NEW.write_cursor"),
-        ),
-        (VisibilityTriggerClass::ScopedCanonicalNode, "au") => format!(
-            "{update_global}{}{}{}{}{}{}",
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
-            s39_upsert_add_str("OLD.scope", "'node:'||OLD.kind", "OLD.write_cursor"),
-            s39_upsert_add_str("NEW.scope", "'node:'||NEW.kind", "NEW.write_cursor"),
-            s39_upsert_add_str("OLD.scope", "'node_all'", "OLD.write_cursor"),
-            s39_upsert_add_str("NEW.scope", "'node_all'", "NEW.write_cursor"),
-        ),
-        (VisibilityTriggerClass::ScopedCanonicalNode, "ad") => format!(
-            "{update_global}{}{}{}",
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-            s39_upsert_add_str("OLD.scope", "'node:'||OLD.kind", "0"),
-            s39_upsert_add_str("OLD.scope", "'node_all'", "0"),
-        ),
-        (VisibilityTriggerClass::ScopedCanonicalEdge, "ai") => format!(
-            "{update_global}{}{}",
-            s39_upsert_add_str("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
-            s39_upsert_add_str("NEW.scope", "'edge_any'", "NEW.write_cursor"),
-        ),
-        (VisibilityTriggerClass::ScopedCanonicalEdge, "au") => format!(
-            "{update_global}{}{}{}{}{}{}",
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
-            s39_upsert_add_str("OLD.scope", "'edge:'||OLD.kind", "OLD.write_cursor"),
-            s39_upsert_add_str("NEW.scope", "'edge:'||NEW.kind", "NEW.write_cursor"),
-            s39_upsert_add_str("OLD.scope", "'edge_any'", "OLD.write_cursor"),
-            s39_upsert_add_str("NEW.scope", "'edge_any'", "NEW.write_cursor"),
-        ),
-        (VisibilityTriggerClass::ScopedCanonicalEdge, "ad") => format!(
-            "{update_global}{}{}{}",
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-            s39_upsert_add_str("OLD.scope", "'edge:'||OLD.kind", "0"),
-            s39_upsert_add_str("OLD.scope", "'edge_any'", "0"),
-        ),
-        (VisibilityTriggerClass::ScopedProvenance, "ai") => format!(
-            "{update_global}{}{}{}",
-            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
-            s39_upsert_add_str("NEW.scope", "'node_all'", "0"),
-            s39_upsert_add_str("NEW.scope", "'edge_any'", "0"),
-        ),
-        (VisibilityTriggerClass::ScopedProvenance, "au") => format!(
-            "{update_global}{}{}{}{}{}{}",
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
-            s39_upsert_add_str("OLD.scope", "'node_all'", "0"),
-            s39_upsert_add_str("NEW.scope", "'node_all'", "0"),
-            s39_upsert_add_str("OLD.scope", "'edge_any'", "0"),
-            s39_upsert_add_str("NEW.scope", "'edge_any'", "0"),
-        ),
-        (VisibilityTriggerClass::ScopedProvenance, "ad") => format!(
-            "{update_global}{}{}{}",
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-            s39_upsert_add_str("OLD.scope", "'node_all'", "0"),
-            s39_upsert_add_str("OLD.scope", "'edge_any'", "0"),
-        ),
-        (VisibilityTriggerClass::ScopedDependency, "ai") => {
-            format!("{update_global}{}", s39_upsert_add_str("NEW.scope", "'scope_dependency'", "0"),)
-        }
-        (VisibilityTriggerClass::ScopedDependency, "au") => format!(
-            "{update_global}{}{}{}{}",
-            s39_upsert_add_str("OLD.scope", "'scope_dependency'", "0"),
-            s39_upsert_add_str("NEW.scope", "'scope_dependency'", "0"),
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-            s39_upsert_dest_str("NEW.scope", "'scope_destructive'"),
-        ),
-        (VisibilityTriggerClass::ScopedDependency, "ad") => format!(
-            "{update_global}{}{}",
-            s39_upsert_add_str("OLD.scope", "'scope_dependency'", "0"),
-            s39_upsert_dest_str("OLD.scope", "'scope_destructive'"),
-        ),
-        (VisibilityTriggerClass::ScopedOperationalState, "ai") => format!(
-            "{update_global}{}",
-            s39_upsert_add_str("NEW.scope", "'op_state'", "NEW.write_cursor"),
-        ),
-        (VisibilityTriggerClass::ScopedOperationalState, "au") => format!(
-            "{update_global}{}{}",
-            s39_upsert_add_str("OLD.scope", "'op_state'", "OLD.write_cursor"),
-            s39_upsert_add_str("NEW.scope", "'op_state'", "NEW.write_cursor"),
-        ),
-        (VisibilityTriggerClass::ScopedOperationalState, "ad") => {
-            format!("{update_global}{}", s39_upsert_add_str("OLD.scope", "'op_state'", "0"),)
-        }
-        (VisibilityTriggerClass::GlobalStruct, _) => update_global_struct.to_string(),
+        (VisibilityTriggerClass::ScopedCanonicalNode, "ai") => s39_body_canonical_node_ai!(),
+        (VisibilityTriggerClass::ScopedCanonicalNode, "au") => s39_body_canonical_node_au!(),
+        (VisibilityTriggerClass::ScopedCanonicalNode, "ad") => s39_body_canonical_node_ad!(),
+        (VisibilityTriggerClass::ScopedCanonicalEdge, "ai") => s39_body_canonical_edge_ai!(),
+        (VisibilityTriggerClass::ScopedCanonicalEdge, "au") => s39_body_canonical_edge_au!(),
+        (VisibilityTriggerClass::ScopedCanonicalEdge, "ad") => s39_body_canonical_edge_ad!(),
+        (VisibilityTriggerClass::ScopedProvenance, "ai") => s39_body_provenance_ai!(),
+        (VisibilityTriggerClass::ScopedProvenance, "au") => s39_body_provenance_au!(),
+        (VisibilityTriggerClass::ScopedProvenance, "ad") => s39_body_provenance_ad!(),
+        (VisibilityTriggerClass::ScopedDependency, "ai") => s39_body_dependency_ai!(),
+        (VisibilityTriggerClass::ScopedDependency, "au") => s39_body_dependency_au!(),
+        (VisibilityTriggerClass::ScopedDependency, "ad") => s39_body_dependency_ad!(),
+        (VisibilityTriggerClass::ScopedOperationalState, "ai") => s39_body_op_state_ai!(),
+        (VisibilityTriggerClass::ScopedOperationalState, "au") => s39_body_op_state_au!(),
+        (VisibilityTriggerClass::ScopedOperationalState, "ad") => s39_body_op_state_ad!(),
+        (VisibilityTriggerClass::GlobalStruct, _) => s39_update_global_struct!(),
         _ => unreachable!("unexpected visibility trigger suffix {suffix}"),
     };
     format!(
@@ -3520,5 +3471,368 @@ mod tests {
             }
         }
         assert_eq!(trigger_count, 60);
+    }
+
+    #[test]
+    fn step39_visibility_triggers_use_compact_single_upsert_ddl() {
+        let conn = Connection::open_in_memory().unwrap();
+        migrate(&conn).unwrap();
+
+        let mut total_bytes = 0usize;
+        let mut scope_trigger_bytes = 0usize;
+        let mut scope_trigger_count = 0usize;
+        let mut multi_upsert_triggers = Vec::new();
+        for entry in TABLE_MANIFEST.iter().filter(|e| e.visibility_trigger_prefix.is_some()) {
+            let short = entry.visibility_trigger_prefix.unwrap();
+            let class = entry.visibility_trigger_class.unwrap();
+            for suffix in ["ai", "au", "ad"] {
+                let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
+                let sql: String = conn
+                    .query_row(
+                        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?1",
+                        [&name],
+                        |row| row.get(0),
+                    )
+                    .unwrap();
+                total_bytes += sql.len();
+                if class != super::VisibilityTriggerClass::GlobalStruct {
+                    scope_trigger_count += 1;
+                    scope_trigger_bytes += sql.len();
+                    let upsert_count =
+                        sql.matches("INSERT INTO _fathomdb_scope_visibility_watermarks").count();
+                    if upsert_count != 1 {
+                        multi_upsert_triggers.push((name, upsert_count));
+                    }
+                }
+            }
+        }
+        assert!(
+            multi_upsert_triggers.is_empty(),
+            "scope triggers should compact all watermark upserts into one statement, offenders: {multi_upsert_triggers:?}"
+        );
+        assert_eq!(scope_trigger_count, 24);
+        assert!(
+            scope_trigger_bytes < 40 * 1024,
+            "compact 24 scope-classified trigger DDL should be < 40 KiB (down from 52.8 KB), got {scope_trigger_bytes} bytes"
+        );
+        assert!(
+            total_bytes < 70 * 1024,
+            "compact 60 visibility trigger DDL should be < 70 KiB (down from 83.9 KB), got {total_bytes} bytes"
+        );
+    }
+
+    #[test]
+    fn step39_compact_visibility_triggers_preserve_watermark_semantics_and_overflow_abort() {
+        fn watermark(conn: &Connection, scope: &str, pk: &str) -> (i64, i64, i64, String) {
+            conn.query_row(
+                "SELECT add_generation, max_cursor, destructive_generation, state_nonce \
+                 FROM _fathomdb_scope_visibility_watermarks \
+                 WHERE scope=?1 AND partition_kind=?2",
+                [scope, pk],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap_or_else(|e| panic!("missing watermark ({scope}, {pk}): {e}"))
+        }
+
+        fn assert_valid_nonce(nonce: &str) {
+            assert_eq!(nonce.len(), 64);
+            assert!(nonce.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')));
+        }
+
+        let conn = Connection::open_in_memory().unwrap();
+        migrate(&conn).unwrap();
+
+        // 1. ScopedCanonicalNode: INSERT, same-scope UPDATE, cross-scope/cross-kind UPDATE, DELETE.
+        conn.execute(
+            "INSERT INTO canonical_nodes(write_cursor, kind, body, logical_id, scope) \
+             VALUES (10, 'note', '{}', 'n1', 's1')",
+            [],
+        )
+        .unwrap();
+        let (a1, c1, d1, n1) = watermark(&conn, "s1", "node:note");
+        assert_eq!((a1, c1, d1), (1, 10, 0));
+        assert_valid_nonce(&n1);
+        let (a2, c2, d2, n2) = watermark(&conn, "s1", "node_all");
+        assert_eq!((a2, c2, d2), (1, 10, 0));
+        assert_valid_nonce(&n2);
+
+        // Same-scope / same-kind UPDATE increments both OLD and NEW rows (add +2, dest +2).
+        conn.execute(
+            "UPDATE canonical_nodes SET body='{\"v\":2}', write_cursor=25 WHERE logical_id='n1' AND scope='s1'",
+            [],
+        )
+        .unwrap();
+        let (a1u, c1u, d1u, n1u) = watermark(&conn, "s1", "node:note");
+        assert_eq!((a1u, c1u, d1u), (3, 25, 0));
+        assert_ne!(n1u, n1);
+        let (a2u, c2u, d2u, n2u) = watermark(&conn, "s1", "node_all");
+        assert_eq!((a2u, c2u, d2u), (3, 25, 0));
+        assert_ne!(n2u, n2);
+        let (ad, cd, dd, nd) = watermark(&conn, "s1", "scope_destructive");
+        assert_eq!((ad, cd, dd), (0, 0, 2));
+        assert_valid_nonce(&nd);
+
+        // Cross-scope & cross-kind UPDATE updates both s1 (OLD) and s2 (NEW).
+        conn.execute(
+            "UPDATE canonical_nodes SET scope='s2', kind='fact', write_cursor=40 WHERE logical_id='n1' AND scope='s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "s1", "scope_destructive").2, 3);
+        assert_eq!(watermark(&conn, "s2", "scope_destructive").2, 1);
+        assert_eq!(watermark(&conn, "s1", "node:note").0, 4);
+        assert_eq!(watermark(&conn, "s1", "node:note").1, 25);
+        assert_eq!(watermark(&conn, "s1", "node_all").0, 4);
+        assert_eq!(watermark(&conn, "s2", "node:fact").0, 1);
+        assert_eq!(watermark(&conn, "s2", "node:fact").1, 40);
+        assert_eq!(watermark(&conn, "s2", "node_all").0, 1);
+        assert_eq!(watermark(&conn, "s2", "node_all").1, 40);
+
+        // DELETE on s2 bumps destructive +1 and additive +1 while preserving max_cursor.
+        conn.execute("DELETE FROM canonical_nodes WHERE logical_id='n1' AND scope='s2'", [])
+            .unwrap();
+        assert_eq!(watermark(&conn, "s2", "scope_destructive").2, 2);
+        assert_eq!(watermark(&conn, "s2", "node:fact").0, 2);
+        assert_eq!(watermark(&conn, "s2", "node:fact").1, 40);
+        assert_eq!(watermark(&conn, "s2", "node_all").0, 2);
+        assert_eq!(watermark(&conn, "s2", "node_all").1, 40);
+
+        // 2. ScopedCanonicalEdge: INSERT, same-scope UPDATE, cross-scope UPDATE, DELETE.
+        conn.execute(
+            "INSERT INTO canonical_edges(write_cursor, kind, from_id, to_id, logical_id, scope) \
+             VALUES (12, 'rel', 'a', 'b', 'e1', 'e_s1')",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "e_s1", "edge:rel").0, 1);
+        assert_eq!(watermark(&conn, "e_s1", "edge:rel").1, 12);
+        assert_eq!(watermark(&conn, "e_s1", "edge_any").0, 1);
+        assert_eq!(watermark(&conn, "e_s1", "edge_any").1, 12);
+
+        conn.execute(
+            "UPDATE canonical_edges SET write_cursor=19 WHERE logical_id='e1' AND scope='e_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "e_s1", "scope_destructive").2, 2);
+        assert_eq!(watermark(&conn, "e_s1", "edge:rel").0, 3);
+        assert_eq!(watermark(&conn, "e_s1", "edge:rel").1, 19);
+        assert_eq!(watermark(&conn, "e_s1", "edge_any").0, 3);
+        assert_eq!(watermark(&conn, "e_s1", "edge_any").1, 19);
+
+        conn.execute(
+            "UPDATE canonical_edges SET scope='e_s2', kind='ref', write_cursor=30 WHERE logical_id='e1' AND scope='e_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "e_s1", "scope_destructive").2, 3);
+        assert_eq!(watermark(&conn, "e_s2", "scope_destructive").2, 1);
+        assert_eq!(watermark(&conn, "e_s1", "edge:rel").0, 4);
+        assert_eq!(watermark(&conn, "e_s2", "edge:ref").0, 1);
+        assert_eq!(watermark(&conn, "e_s2", "edge:ref").1, 30);
+        assert_eq!(watermark(&conn, "e_s2", "edge_any").0, 1);
+        assert_eq!(watermark(&conn, "e_s2", "edge_any").1, 30);
+
+        conn.execute("DELETE FROM canonical_edges WHERE logical_id='e1' AND scope='e_s2'", [])
+            .unwrap();
+        assert_eq!(watermark(&conn, "e_s2", "scope_destructive").2, 2);
+        assert_eq!(watermark(&conn, "e_s2", "edge:ref").0, 2);
+        assert_eq!(watermark(&conn, "e_s2", "edge:ref").1, 30);
+        assert_eq!(watermark(&conn, "e_s2", "edge_any").0, 2);
+
+        // 3. ScopedProvenance (_fathomdb_artifact_revisions): INSERT, same-scope UPDATE, cross-scope UPDATE, DELETE.
+        conn.execute(
+            "INSERT INTO _fathomdb_artifact_revisions(schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope) \
+             VALUES (1, 'rev1', 'node', 50, 'canonical_source', 'complete', 'p_s1')",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "p_s1", "scope_destructive").2, 1);
+        assert_eq!(watermark(&conn, "p_s1", "node_all").0, 1);
+        assert_eq!(watermark(&conn, "p_s1", "edge_any").0, 1);
+
+        conn.execute(
+            "UPDATE _fathomdb_artifact_revisions SET completeness='migrated_incomplete' WHERE revision_id='rev1' AND scope='p_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "p_s1", "scope_destructive").2, 3);
+        assert_eq!(watermark(&conn, "p_s1", "node_all").0, 3);
+        assert_eq!(watermark(&conn, "p_s1", "edge_any").0, 3);
+
+        conn.execute(
+            "UPDATE _fathomdb_artifact_revisions SET scope='p_s2' WHERE revision_id='rev1' AND scope='p_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "p_s1", "scope_destructive").2, 4);
+        assert_eq!(watermark(&conn, "p_s2", "scope_destructive").2, 1);
+        assert_eq!(watermark(&conn, "p_s1", "node_all").0, 4);
+        assert_eq!(watermark(&conn, "p_s2", "node_all").0, 1);
+        assert_eq!(watermark(&conn, "p_s1", "edge_any").0, 4);
+        assert_eq!(watermark(&conn, "p_s2", "edge_any").0, 1);
+
+        conn.execute(
+            "DELETE FROM _fathomdb_artifact_revisions WHERE revision_id='rev1' AND scope='p_s2'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "p_s2", "scope_destructive").2, 2);
+        assert_eq!(watermark(&conn, "p_s2", "node_all").0, 2);
+        assert_eq!(watermark(&conn, "p_s2", "edge_any").0, 2);
+
+        // 4. ScopedDependency (_fathomdb_source_dependencies): INSERT, same-scope UPDATE, cross-scope UPDATE, DELETE.
+        conn.execute(
+            "INSERT INTO _fathomdb_source_dependencies(schema_version, dependency_id, derived_revision_id, registered_dependency_generation, scope) \
+             VALUES (1, 'dep1', 'drev1', 1, 'd_s1')",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "d_s1", "scope_dependency").0, 1);
+        assert_eq!(watermark(&conn, "d_s1", "scope_dependency").2, 0);
+
+        conn.execute(
+            "UPDATE _fathomdb_source_dependencies SET registered_dependency_generation=2 WHERE dependency_id='dep1' AND scope='d_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "d_s1", "scope_dependency").0, 3);
+        assert_eq!(watermark(&conn, "d_s1", "scope_destructive").2, 2);
+
+        conn.execute(
+            "UPDATE _fathomdb_source_dependencies SET scope='d_s2' WHERE dependency_id='dep1' AND scope='d_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "d_s1", "scope_dependency").0, 4);
+        assert_eq!(watermark(&conn, "d_s2", "scope_dependency").0, 1);
+        assert_eq!(watermark(&conn, "d_s1", "scope_destructive").2, 3);
+        assert_eq!(watermark(&conn, "d_s2", "scope_destructive").2, 1);
+
+        conn.execute(
+            "DELETE FROM _fathomdb_source_dependencies WHERE dependency_id='dep1' AND scope='d_s2'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "d_s2", "scope_dependency").0, 2);
+        assert_eq!(watermark(&conn, "d_s2", "scope_destructive").2, 2);
+
+        // 5. ScopedOperationalState (operational_state): INSERT, same-scope UPDATE, cross-scope UPDATE, DELETE.
+        conn.execute(
+            "INSERT INTO operational_state(collection_name, record_key, payload_json, write_cursor, scope) \
+             VALUES ('c1', 'k1', '{}', 7, 'o_s1')",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "o_s1", "op_state").0, 1);
+        assert_eq!(watermark(&conn, "o_s1", "op_state").1, 7);
+
+        conn.execute(
+            "UPDATE operational_state SET payload_json='{\"a\":1}', write_cursor=15 WHERE collection_name='c1' AND record_key='k1' AND scope='o_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "o_s1", "op_state").0, 3);
+        assert_eq!(watermark(&conn, "o_s1", "op_state").1, 15);
+
+        conn.execute(
+            "UPDATE operational_state SET scope='o_s2', write_cursor=22 WHERE collection_name='c1' AND record_key='k1' AND scope='o_s1'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "o_s1", "op_state").0, 4);
+        assert_eq!(watermark(&conn, "o_s1", "op_state").1, 15);
+        assert_eq!(watermark(&conn, "o_s2", "op_state").0, 1);
+        assert_eq!(watermark(&conn, "o_s2", "op_state").1, 22);
+
+        conn.execute(
+            "DELETE FROM operational_state WHERE collection_name='c1' AND record_key='k1' AND scope='o_s2'",
+            [],
+        )
+        .unwrap();
+        assert_eq!(watermark(&conn, "o_s2", "op_state").0, 2);
+        assert_eq!(watermark(&conn, "o_s2", "op_state").1, 22);
+
+        // 6. i64::MAX overflow abort on add_generation and destructive_generation (both add-only & mixed).
+        conn.execute(
+            "INSERT INTO canonical_nodes(write_cursor, kind, body, logical_id, scope) \
+             VALUES (100, 'ovf', '{}', 'ovf1', 'ovf_add')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE _fathomdb_scope_visibility_watermarks \
+             SET add_generation=9223372036854775807 \
+             WHERE scope='ovf_add' AND partition_kind='node:ovf'",
+            [],
+        )
+        .unwrap();
+        let err = conn
+            .execute(
+                "INSERT INTO canonical_nodes(write_cursor, kind, body, logical_id, scope) \
+                 VALUES (101, 'ovf', '{}', 'ovf2', 'ovf_add')",
+                [],
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("read visibility generation exhausted"),
+            "add-only overflow must abort with expected message, got: {err}"
+        );
+        let err = conn
+            .execute("DELETE FROM canonical_nodes WHERE logical_id='ovf1' AND scope='ovf_add'", [])
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("read visibility generation exhausted"),
+            "mixed trigger add_generation overflow must abort with expected message, got: {err}"
+        );
+
+        // Destructive overflow abort on mixed trigger.
+        conn.execute(
+            "INSERT INTO canonical_nodes(write_cursor, kind, body, logical_id, scope) \
+             VALUES (102, 'ovf', '{}', 'ovf3', 'ovf_dest')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_scope_visibility_watermarks(scope, partition_kind, add_generation, max_cursor, destructive_generation, state_nonce) \
+             VALUES ('ovf_dest', 'scope_destructive', 0, 0, 9223372036854775807, lower(hex(randomblob(32))))",
+            [],
+        )
+        .unwrap();
+        let err = conn
+            .execute("DELETE FROM canonical_nodes WHERE logical_id='ovf3' AND scope='ovf_dest'", [])
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("read visibility generation exhausted"),
+            "mixed trigger destructive_generation overflow must abort with expected message, got: {err}"
+        );
+
+        // Cross-field non-interference: destructive_generation=i64::MAX on an additive partition does not abort an additive update,
+        // and add_generation=i64::MAX on 'scope_destructive' does not abort a destructive update.
+        conn.execute(
+            "INSERT INTO canonical_nodes(write_cursor, kind, body, logical_id, scope) \
+             VALUES (103, 'iso', '{}', 'iso1', 'ovf_iso')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE _fathomdb_scope_visibility_watermarks \
+             SET destructive_generation=9223372036854775807 \
+             WHERE scope='ovf_iso' AND partition_kind='node:iso'",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_scope_visibility_watermarks(scope, partition_kind, add_generation, max_cursor, destructive_generation, state_nonce) \
+             VALUES ('ovf_iso', 'scope_destructive', 9223372036854775807, 0, 5, lower(hex(randomblob(32))))",
+            [],
+        )
+        .unwrap();
+        conn.execute("DELETE FROM canonical_nodes WHERE logical_id='iso1' AND scope='ovf_iso'", [])
+            .expect("zero-delta column at i64::MAX must not falsely trigger overflow abort");
+        assert_eq!(watermark(&conn, "ovf_iso", "scope_destructive").0, i64::MAX);
+        assert_eq!(watermark(&conn, "ovf_iso", "scope_destructive").2, 6);
+        assert_eq!(watermark(&conn, "ovf_iso", "node:iso").0, 2);
+        assert_eq!(watermark(&conn, "ovf_iso", "node:iso").2, i64::MAX);
     }
 }

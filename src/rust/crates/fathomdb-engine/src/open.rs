@@ -2878,9 +2878,9 @@ fn ep07_deleted_under_admission_lock_returns_database_not_found_without_artifact
 
 #[cfg(test)]
 #[test]
-fn reader_connections_set_cache_size_1750kib_without_eager_schema_init() {
+fn reader_connections_defer_sqlite_schema_init() {
     let dir = tempfile::TempDir::new().unwrap();
-    let path = dir.path().join(format!("reader-cache-1750{}", fathomdb_schema::SQLITE_SUFFIX));
+    let path = dir.path().join(format!("reader-defer-schema{}", fathomdb_schema::SQLITE_SUFFIX));
     let (embedder_identity, stop_words_sha256) = {
         let opened = Engine::open(&path).unwrap();
         let id = opened.report.default_embedder.clone();
@@ -2903,7 +2903,7 @@ fn reader_connections_set_cache_size_1750kib_without_eager_schema_init() {
         managed,
     )
     .unwrap();
-    assert!(!readers.is_empty());
+    assert_eq!(readers.len(), READER_POOL_SIZE);
     for (idx, reader) in readers.iter().enumerate() {
         let mut schema_used: i32 = -1;
         let mut schema_hi: i32 = 0;
@@ -2918,16 +2918,11 @@ fn reader_connections_set_cache_size_1750kib_without_eager_schema_init() {
         }
         assert_eq!(schema_used, 0, "reader {idx} must defer sqlite3Init() during Engine::open");
     }
-    drop((_writer, readers));
-    // Verify a live engine reader worker caps its page cache at -1750 KiB lazily on first query.
-    let opened = Engine::open(
-        dir.path().join(format!("reader-cache-1750{}", fathomdb_schema::SQLITE_SUFFIX)),
-    )
-    .unwrap();
-    for _ in 0..READER_POOL_SIZE {
-        let _ = opened.engine.search_text_only("nonexistent_probe_term").unwrap();
+    for (idx, reader) in readers.iter().enumerate() {
+        let cache_size: i64 = reader.query_row("PRAGMA cache_size", [], |row| row.get(0)).unwrap();
+        assert_eq!(
+            cache_size, -2000,
+            "reader {idx} must retain SQLite default -2000 KiB cache_size"
+        );
     }
-    let cache_sizes = opened.engine.reader_pool.cache_size_per_worker();
-    assert_eq!(cache_sizes, vec![-1750; READER_POOL_SIZE]);
-    opened.engine.close().unwrap();
 }

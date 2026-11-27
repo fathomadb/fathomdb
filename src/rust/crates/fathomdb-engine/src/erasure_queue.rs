@@ -405,7 +405,11 @@ pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
     validate_active(c)
 }
 pub(crate) fn validate_active(c: &Connection) -> Result<(), EngineError> {
-    let mut statement=c.prepare("SELECT ticket,idempotency_key,phase,payload FROM _fathomdb_erasure_requests WHERE phase IN ('executing','sanitizing','finalizing')").map_err(|_|EngineError::Storage)?;
+    let mut statement = c
+        .prepare_cached(
+            "SELECT ticket,idempotency_key,phase,payload FROM _fathomdb_erasure_requests WHERE phase IN ('executing','sanitizing','finalizing')",
+        )
+        .map_err(|_| EngineError::Storage)?;
     let rows = statement
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
         .map_err(|_| EngineError::Storage)?;
@@ -452,7 +456,7 @@ fn queued(c: &Connection) -> Result<Vec<Request>, EngineError> {
 
 fn queued_for_scope(c: &Connection, scope: &str) -> Result<Vec<Request>, EngineError> {
     let mut statement = c
-        .prepare(
+        .prepare_cached(
             "SELECT ticket,idempotency_key,phase,payload \
              FROM _fathomdb_erasure_requests \
              WHERE scope=?1 AND phase='queued' ORDER BY ticket",

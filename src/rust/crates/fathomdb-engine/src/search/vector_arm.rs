@@ -96,6 +96,7 @@ pub(super) fn execute_vector_arm(
     view: FrozenView,
     now_param: Option<i64>,
     scope: &crate::scope::ScopePredicate,
+    store_only_default_scope: bool,
     read_dependency_eligibility: &dyn Fn(&str, usize) -> String,
     explain: bool,
 ) -> Result<VectorArmOutput, SearchReaderError> {
@@ -123,14 +124,17 @@ pub(super) fn execute_vector_arm(
                 view.edge_now(),
                 phase_scope,
                 explain,
+                store_only_default_scope && phase_scope.is_unscoped(),
             )?;
-            let mut params: Vec<rusqlite::types::Value> = vec![
-                rusqlite::types::Value::Text(bin_vector.to_string()),
-                rusqlite::types::Value::Text(query_vector.to_string()),
-            ];
-            params.extend(tail_params);
+            let mut bound_params: Vec<&dyn rusqlite::ToSql> =
+                Vec::with_capacity(2 + tail_params.len());
+            bound_params.push(&bin_vector);
+            bound_params.push(&query_vector);
+            for param in &tail_params {
+                bound_params.push(param);
+            }
             let mut statement = prepare_search_statement(tx, &sql)?;
-            let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            let rows = statement.query_map(bound_params.as_slice(), |row| {
                 let cos_dist = if explain { row.get::<_, Option<f64>>(2)? } else { None };
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?, cos_dist))
             })?;
@@ -179,42 +183,51 @@ pub(super) fn execute_vector_arm(
          {node_validity}{node_eligibility} LIMIT 1"
         ),
     )?;
-    let edge_existence = view.view.edge_existence_sql("canonical_edges");
-    let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
-    let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
-    let (edge_scope_sql, _) = scope.sql_clause("scope", 3);
-    let mut edge_stmt = prepare_search_statement(
-        tx,
-        &format!(
-            "SELECT body, logical_id, source_id, properties FROM canonical_edges \
-         WHERE write_cursor = ?1 AND {edge_scope_sql} AND body IS NOT NULL{edge_existence}\
-         {edge_validity}{edge_eligibility} LIMIT 1"
-        ),
-    )?;
-    let node_params = |rowid: i64| -> Vec<rusqlite::types::Value> {
-        let mut p = vec![rusqlite::types::Value::Integer(rowid)];
-        if let Some(now) = now_param {
-            p.push(rusqlite::types::Value::Integer(now));
-        }
-        scope.push_values(&mut p);
-        p
+    let mut edge_stmt = None;
+    let single_scope = scope.single_read_scope();
+    let read_node_row = |row: &rusqlite::Row<'_>| {
+        Ok((
+            row.get::<_, String>(0)?,
+            search_body_from_row(row, 1, true)?,
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, Option<String>>(3)?,
+            decode_properties_row_col(row, 4)?,
+        ))
+    };
+    let read_edge_row = |row: &rusqlite::Row<'_>| {
+        Ok((
+            search_body_from_row(row, 0, true)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+            decode_properties_row_col(row, 3)?,
+        ))
     };
     for (rowid, score, cos_dist) in rowids {
         if results.len() >= final_limit.max(VECTOR_FUSION_POOL) {
             break;
         }
-        if let Some((kind, body, logical_id, source_id, properties)) = node_stmt
-            .query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    search_body_from_row(row, 1, true)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, Option<String>>(3)?,
-                    decode_properties_row_col(row, 4)?,
-                ))
-            })
-            .optional()?
-        {
+        let node_row = if let Some(scope_str) = single_scope {
+            if let Some(now) = now_param {
+                node_stmt
+                    .query_row(rusqlite::params![rowid, now, scope_str], read_node_row)
+                    .optional()?
+            } else {
+                node_stmt
+                    .query_row(rusqlite::params![rowid, scope_str], read_node_row)
+                    .optional()?
+            }
+        } else {
+            let mut p = Vec::with_capacity(
+                1 + usize::from(now_param.is_some()) + scope.read_scopes().len(),
+            );
+            p.push(rusqlite::types::Value::Integer(rowid));
+            if let Some(now) = now_param {
+                p.push(rusqlite::types::Value::Integer(now));
+            }
+            scope.push_values(&mut p);
+            node_stmt.query_row(rusqlite::params_from_iter(p.iter()), read_node_row).optional()?
+        };
+        if let Some((kind, body, logical_id, source_id, properties)) = node_row {
             let id = derive_stable_id(logical_id.as_deref(), &body);
             let hit = FusionHit {
                 ownership: FusionOwnership::CanonicalNode,
@@ -237,22 +250,38 @@ pub(super) fn execute_vector_arm(
             }
             results.push(hit);
         } else {
-            let mut edge_params = vec![
-                rusqlite::types::Value::Integer(rowid),
-                rusqlite::types::Value::Integer(view.edge_now()),
-            ];
-            scope.push_values(&mut edge_params);
-            if let Some((body, logical_id, source_id, properties)) = edge_stmt
-                .query_row(rusqlite::params_from_iter(edge_params.iter()), |row| {
-                    Ok((
-                        search_body_from_row(row, 0, true)?,
-                        row.get::<_, Option<String>>(1)?,
-                        row.get::<_, Option<String>>(2)?,
-                        decode_properties_row_col(row, 3)?,
-                    ))
-                })
-                .optional()?
-            {
+            let stmt = match edge_stmt.as_mut() {
+                Some(stmt) => stmt,
+                None => {
+                    let edge_existence = view.view.edge_existence_sql("canonical_edges");
+                    let edge_validity =
+                        edge_validity_sql_for_view("canonical_edges", 2, &view.view);
+                    let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
+                    let (edge_scope_sql, _) = scope.sql_clause("scope", 3);
+                    let prepared = prepare_search_statement(
+                        tx,
+                        &format!(
+                            "SELECT body, logical_id, source_id, properties FROM canonical_edges \
+                             WHERE write_cursor = ?1 AND {edge_scope_sql} AND body IS NOT NULL{edge_existence}\
+                             {edge_validity}{edge_eligibility} LIMIT 1"
+                        ),
+                    )?;
+                    edge_stmt.insert(prepared)
+                }
+            };
+            let edge_row = if let Some(scope_str) = single_scope {
+                stmt.query_row(rusqlite::params![rowid, view.edge_now(), scope_str], read_edge_row)
+                    .optional()?
+            } else {
+                let mut edge_params = vec![
+                    rusqlite::types::Value::Integer(rowid),
+                    rusqlite::types::Value::Integer(view.edge_now()),
+                ];
+                scope.push_values(&mut edge_params);
+                stmt.query_row(rusqlite::params_from_iter(edge_params.iter()), read_edge_row)
+                    .optional()?
+            };
+            if let Some((body, logical_id, source_id, properties)) = edge_row {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
                 let hit = FusionHit {
                     ownership: FusionOwnership::CanonicalEdge,

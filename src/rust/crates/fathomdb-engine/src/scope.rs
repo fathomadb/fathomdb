@@ -365,6 +365,49 @@ impl ScopePredicate {
     }
 }
 
+/// Per-connection `(data_version, total_changes)` cache for whether the store
+/// currently contains exclusively default-scope (`scope = ''`) rows across both
+/// `canonical_nodes` and `canonical_edges`.
+///
+/// Fail-closed: any cache miss runs covering-index range probes on both tables;
+/// `PRAGMA main.data_version` detects any commit from another connection and
+/// `Connection::total_changes()` detects any write on the same connection.
+/// Because both counters are connection-local in SQLite, each connection MUST
+/// own its own `DefaultScopeCache` instance.
+#[derive(Default, Debug)]
+pub(crate) struct DefaultScopeCache {
+    cached: Option<(u64, u64, bool)>,
+}
+
+impl DefaultScopeCache {
+    pub(crate) fn is_only_default_scope(
+        &mut self,
+        conn: &rusqlite::Connection,
+    ) -> rusqlite::Result<bool> {
+        // Must NOT use `prepare_cached` for `PRAGMA data_version`: SQLite reads
+        // the pager's `data_version` during statement preparation.
+        let data_version: u64 = conn.query_row("PRAGMA main.data_version", [], |row| row.get(0))?;
+        let total_changes = conn.total_changes();
+        if let Some((cached_dv, cached_tc, only_default)) = self.cached {
+            if cached_dv == data_version && cached_tc == total_changes {
+                return Ok(only_default);
+            }
+        }
+        let only_default: bool = conn
+            .prepare_cached(
+                "SELECT NOT (\
+                    EXISTS(SELECT 1 FROM canonical_nodes WHERE scope < '' LIMIT 1) \
+                    OR EXISTS(SELECT 1 FROM canonical_nodes WHERE scope > '' LIMIT 1) \
+                    OR EXISTS(SELECT 1 FROM canonical_edges WHERE scope < '' LIMIT 1) \
+                    OR EXISTS(SELECT 1 FROM canonical_edges WHERE scope > '' LIMIT 1)\
+                )",
+            )?
+            .query_row([], |row| row.get(0))?;
+        self.cached = Some((data_version, total_changes, only_default));
+        Ok(only_default)
+    }
+}
+
 impl Engine {
     /// Return the open-validated, canonicalized caller scope isolation policy
     /// bound to this engine handle.
@@ -374,5 +417,90 @@ impl Engine {
 
     pub(crate) fn scope_predicate(&self) -> ScopePredicate {
         self.resolved_config.scope_policy.predicate()
+    }
+}
+
+#[cfg(test)]
+mod default_scope_cache_tests {
+    use super::DefaultScopeCache;
+    use rusqlite::Connection;
+    use tempfile::TempDir;
+
+    fn init_scope_tables(conn: &Connection) {
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE canonical_nodes(write_cursor INTEGER PRIMARY KEY, scope TEXT NOT NULL DEFAULT '');
+             CREATE INDEX canonical_nodes_scope_cursor_idx ON canonical_nodes(scope, write_cursor);
+             CREATE TABLE canonical_edges(write_cursor INTEGER PRIMARY KEY, scope TEXT NOT NULL DEFAULT '');
+             CREATE INDEX canonical_edges_scope_cursor_idx ON canonical_edges(scope, write_cursor);",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn default_scope_cache_invalidates_on_same_and_cross_connection_node_and_edge_writes() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("default_scope_cache.sqlite");
+
+        let writer = Connection::open(&path).unwrap();
+        init_scope_tables(&writer);
+        writer
+            .execute("INSERT INTO canonical_nodes(write_cursor, scope) VALUES (1, '')", [])
+            .unwrap();
+
+        // 1. Same-connection invalidation (total_changes)
+        let mut writer_cache = DefaultScopeCache::default();
+        assert!(writer_cache.is_only_default_scope(&writer).unwrap());
+        // Second call hits cache with zero table seeks (same data_version & total_changes).
+        assert!(writer_cache.is_only_default_scope(&writer).unwrap());
+
+        writer
+            .execute("INSERT INTO canonical_nodes(write_cursor, scope) VALUES (2, 'team-a')", [])
+            .unwrap();
+        assert!(
+            !writer_cache.is_only_default_scope(&writer).unwrap(),
+            "same-connection scoped node insert must invalidate DefaultScopeCache"
+        );
+        writer.execute("DELETE FROM canonical_nodes WHERE write_cursor = 2", []).unwrap();
+        assert!(writer_cache.is_only_default_scope(&writer).unwrap());
+
+        // Edge-only scoped insert on same connection.
+        writer
+            .execute("INSERT INTO canonical_edges(write_cursor, scope) VALUES (3, 'team-a')", [])
+            .unwrap();
+        assert!(
+            !writer_cache.is_only_default_scope(&writer).unwrap(),
+            "same-connection edge-only scoped insert must invalidate DefaultScopeCache"
+        );
+        writer.execute("DELETE FROM canonical_edges WHERE write_cursor = 3", []).unwrap();
+        assert!(writer_cache.is_only_default_scope(&writer).unwrap());
+
+        // 2. Cross-connection invalidation (PRAGMA main.data_version)
+        let reader = Connection::open(&path).unwrap();
+        let mut reader_cache = DefaultScopeCache::default();
+        assert!(reader_cache.is_only_default_scope(&reader).unwrap());
+        assert!(reader_cache.is_only_default_scope(&reader).unwrap());
+
+        // External writer inserts a scoped node.
+        writer
+            .execute("INSERT INTO canonical_nodes(write_cursor, scope) VALUES (4, 'team-a')", [])
+            .unwrap();
+        assert!(
+            !reader_cache.is_only_default_scope(&reader).unwrap(),
+            "cross-connection scoped node insert must invalidate via PRAGMA data_version"
+        );
+
+        // External writer deletes the scoped node.
+        writer.execute("DELETE FROM canonical_nodes WHERE write_cursor = 4", []).unwrap();
+        assert!(reader_cache.is_only_default_scope(&reader).unwrap());
+
+        // External writer inserts an edge-only scoped row (zero scoped nodes).
+        writer
+            .execute("INSERT INTO canonical_edges(write_cursor, scope) VALUES (5, 'team-a')", [])
+            .unwrap();
+        assert!(
+            !reader_cache.is_only_default_scope(&reader).unwrap(),
+            "cross-connection edge-only scoped insert must invalidate via PRAGMA data_version"
+        );
     }
 }

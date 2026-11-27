@@ -1052,15 +1052,23 @@ pub(crate) fn has_source_dependencies(
 ) -> rusqlite::Result<bool> {
     #[cfg(any(test, feature = "slice30-observer"))]
     let observation = crate::slice30_observer::span("has_source_dependencies");
-    let mut binds = Vec::new();
-    let mut scope_sql = String::new();
-    scope.append_sql_values("scope", &mut scope_sql, &mut binds);
-    let sql = format!(
-        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies WHERE ({scope_sql}) LIMIT 1)"
-    );
-    let result = crate::prepare_search_statement(connection, &sql).and_then(|mut statement| {
-        statement.query_row(rusqlite::params_from_iter(binds.iter()), |row| row.get(0))
-    });
+    let result = if let Some(single_scope) = scope.single_read_scope() {
+        crate::prepare_search_statement(
+            connection,
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies WHERE scope = ?1 LIMIT 1)",
+        )
+        .and_then(|mut statement| statement.query_row([single_scope], |row| row.get(0)))
+    } else {
+        let mut binds = Vec::new();
+        let mut scope_sql = String::new();
+        scope.append_sql_values("scope", &mut scope_sql, &mut binds);
+        let sql = format!(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies WHERE ({scope_sql}) LIMIT 1)"
+        );
+        crate::prepare_search_statement(connection, &sql).and_then(|mut statement| {
+            statement.query_row(rusqlite::params_from_iter(binds.iter()), |row| row.get(0))
+        })
+    };
     #[cfg(any(test, feature = "slice30-observer"))]
     observation.boolean_result(&result, true);
     result

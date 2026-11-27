@@ -437,6 +437,7 @@ pub(super) fn collect_node_fts_candidates(
     has_source_dependencies: bool,
     read_dependency_eligibility: &dyn Fn(&str, usize) -> String,
     scope: &crate::scope::ScopePredicate,
+    store_only_default_scope: bool,
     snippet: Option<&SnippetOptions>,
     fts_rows: &mut FtsRows,
 ) -> rusqlite::Result<NodeFtsOutcome> {
@@ -480,8 +481,13 @@ pub(super) fn collect_node_fts_candidates(
     if let Some(now) = now_param {
         text_params.push(rusqlite::types::Value::Integer(now));
     }
+    // Unary `+` on `cn.scope` keeps the FTS5-driven join anchored on
+    // `cn.write_cursor = si.write_cursor` and prevents SQLite from marking the
+    // bound scope parameter in `expmask` (which otherwise forces a full VDBE
+    // re-prepare on every cached execution). `cn.scope` is `TEXT NOT NULL` and
+    // every scope bind is `TEXT`, so `+cn.scope` is semantically identical.
     let mut scope_clause = String::new();
-    scope.append_sql_values("cn.scope", &mut scope_clause, &mut text_params);
+    scope.append_sql_values("+cn.scope", &mut scope_clause, &mut text_params);
     let text_scope = if scope.is_unscoped() {
         format!(" AND ({scope_clause} OR cn.write_cursor IS NULL)")
     } else {
@@ -570,35 +576,12 @@ pub(super) fn collect_node_fts_candidates(
             false,
             !force_full_sort,
         );
-    let can_defer_text_identity = can_defer_text_identity_cheap
-        && tx
-            .prepare_cached(
-                "SELECT NOT (\
-                    EXISTS(SELECT 1 FROM canonical_nodes WHERE scope < '' LIMIT 1) \
-                    OR EXISTS(SELECT 1 FROM canonical_nodes WHERE scope > '' LIMIT 1)\
-                )",
-            )
-            .and_then(|mut stmt| stmt.query_row([], |row| row.get::<_, bool>(0)))
-            .unwrap_or(false);
-    let join_eligibility = if scope.is_unscoped() {
-        format!("{text_scope}{text_eligibility}")
-    } else {
-        format!(" AND cn.source_id IS NOT NULL{text_scope}{text_eligibility}")
-    };
-    let join_sql = filter::body_fts_rank_sql_view(
-        &fts_kind_clause,
-        &text_validity,
-        &join_eligibility,
-        &text_filter,
-        &limit_clause,
-        &view.view,
-    );
+    let can_defer_text_identity = can_defer_text_identity_cheap && store_only_default_scope;
     let rank_stream_requested = fts_only_limit.is_some() && !force_full_sort && !vector_stage_only;
     let rank_stream_eligible = rank_stream_requested
         && tx
-            .query_row("SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)", [], |row| {
-                row.get::<_, bool>(0)
-            })
+            .prepare_cached("SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)")
+            .and_then(|mut stmt| stmt.query_row([], |row| row.get::<_, bool>(0)))
             .unwrap_or(false);
     let rank_stream_candidates = if rank_stream_eligible {
         let rank_candidate_limit = fts_only_limit.unwrap_or(final_limit);
@@ -628,7 +611,7 @@ pub(super) fn collect_node_fts_candidates(
         );
         #[cfg(feature = "test-hooks")]
         record_fts_query_plan_for_test(tx, &rank_sql, &text_params);
-        tx.prepare(&rank_sql)
+        prepare_search_statement(tx, &rank_sql)
             .and_then(|mut statement| {
                 let mut rows = statement.query(rusqlite::params_from_iter(text_params.iter()))?;
                 collect_complete_fusion_rank_boundary(
@@ -654,11 +637,9 @@ pub(super) fn collect_node_fts_candidates(
     let defer_full_hydration = can_defer_text_identity
         && !eager_text
         && !vector_stage_only
-        && tx.query_row(
-            "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)",
-            [],
-            |row| row.get::<_, bool>(0),
-        )?;
+        && tx
+            .prepare_cached("SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)")?
+            .query_row([], |row| row.get::<_, bool>(0))?;
     let defer_text_identity = can_defer_text_identity
         && !defer_full_hydration
         && dependency_closure::all_nodes_directly_eligible(
@@ -798,88 +779,105 @@ pub(super) fn collect_node_fts_candidates(
             "rank_stream_strict_boundary"
         });
         candidates
-    } else if let Ok(mut statement) = tx.prepare(&join_sql) {
-        #[cfg(test)]
-        if force_full_sort && query_vector.is_some() && rank_probe.is_some() {
-            crate::slice30_observer::record_rank_probe(
-                "s50_ranking_route",
-                serde_json::json!("hybrid_full_sort_forced"),
-            );
-        }
-        #[cfg(feature = "test-hooks")]
-        if query_vector.is_some() && force_full_sort {
-            record_fts_route_for_test("hybrid_full_sort_forced");
-        } else if rank_stream_eligible {
-            record_fts_route_for_test("full_sort_fallback");
-        } else if rank_stream_requested {
-            record_fts_route_for_test("full_sort_ineligible");
-        }
-        let rows = statement
-            .query_map(rusqlite::params_from_iter(text_params.iter()), node_fusion_hit_from_row)?;
-        let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-        keep_rowids(hits, FtsTable::Nodes, snippet.is_some(), fts_rows)
     } else {
-        let source_sql = format!(
-            "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-             bm25(search_index), cn.source_id, search_index.rowid FROM search_index \
-             LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
-             WHERE search_index MATCH ?1 \
-             ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
-        );
-        if let Ok(mut statement) = tx.prepare(&source_sql) {
-            let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
-                let body = search_body_from_row(row, 0, false)?;
-                let hit = SearchHit {
-                    // No logical_id column on this schema → content-hash id.
-                    id: derive_stable_id(None, &body),
-                    body,
-                    kind: row.get::<_, String>(1)?,
-                    write_cursor: row.get::<_, i64>(2)? as u64,
-                    score: row.get::<_, f64>(3)?,
-                    branch: SoftFallbackBranch::Text,
-                    source_id: row.get::<_, Option<String>>(4)?,
-                    ce_score: None,
-                    properties: None,
-                };
-                Ok((hit, row.get::<_, i64>(5)?))
-            })?;
-            keep_rowids(
-                classify_legacy_node_rows(tx, rows.collect::<rusqlite::Result<Vec<_>>>()?)?,
-                FtsTable::Nodes,
-                snippet.is_some(),
-                fts_rows,
-            )
+        let join_eligibility = if scope.is_unscoped() {
+            format!("{text_scope}{text_eligibility}")
         } else {
-            // Pre-step-8: no `source_id` column anywhere. Byte-identical to
-            // the historical statement.
-            let plain_sql = format!(
-                "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index \
+            format!(" AND cn.source_id IS NOT NULL{text_scope}{text_eligibility}")
+        };
+        let join_sql = filter::body_fts_rank_sql_view(
+            &fts_kind_clause,
+            &text_validity,
+            &join_eligibility,
+            &text_filter,
+            &limit_clause,
+            &view.view,
+        );
+        if let Ok(mut statement) = tx.prepare(&join_sql) {
+            #[cfg(test)]
+            if force_full_sort && query_vector.is_some() && rank_probe.is_some() {
+                crate::slice30_observer::record_rank_probe(
+                    "s50_ranking_route",
+                    serde_json::json!("hybrid_full_sort_forced"),
+                );
+            }
+            #[cfg(feature = "test-hooks")]
+            if query_vector.is_some() && force_full_sort {
+                record_fts_route_for_test("hybrid_full_sort_forced");
+            } else if rank_stream_eligible {
+                record_fts_route_for_test("full_sort_fallback");
+            } else if rank_stream_requested {
+                record_fts_route_for_test("full_sort_ineligible");
+            }
+            let rows = statement.query_map(
+                rusqlite::params_from_iter(text_params.iter()),
+                node_fusion_hit_from_row,
+            )?;
+            let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+            keep_rowids(hits, FtsTable::Nodes, snippet.is_some(), fts_rows)
+        } else {
+            let source_sql = format!(
+                "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
+                 bm25(search_index), cn.source_id, search_index.rowid FROM search_index \
+                 LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
                  WHERE search_index MATCH ?1 \
-                 ORDER BY bm25(search_index), write_cursor{limit_clause}"
+                 ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
             );
-            let mut statement = tx.prepare(&plain_sql)?;
-            let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
-                let body = search_body_from_row(row, 0, false)?;
-                let hit = SearchHit {
-                    // No logical_id column on this schema → content-hash id.
-                    id: derive_stable_id(None, &body),
-                    body,
-                    kind: row.get::<_, String>(1)?,
-                    write_cursor: row.get::<_, i64>(2)? as u64,
-                    score: row.get::<_, f64>(3)?,
-                    branch: SoftFallbackBranch::Text,
-                    source_id: None,
-                    ce_score: None,
-                    properties: None,
-                };
-                Ok((hit, row.get::<_, i64>(4)?))
-            })?;
-            keep_rowids(
-                classify_legacy_node_rows(tx, rows.collect::<rusqlite::Result<Vec<_>>>()?)?,
-                FtsTable::Nodes,
-                snippet.is_some(),
-                fts_rows,
-            )
+            if let Ok(mut statement) = tx.prepare(&source_sql) {
+                let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
+                    let body = search_body_from_row(row, 0, false)?;
+                    let hit = SearchHit {
+                        // No logical_id column on this schema → content-hash id.
+                        id: derive_stable_id(None, &body),
+                        body,
+                        kind: row.get::<_, String>(1)?,
+                        write_cursor: row.get::<_, i64>(2)? as u64,
+                        score: row.get::<_, f64>(3)?,
+                        branch: SoftFallbackBranch::Text,
+                        source_id: row.get::<_, Option<String>>(4)?,
+                        ce_score: None,
+                        properties: None,
+                    };
+                    Ok((hit, row.get::<_, i64>(5)?))
+                })?;
+                keep_rowids(
+                    classify_legacy_node_rows(tx, rows.collect::<rusqlite::Result<Vec<_>>>()?)?,
+                    FtsTable::Nodes,
+                    snippet.is_some(),
+                    fts_rows,
+                )
+            } else {
+                // Pre-step-8: no `source_id` column anywhere. Byte-identical to
+                // the historical statement.
+                let plain_sql = format!(
+                    "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index \
+                     WHERE search_index MATCH ?1 \
+                     ORDER BY bm25(search_index), write_cursor{limit_clause}"
+                );
+                let mut statement = tx.prepare(&plain_sql)?;
+                let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
+                    let body = search_body_from_row(row, 0, false)?;
+                    let hit = SearchHit {
+                        // No logical_id column on this schema → content-hash id.
+                        id: derive_stable_id(None, &body),
+                        body,
+                        kind: row.get::<_, String>(1)?,
+                        write_cursor: row.get::<_, i64>(2)? as u64,
+                        score: row.get::<_, f64>(3)?,
+                        branch: SoftFallbackBranch::Text,
+                        source_id: None,
+                        ce_score: None,
+                        properties: None,
+                    };
+                    Ok((hit, row.get::<_, i64>(4)?))
+                })?;
+                keep_rowids(
+                    classify_legacy_node_rows(tx, rows.collect::<rusqlite::Result<Vec<_>>>()?)?,
+                    FtsTable::Nodes,
+                    snippet.is_some(),
+                    fts_rows,
+                )
+            }
         }
     };
     #[cfg(any(test, feature = "slice30-observer"))]
@@ -907,8 +905,12 @@ pub(super) fn collect_edge_fts_candidates(
         rusqlite::types::Value::Text(compiled.match_expression.clone()),
         rusqlite::types::Value::Integer(view.edge_now()),
     ];
+    // Unary `+` on `ce.scope` keeps the FTS5-driven join anchored on
+    // `ce.write_cursor = sei.write_cursor` and prevents SQLite from marking the
+    // bound scope parameter in `expmask` (which otherwise forces a full VDBE
+    // re-prepare of the edge-FTS query on every cached execution).
     let mut edge_scope_sql = String::new();
-    scope.append_sql_values("ce.scope", &mut edge_scope_sql, &mut edge_params);
+    scope.append_sql_values("+ce.scope", &mut edge_scope_sql, &mut edge_params);
     let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
     let edge_eligibility = format!(" AND {edge_scope_sql}{edge_dependency}{edge_filter}");
     let edge_sql = filter::edge_fts_rank_sql_view(&edge_validity, &edge_eligibility, &view.view);
@@ -1027,4 +1029,46 @@ pub(super) fn hydrate_deferred_text_identity(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod fts_reprepare_tests {
+    use super::prepare_search_statement;
+    use crate::Engine;
+    use tempfile::TempDir;
+
+    #[test]
+    fn fts_scope_filtered_statements_never_reprepare_on_cached_reuse() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("fts_reprep.sqlite");
+        let opened = Engine::open(&path).unwrap();
+        opened.engine.close().unwrap();
+
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.set_prepared_statement_cache_capacity(32);
+        let node_sql = "SELECT si.rowid, si.write_cursor, bm25(search_index) \
+            FROM search_index si \
+            LEFT JOIN canonical_nodes cn ON cn.write_cursor = si.write_cursor \
+            WHERE search_index MATCH ?1 AND cn.superseded_at IS NULL \
+              AND (+cn.scope = ?2 OR cn.write_cursor IS NULL)";
+        let edge_sql = "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges) \
+            FROM search_index_edges sei \
+            CROSS JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
+            WHERE search_index_edges MATCH ?1 AND ce.superseded_at IS NULL \
+              AND +ce.scope = ?2 \
+            ORDER BY bm25(search_index_edges), sei.write_cursor";
+
+        for (label, sql) in [("node_fts", node_sql), ("edge_fts", edge_sql)] {
+            for _ in 0..8 {
+                let mut stmt = prepare_search_statement(&conn, sql).unwrap();
+                let count = stmt.query_map(["\"alpha\"", ""], |_| Ok(())).unwrap().count();
+                assert_eq!(count, 0);
+                assert_eq!(
+                    stmt.reprepare_count(),
+                    0,
+                    "{label} must not trigger SQLite expmask re-prepare on cached reuse"
+                );
+            }
+        }
+    }
 }

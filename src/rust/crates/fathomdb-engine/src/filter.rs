@@ -976,6 +976,7 @@ pub(crate) fn filter_needs_preselection(
 /// predicates (`Ne`, ranges, numeric `Eq`, slot `9+`, or relaxed `ReadView`) pre-select
 /// eligible `write_cursor`s via `canonical_property_values` (or inline `(body, properties)`)
 /// before exact L2 scoring for 100% recall beyond `TOP_K_BIT_CANDIDATES`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_vector_phase1_plan(
     conn: Option<&Connection>,
     filter: Option<&SearchFilter>,
@@ -984,14 +985,28 @@ pub(crate) fn build_vector_phase1_plan(
     edge_now: i64,
     scope: &crate::scope::ScopePredicate,
     include_cosine: bool,
+    elide_unscoped_vec0_filter: bool,
 ) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
     use rusqlite::types::Value;
     if !filter_needs_preselection(conn, filter, view)? {
-        let single_scope = scope.single_read_scope().unwrap_or("");
-        let sql = build_vec0_fast_phase1_sql(filter, final_limit, view, include_cosine);
+        // Safety invariant: `vec0` Phase-1 scope elision is strictly gated on
+        // `scope.is_unscoped()` AND caller-verified `store_only_default_scope`.
+        // Relational hydration ALWAYS retains `AND scope = ?` as defense-in-depth.
+        let omit_scope = elide_unscoped_vec0_filter && scope.is_unscoped();
         let mut tail_params = vector_filter_values(filter);
+        let sql = build_vec0_fast_phase1_sql(
+            filter,
+            tail_params.len(),
+            final_limit,
+            view,
+            include_cosine,
+            omit_scope,
+        );
         tail_params.push(Value::Integer(edge_now));
-        tail_params.push(Value::Text(single_scope.to_string()));
+        if !omit_scope {
+            let single_scope = scope.single_read_scope().unwrap_or("");
+            tail_params.push(Value::Text(single_scope.to_string()));
+        }
         return Ok((sql, tail_params));
     }
 
@@ -1142,9 +1157,11 @@ pub(crate) fn build_vector_phase1_plan(
 
 fn build_vec0_fast_phase1_sql(
     filter: Option<&SearchFilter>,
+    filter_value_count: usize,
     final_limit: usize,
     view: &ReadView,
     include_cosine: bool,
+    omit_scope: bool,
 ) -> String {
     let mut filter_clause = vector_filter_clause(filter);
     filter_clause.push_str(match (view.include_superseded, view.include_inactive) {
@@ -1153,9 +1170,11 @@ fn build_vec0_fast_phase1_sql(
         (true, false) => " AND lifecycle IN (0,2)",
         (true, true) => "",
     });
-    let index = vector_filter_values(filter).len() + 3;
-    let scope_index = index + 1;
-    filter_clause.push_str(&format!(" AND scope=?{scope_index}"));
+    let index = filter_value_count + 3;
+    if !omit_scope {
+        let scope_index = index + 1;
+        filter_clause.push_str(&format!(" AND scope=?{scope_index}"));
+    }
     let temporal = format!(" AND valid_from<=?{index} AND valid_until>=?{index}");
     let knn = |extra: &str| {
         format!(
@@ -1193,9 +1212,18 @@ pub(crate) fn build_vector_phase1_sql(
     view: &ReadView,
 ) -> String {
     let scope = crate::scope::ScopePredicate::unscoped();
-    build_vector_phase1_plan(None, filter, final_limit, view, 0, &scope, false)
+    build_vector_phase1_plan(None, filter, final_limit, view, 0, &scope, false, false)
         .map(|(sql, _)| sql)
-        .unwrap_or_else(|_| build_vec0_fast_phase1_sql(filter, final_limit, view, false))
+        .unwrap_or_else(|_| {
+            build_vec0_fast_phase1_sql(
+                filter,
+                vector_filter_values(filter).len(),
+                final_limit,
+                view,
+                false,
+                false,
+            )
+        })
 }
 
 /// Compile node eligibility into SQL that executes before ranking or limits.
@@ -2007,21 +2035,22 @@ fn wp40d_vector_phase1_plan_include_cosine_sql_invariance() {
 
     // 1. Fast path with include_cosine = false emits ZERO vec_distance_cosine
     let (sql_off, _) =
-        build_vector_phase1_plan(None, None, 10, &default_view, 0, &scope, false).unwrap();
+        build_vector_phase1_plan(None, None, 10, &default_view, 0, &scope, false, false).unwrap();
     assert!(!sql_off.contains("vec_distance_cosine"), "explain=false SQL must not eval cosine");
     assert!(sql_off.contains("ORDER BY l2 LIMIT 10"));
 
     // 2. Fast path with include_cosine = true emits cos_dist and keeps ORDER BY l2
     let (sql_on, _) =
-        build_vector_phase1_plan(None, None, 10, &default_view, 0, &scope, true).unwrap();
+        build_vector_phase1_plan(None, None, 10, &default_view, 0, &scope, true, false).unwrap();
     assert!(sql_on.contains("vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"));
     assert!(sql_on.contains("ORDER BY l2 LIMIT 10"));
 
     // 3. Fast path with include_out_of_window = true also emits cos_dist when true
     let oow_view = ReadView { include_out_of_window: true, ..ReadView::default() };
     let (oow_off, _) =
-        build_vector_phase1_plan(None, None, 10, &oow_view, 0, &scope, false).unwrap();
-    let (oow_on, _) = build_vector_phase1_plan(None, None, 10, &oow_view, 0, &scope, true).unwrap();
+        build_vector_phase1_plan(None, None, 10, &oow_view, 0, &scope, false, false).unwrap();
+    let (oow_on, _) =
+        build_vector_phase1_plan(None, None, 10, &oow_view, 0, &scope, true, false).unwrap();
     assert!(!oow_off.contains("vec_distance_cosine"));
     assert!(oow_on.contains("vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"));
     assert!(oow_on.contains("ORDER BY l2 LIMIT 10"));
@@ -2043,12 +2072,67 @@ fn wp40d_vector_phase1_plan_include_cosine_sql_invariance() {
         0,
         &scope,
         false,
+        false,
     )
     .unwrap();
-    let (pre_on, _) =
-        build_vector_phase1_plan(None, Some(&preselect_filter), 10, &default_view, 0, &scope, true)
-            .unwrap();
+    let (pre_on, _) = build_vector_phase1_plan(
+        None,
+        Some(&preselect_filter),
+        10,
+        &default_view,
+        0,
+        &scope,
+        true,
+        false,
+    )
+    .unwrap();
     assert!(!pre_off.contains("vec_distance_cosine"));
     assert!(pre_on.contains("vec_distance_cosine(v.embedding, vec_f32(?2)) AS cos_dist"));
     assert!(pre_on.contains("ORDER BY l2 LIMIT 10"));
+}
+
+#[cfg(test)]
+#[test]
+fn vec0_phase1_scope_elision_is_strictly_gated_on_unscoped_policy() {
+    let unscoped = crate::scope::ScopePredicate::unscoped();
+    let scoped = crate::scope::ScopePredicate::single_for_query("team-a");
+    let default_view = ReadView::default();
+
+    // Unscoped + elide=true omits `AND scope=?` and drops the scope bind param.
+    let (unscoped_elided_sql, unscoped_elided_params) =
+        build_vector_phase1_plan(None, None, 10, &default_view, 42, &unscoped, false, true)
+            .unwrap();
+    assert!(
+        !unscoped_elided_sql.contains("AND scope="),
+        "elided unscoped SQL must omit vec0 scope filter: {unscoped_elided_sql}"
+    );
+    assert_eq!(unscoped_elided_params, vec![rusqlite::types::Value::Integer(42)]);
+
+    // Unscoped + elide=false retains `AND scope=?4` and binds `""`.
+    let (unscoped_kept_sql, unscoped_kept_params) =
+        build_vector_phase1_plan(None, None, 10, &default_view, 42, &unscoped, false, false)
+            .unwrap();
+    assert!(
+        unscoped_kept_sql.contains("AND scope=?4"),
+        "non-elided unscoped SQL must keep vec0 scope filter: {unscoped_kept_sql}"
+    );
+    assert_eq!(
+        unscoped_kept_params,
+        vec![rusqlite::types::Value::Integer(42), rusqlite::types::Value::Text(String::new())]
+    );
+
+    // Scoped + elide=true MUST STILL fail closed and keep `AND scope=?4`!
+    let (scoped_sql, scoped_params) =
+        build_vector_phase1_plan(None, None, 10, &default_view, 42, &scoped, false, true).unwrap();
+    assert!(
+        scoped_sql.contains("AND scope=?4"),
+        "scoped policy must NEVER elide vec0 scope filter even when elide=true: {scoped_sql}"
+    );
+    assert_eq!(
+        scoped_params,
+        vec![
+            rusqlite::types::Value::Integer(42),
+            rusqlite::types::Value::Text("team-a".to_string()),
+        ]
+    );
 }

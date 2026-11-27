@@ -2276,6 +2276,217 @@ fn multi_read_scope_resolves_shared_operation_id_and_detects_ambiguous_derived_l
     }
 }
 
+/// `SLICE60-FIX-PERF-1`: per-connection `DefaultScopeCache` + `vec0` Phase-1 unscoped
+/// fast path MUST immediately invalidate when any non-default-scope node or edge row
+/// enters the store (across reopen, writer-connection commits, and external connections)
+/// so `"team-a"` vectors can NEVER leak into or displace default-scope top-k results.
+#[test]
+fn unscoped_vec0_fast_path_invalidates_on_scoped_node_and_edge_writes_without_topk_pollution() {
+    let dir = TempDir::new().unwrap();
+    let emb: Arc<dyn Embedder> = Arc::new(DeterministicEmbedder);
+
+    // Scenario A: Reopen with ScopePolicy::single("team-a") writing > TOP_K_BIT_CANDIDATES (192)
+    // exact-match vectors (`vec_c_exact`) while default-scope docs have moderate similarity (`vec_b_mid`).
+    // If vec0 Phase-1 erroneously elided `AND scope=?`, all 192 bit-KNN slots would be consumed
+    // by "team-a" rows and default-scope docs would be displaced to 0 results!
+    {
+        let path = db_path(&dir, "perf1_reopen_pollution");
+        let unscoped = open_scoped_with_embedder(&path, ScopePolicy::Unscoped, Arc::clone(&emb));
+        unscoped.configure_projections(&[body_vector_spec()], &[]).unwrap();
+        let default_writes: Vec<PreparedWrite> = (0..3)
+            .map(|i| {
+                plain_node(
+                    "doc",
+                    &format!("vec_b_mid default_doc_{i}"),
+                    "src-default",
+                    Some(&format!("def-{i}")),
+                    None,
+                )
+            })
+            .collect();
+        unscoped.write(&default_writes).unwrap();
+        unscoped.drain(10_000).unwrap();
+
+        // Prime all 8 reader workers' DefaultScopeCache to `true`.
+        for _ in 0..16 {
+            let res = unscoped.search("vec_query").unwrap();
+            assert_eq!(res.results.len(), 3, "all 3 default-scope docs must be returned");
+        }
+        unscoped.close().unwrap();
+
+        // Write 210 exact-match "team-a" docs (> TOP_K_BIT_CANDIDATES = 192).
+        let team_a =
+            open_scoped_with_embedder(&path, ScopePolicy::single("team-a"), Arc::clone(&emb));
+        let team_writes: Vec<PreparedWrite> = (0..210)
+            .map(|i| {
+                plain_node(
+                    "doc",
+                    &format!("vec_c_exact team_a_secret_{i}"),
+                    "src-team-a",
+                    Some(&format!("ta-{i}")),
+                    None,
+                )
+            })
+            .collect();
+        team_a.write(&team_writes).unwrap();
+        team_a.drain(30_000).unwrap();
+        team_a.close().unwrap();
+
+        // Reopen unscoped and verify zero leakage AND zero top-k displacement.
+        let unscoped = open_scoped_with_embedder(&path, ScopePolicy::Unscoped, Arc::clone(&emb));
+        for _ in 0..16 {
+            let res = unscoped.search("vec_query").unwrap();
+            assert_eq!(
+                res.results.len(),
+                3,
+                "default-scope top-k must NOT be displaced by 210 exact-match team-a vectors"
+            );
+            assert!(
+                res.results.iter().all(|hit| !hit.body.contains("team_a_secret")),
+                "team-a rows must never leak into unscoped search: {:?}",
+                res.results
+            );
+        }
+        unscoped.close().unwrap();
+    }
+
+    // Scenario B: Live open unscoped Engine with all 8 reader worker caches primed to `true`,
+    // then cross-connection write (writer connection -> bumps PRAGMA data_version on every
+    // reader worker) inserts 210 exact-match "team-a" nodes + vector_default rows.
+    {
+        let path = db_path(&dir, "perf1_live_node_invalidation");
+        let unscoped = open_scoped_with_embedder(&path, ScopePolicy::Unscoped, Arc::clone(&emb));
+        unscoped.configure_projections(&[body_vector_spec()], &[]).unwrap();
+        let default_writes: Vec<PreparedWrite> = (0..3)
+            .map(|i| {
+                plain_node(
+                    "doc",
+                    &format!("vec_b_mid live_default_doc_{i}"),
+                    "src-default",
+                    Some(&format!("live-def-{i}")),
+                    None,
+                )
+            })
+            .collect();
+        unscoped.write(&default_writes).unwrap();
+        unscoped.drain(10_000).unwrap();
+
+        // Prime ALL 8 reader workers' DefaultScopeCache to `true`.
+        for _ in 0..24 {
+            let res = unscoped.search("vec_query").unwrap();
+            assert_eq!(res.results.len(), 3);
+        }
+
+        // Cross-connection write (Engine writer connection != 8 reader worker connections)
+        // inserting 210 exact-match "team-a" node + vec0 rows while unscoped handle stays open.
+        let mut batch = String::from("BEGIN;");
+        for i in 0..210_i64 {
+            let cursor = 10_000 + i;
+            batch.push_str(&format!(
+                "INSERT INTO canonical_nodes(write_cursor, scope, logical_id, kind, body, source_id, state) \
+                 VALUES ({cursor}, 'team-a', 'ta-live-{i}', 'doc', 'vec_c_exact team_a_live_{i}', 'src-team-a', 'active');\
+                 INSERT INTO vector_default(rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until, scope) \
+                 VALUES ({cursor}, vec_f32('[1,0,0,0,0,0,0,0]'), vec_quantize_binary(vec_f32('[1,0,0,0,0,0,0,0]')), 'article', 'doc', 0, '', 0, -9223372036854775808, 9223372036854775807, 'team-a');"
+            ));
+        }
+        batch.push_str("COMMIT;");
+        unscoped.execute_for_test(&batch).unwrap();
+
+        // Immediately search across all 8 primed reader workers on the SAME live handle.
+        for _ in 0..24 {
+            let res = unscoped.search("vec_query").unwrap();
+            assert_eq!(
+                res.results.len(),
+                3,
+                "primed reader workers MUST invalidate on PRAGMA data_version and keep all 3 default docs"
+            );
+            assert!(
+                res.results.iter().all(|hit| !hit.body.contains("team_a_live")),
+                "team-a live rows must never leak: {:?}",
+                res.results
+            );
+        }
+        unscoped.close().unwrap();
+    }
+
+    // Scenario C: Live open unscoped Engine primed to `true`, then EDGE-ONLY "team-a" write
+    // (ZERO "team-a" rows in canonical_nodes!) + 210 exact-match "team-a" edge vectors in vec0.
+    // Verifies DefaultScopeCache checks BOTH canonical_nodes AND canonical_edges!
+    {
+        let path = db_path(&dir, "perf1_live_edge_only_invalidation");
+        let unscoped = open_scoped_with_embedder(&path, ScopePolicy::Unscoped, Arc::clone(&emb));
+        unscoped.configure_projections(&[body_vector_spec()], &[]).unwrap();
+        let default_writes: Vec<PreparedWrite> = (0..3)
+            .map(|i| {
+                plain_node(
+                    "doc",
+                    &format!("vec_b_mid edge_test_default_{i}"),
+                    "src-default",
+                    Some(&format!("ed-def-{i}")),
+                    None,
+                )
+            })
+            .collect();
+        unscoped.write(&default_writes).unwrap();
+        unscoped.drain(10_000).unwrap();
+
+        // Prime ALL 8 reader workers' DefaultScopeCache to `true`.
+        for _ in 0..24 {
+            let res = unscoped.search("vec_query").unwrap();
+            assert_eq!(res.results.len(), 3);
+        }
+
+        // Insert ONLY canonical_edges with scope='team-a' (zero team-a rows in canonical_nodes)
+        // plus 210 exact-match team-a vectors in vector_default.
+        let mut batch = String::from("BEGIN;");
+        for i in 0..210_i64 {
+            let cursor = 20_000 + i;
+            batch.push_str(&format!(
+                "INSERT INTO canonical_edges(write_cursor, scope, logical_id, kind, from_id, to_id, source_id, body) \
+                 VALUES ({cursor}, 'team-a', 'ta-edge-{i}', 'rel', 'n1', 'n2', 'src-team-a', 'vec_c_exact team_a_edge_{i}');\
+                 INSERT INTO vector_default(rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until, scope) \
+                 VALUES ({cursor}, vec_f32('[1,0,0,0,0,0,0,0]'), vec_quantize_binary(vec_f32('[1,0,0,0,0,0,0,0]')), 'edge_fact', 'edge_fact', 0, '', 0, -9223372036854775808, 9223372036854775807, 'team-a');"
+            ));
+        }
+        batch.push_str("COMMIT;");
+        unscoped.execute_for_test(&batch).unwrap();
+
+        // Immediately search across all 8 primed reader workers on the SAME live handle.
+        for _ in 0..24 {
+            let res = unscoped.search("vec_query").unwrap();
+            assert_eq!(
+                res.results.len(),
+                3,
+                "edge-only team-a rows MUST invalidate DefaultScopeCache and prevent top-k displacement"
+            );
+            assert!(
+                res.results.iter().all(|hit| !hit.body.contains("team_a_edge")),
+                "team-a edge rows must never leak: {:?}",
+                res.results
+            );
+        }
+
+        // Also test an external independent SQLite connection writing a second scope row.
+        let external = Connection::open(&path).unwrap();
+        external
+            .execute(
+                "INSERT INTO canonical_nodes(write_cursor, scope, logical_id, kind, body, source_id, state) \
+                 VALUES (30001, 'team-b', 'tb-ext-1', 'doc', 'vec_c_exact team_b_external', 'src-team-b', 'active')",
+                [],
+            )
+            .unwrap();
+        drop(external);
+
+        for _ in 0..16 {
+            let res = unscoped.search("vec_query").unwrap();
+            assert_eq!(res.results.len(), 3);
+            assert!(res.results.iter().all(|hit| !hit.body.contains("team_b_external")));
+        }
+
+        unscoped.close().unwrap();
+    }
+}
+
 // =============================================================================
 // 6. Proptest property tests for ScopePolicy grammar & cardinality
 // =============================================================================

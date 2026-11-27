@@ -137,6 +137,7 @@ fn rank_probe_arm(hits: impl IntoIterator<Item = (RecordKey, f64)>) -> Vec<serde
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
+    default_scope_cache: &mut crate::scope::DefaultScopeCache,
     work: SearchReaderWork,
     capture: C,
     scope_predicate: &crate::scope::ScopePredicate,
@@ -150,6 +151,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     let _scope = crate::slice30_observer::enter_token(attribution, work.slice30_owner.clone());
     read_search_in_tx(
         reader,
+        default_scope_cache,
         work.compiled.as_ref(),
         work.query_vector.as_deref(),
         work.query_vector_bin.as_deref(),
@@ -186,6 +188,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
 #[allow(clippy::too_many_arguments)]
 fn read_search_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
+    default_scope_cache: &mut crate::scope::DefaultScopeCache,
     compiled: Option<&CompiledQuery>,
     query_vector: Option<&str>,
     query_vector_bin: Option<&str>,
@@ -223,7 +226,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     reader_search_hook::fire(attribution);
     #[cfg(any(test, feature = "slice30-observer"))]
     let observation = crate::slice30_observer::span("reader_transaction");
-    let observed_epoch = status_cache.snapshot_epoch().map_err(SearchReaderError::Evidence)?;
+    let observed_epoch = explain
+        .then(|| status_cache.snapshot_epoch())
+        .transpose()
+        .map_err(SearchReaderError::Evidence)?;
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
         let runtime = frozen_query_runtime.as_ref().ok_or_else(|| {
@@ -367,6 +373,16 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     )?;
     let capture_contributions = capture.requires_contributions();
     let track_contributions = explain || capture_contributions;
+    // Per-connection `(data_version, total_changes)`-cached probe reused by both
+    // the `vec0` Phase-1 unscoped fast path and FTS deferred identity hydration.
+    // Gated behind cheap booleans (`is_unscoped && filter.is_none() && query_vector.is_some()`)
+    // and fail-closed on any SQLite error.
+    let store_only_default_scope =
+        if scope.is_unscoped() && filter.is_none() && query_vector.is_some() {
+            default_scope_cache.is_only_default_scope(&tx).unwrap_or(false)
+        } else {
+            false
+        };
     let VectorArmOutput { hits: vector_results, cosines: vector_cosines } = execute_vector_arm(
         &tx,
         query_vector,
@@ -378,6 +394,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         view,
         now_param,
         scope,
+        store_only_default_scope,
         &read_dependency_eligibility,
         explain,
     )?;
@@ -426,6 +443,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         has_source_dependencies,
         &read_dependency_eligibility,
         scope,
+        store_only_default_scope,
         snippet,
         &mut fts_rows,
     )?;
@@ -665,13 +683,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         }
     }
 
-    let projection_status = explain
-        .then(|| {
+    let projection_status = observed_epoch
+        .map(|epoch| {
             status_cache
                 .get_or_compute(
                     &tx,
                     status_slot,
-                    observed_epoch,
+                    epoch,
                     scope,
                     projection_runtime_state,
                     view.edge_now(),

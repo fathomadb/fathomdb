@@ -56,18 +56,33 @@ separate follow-up commit.
     deregistered (`orgs/fathomadb/actions/runners` `total_count: 0`), and its
     scratch directory removed cleanly.
 
-## 2. Phase 70C — Final Jetson Orin Tegra Pages Refresh (In Progress)
+## 2. Phase 70C — Local Live-Registry Smokes & Final Jetson Orin Tegra Pages Refresh
 
-- Pre-fix `947787625` Tegra artifacts were published by run
-  [`46054193600`](https://github.com/fathomadb/fathomdb/actions/runs/46054193600)
-  prior to `15d19f573` (`read_visibility_generation` race fix) and `06abc24c6`
-  (Windows MCP upload fix).
-- `scripts/release/tegra-pages-retained.json` intentionally retains only its
-  11 verified `0.8.26`–`0.8.31` entries in this commit so `docs-pages.yml` can
-  explicitly withdraw the pre-fix `947787625` `0.8.32+tegra` files, followed
-  by a clean 7/7 `jetson-tegra-cuda-evidence.yml` run on `release/0.8.32`
-  (`06abc24c6`) and a follow-up commit recording `tegra_run_id` and appending
-  the verified `0.8.32` Tegra wheel and Node tarball digests.
+- **Independent local live-registry consumer smokes (4/4 PASSED, zero local wheel/path fallbacks):**
+  - `bash scripts/release/smoke/smoke-pypi-wheel.sh 0.8.32` → `EXIT 0` (`fathomdb[cli] 0.8.32` + CLI + Slice 55 native trace/explain/refusals + clean process exit).
+  - `bash scripts/release/smoke/smoke-pypi-mcp.sh 0.8.32` → `EXIT 0` (`fathomdb[mcp] 0.8.32` installed from PyPI + stdio MCP smoke).
+  - `bash scripts/release/smoke/smoke-crates-sdk.sh 0.8.32` → `EXIT 0` (`fathomdb-sdk 0.8.32` resolved from crates.io + independent write/reopen).
+  - `bash scripts/release/smoke/smoke-crates-mcp.sh 0.8.32` → `EXIT 0` (`fathomdb-mcp 0.8.32` installed from crates.io + stdio MCP smoke).
+- **Pre-fix `947787625` Tegra withdrawal:**
+  - Pre-fix `947787625` Tegra artifacts were published by run
+    [`46054193600`](https://github.com/fathomadb/fathomdb/actions/runs/46054193600)
+    prior to `15d19f573` (`read_visibility_generation` race fix) and `06abc24c6`
+    (Windows MCP upload fix).
+  - `docs-pages.yml` run [`46090774665`](https://github.com/fathomadb/fathomdb/actions/runs/46090774665)
+    (`4/4` jobs PASSED on `6854ed767`) published the live `0.8.32` docs site
+    and explicitly withdrew the pre-fix `947787625` `0.8.32+tegra` files while
+    preserving all 11 retained `0.8.26`–`0.8.31` entries.
+  - Because GitHub Pages deduplicates `actions/deploy-pages` by
+    `pages_build_version` (`GITHUB_SHA`), run
+    [`46090992338`](https://github.com/fathomadb/fathomdb/actions/runs/46090992338)
+    on `6854ed767` passed Jetson build, CUDA witness, driverless ARM64 import,
+    and Pages artifact assembly (`b4f24ef1...` / `6f1f9194...`) but GitHub Pages
+    reused the `46090774665` deployment for `6854ed767`. Advancing `main` and
+    `release/0.8.32` via this status-only commit (zero product-code diffs vs.
+    `06abc24c6`, outside `docs-pages.yml` push paths) supplies a distinct
+    `pages_build_version` for the final 7/7 `jetson-tegra-cuda-evidence.yml`
+    run, after which `tegra_run_id` and `scripts/release/tegra-pages-retained.json`
+    will be finalized.
 
 ## 3. Phase 70D — Post-Publication 4-Tier Truth Flip & Public Docs
 

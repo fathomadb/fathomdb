@@ -16,7 +16,7 @@
     "npm_dist_tag": "latest",
     "release_run_id": 46080698565,
     "recovery_run_id": 46088912921,
-    "tegra_run_id": null
+    "tegra_run_id": 46094326695
   },
   "completion": {
     "ref": "origin/release/0.8.32",
@@ -177,7 +177,7 @@
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
       ],
-      "evidence": "Authorized v0.8.32 (tag object cb0710636b45f01ca79cb36edbff045db8c291c1 -> peeled commit 06abc24c6fdbaf046a5b75120ed2e1b677b1c844, incorporating pre-tag read_visibility_generation race fix 15d19f573 and Windows MCP upload-artifact-retry fix 06abc24c6) delivered across crates.io (T1-T7 + fathomdb-mcp via OIDC, Axis-W 0.8.32, Axis-E 0.8.0), PyPI (fathomdb==0.8.32, fathomdb-cli==0.8.32, fathomdb-mcp==0.8.32 via OIDC), npm (5 platform packages + fathomdb@0.8.32 promoted to latest), and GitHub Release v0.8.32 (27 assets incl. 5-target fathomdb-mcp archives and Inspector 0.3.0). Production release.yml run 46080698565 passed 52/53 jobs (all 24 builds incl. GPU0 build-cuda-linux-x64-gnu, all publishers, co-tagging-assert, visibility wait, and 10/10 post-publish registry smokes; sole failure promote-npm-latest E403); promote-npm-release.yml run 46088912921 finalized npm latest and GitHub Release v0.8.32. Temporary GPU0 runner windchill3-gpu0-0832 (id 177) stopped and deregistered (0 org runners). Final Jetson Tegra Pages refresh (withdrawing pre-fix 947787625 run 46054193600 artifacts and re-running jetson-tegra-cuda-evidence.yml on release/0.8.32 06abc24c6) pending in follow-up."
+      "evidence": "Authorized v0.8.32 (tag object cb0710636b45f01ca79cb36edbff045db8c291c1 -> peeled commit 06abc24c6fdbaf046a5b75120ed2e1b677b1c844, incorporating pre-tag read_visibility_generation race fix 15d19f573 and Windows MCP upload-artifact-retry fix 06abc24c6) delivered across crates.io (T1-T7 + fathomdb-mcp via OIDC, Axis-W 0.8.32, Axis-E 0.8.0), PyPI (fathomdb==0.8.32, fathomdb-cli==0.8.32, fathomdb-mcp==0.8.32 via OIDC), npm (5 platform packages + fathomdb@0.8.32 promoted to latest), GitHub Release v0.8.32 (27 assets incl. 5-target fathomdb-mcp archives and Inspector 0.3.0), and Jetson Orin Tegra Pages (run 46094326695 7/7 pass, 13 retained artifacts live). Production release.yml run 46080698565 passed 52/53 jobs (all 24 builds incl. GPU0 build-cuda-linux-x64-gnu, all publishers, co-tagging-assert, visibility wait, and 10/10 post-publish registry smokes; sole failure promote-npm-latest E403); promote-npm-release.yml run 46088912921 finalized npm latest and GitHub Release v0.8.32; all 4 local live-registry consumer smokes passed (smoke-pypi-wheel, smoke-pypi-mcp, smoke-crates-sdk, smoke-crates-mcp). Pre-fix 947787625 Tegra files (run 46054193600) were explicitly withdrawn via docs-pages.yml run 46090774665 and replaced by clean 7/7 run 46094326695 on release/0.8.32 (9ac2d56bb, zero product-code diffs vs. 06abc24c6; wheel sha256 ff04c027..., node tarball sha256 7697ea3d...). Temporary GPU0 runner windchill3-gpu0-0832 (id 177) stopped and deregistered (0 org runners); owned Jetson Orin listener jetson-fathomdb (id 22) stopped cleanly (offline, registration preserved, memex untouched)."
     }
   ],
   "landed": [
@@ -272,7 +272,7 @@
   "publish_gate": {
     "status": "PUBLISHED",
     "publication_authorized": true,
-    "scope": "Slice 60 qualification complete and Slice 70 publication authorized and verified across crates.io (T1-T7 + fathomdb-mcp), PyPI (fathomdb + fathomdb-cli + fathomdb-mcp), npm latest, and GitHub Release v0.8.32 (27 assets incl. fathomdb-mcp binaries and Inspector 0.3.0); final Jetson Tegra Pages refresh pending."
+    "scope": "Slice 60 qualification complete and Slice 70 publication authorized and verified across crates.io (T1-T7 + fathomdb-mcp), PyPI (fathomdb + fathomdb-cli + fathomdb-mcp), npm latest, GitHub Release v0.8.32 (27 assets incl. fathomdb-mcp binaries and Inspector 0.3.0), and Jetson Orin Tegra Pages (run 46094326695 7/7 pass, 13 retained artifacts)."
   },
   "release_readiness": {
     "status": "PUBLISHED_COMPLETE",

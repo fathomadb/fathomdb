@@ -8,11 +8,10 @@ date: 2026-11-27
 
 # Slice 70 Status — Authorized `0.8.32` Publication
 
-Core multi-registry, GitHub Release (including 5-target `fathomdb-mcp` archives
-and FathomDB Inspector `0.3.0`), and 4-tier public documentation truth-flip
-delivery for FathomDB **`0.8.32`** are complete; the final Phase 70C Jetson
-Tegra Pages refresh on `release/0.8.32` (`06abc24c6`) follows immediately in a
-separate follow-up commit.
+All multi-registry, GitHub Release (including 5-target `fathomdb-mcp` archives
+and FathomDB Inspector `0.3.0`), Jetson Orin Tegra Pages (`13` retained
+artifacts), and 4-tier public documentation truth-flip delivery for FathomDB
+**`0.8.32`** are complete and verified live.
 
 - **Signed annotated tag `v0.8.32`:** tag object
   `cb0710636b45f01ca79cb36edbff045db8c291c1`, peeled commit (`RELEASE_SHA`)
@@ -76,13 +75,27 @@ separate follow-up commit.
     `pages_build_version` (`GITHUB_SHA`), run
     [`46090992338`](https://github.com/fathomadb/fathomdb/actions/runs/46090992338)
     on `6854ed767` passed Jetson build, CUDA witness, driverless ARM64 import,
-    and Pages artifact assembly (`b4f24ef1...` / `6f1f9194...`) but GitHub Pages
-    reused the `46090774665` deployment for `6854ed767`. Advancing `main` and
-    `release/0.8.32` via this status-only commit (zero product-code diffs vs.
-    `06abc24c6`, outside `docs-pages.yml` push paths) supplies a distinct
-    `pages_build_version` for the final 7/7 `jetson-tegra-cuda-evidence.yml`
-    run, after which `tegra_run_id` and `scripts/release/tegra-pages-retained.json`
-    will be finalized.
+    and Pages artifact assembly but GitHub Pages reused the `46090774665`
+    deployment for `6854ed767`.
+- **Final Jetson Orin Tegra Pages publication (`7/7` jobs PASSED):**
+  - `jetson-tegra-cuda-evidence.yml` run
+    [`46094326695`](https://github.com/fathomadb/fathomdb/actions/runs/46094326695)
+    on `release/0.8.32` (`9ac2d56bbd406b5794addb4d04c219a99824730b`, zero
+    product-code diffs vs. `06abc24c6`) passed all 7/7 jobs: candidate
+    validation, Jetson build + CUDA witness (`8m8s`), driverless ARM64 import
+    (`25s`), Pages assembly (`39s`), Pages deploy (`25s`), live public URL
+    verification (`14s`, `13/13` artifacts verified), and Jetson installed
+    public-artifact smokes (`46s`).
+  - Verified `0.8.32` Tegra artifacts appended to
+    `scripts/release/tegra-pages-retained.json`:
+    - `fathomdb-0.8.32+tegra-cp310-abi3-linux_aarch64.whl` — SHA-256
+      `ff04c02736448d640fa908988bc1fa37fb5c8499d7cfcb9d3cedb9b2e9aad554`
+    - `fathomdb-linux-arm64-gnu-tegra-0.8.32.tgz` — SHA-256
+      `7697ea3d5e5f037082228f48471428df461d1a7ce937e0b9ce3a9863098065eb`
+- **Jetson Orin runner cleanup:**
+  - Owned `jetson-fathomdb` listener (`id: 22` on `10.83.10.13`) stopped
+    cleanly (`status: "offline"`, `busy: false`, registration preserved at
+    `~/actions-runner/fathomdb/.runner`, unrelated `memex` runner untouched).
 
 ## 3. Phase 70D — Post-Publication 4-Tier Truth Flip & Public Docs
 

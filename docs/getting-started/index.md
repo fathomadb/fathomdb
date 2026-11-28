@@ -6,10 +6,8 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 
 ## Where to go
 
-- [0.8.32 pre-publication release notes](../release-notes/0.8.32.md) —
-  qualification target changes (not yet published), and
-  [0.8.31 release notes](../release-notes/0.8.31.md) — newest published
-  release changes, compatibility boundaries, and schema migration guidance.
+- [0.8.32 release notes](../release-notes/0.8.32.md) — release changes,
+  compatibility boundaries, and schema migration guidance.
 
 - [Quickstart](quickstart.md) — install, open, write, search,
   counters, close, exit. ~5 minutes.
@@ -17,9 +15,9 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## Documentation target 0.8.32 surface (newest published release: 0.8.31)
+## Release 0.8.32 surface
 
-> **Documentation target: 0.8.32 (pre-publish); newest published release: 0.8.31.**
+> **Release 0.8.32, pre-1.0 beta.**
 >
 > **Single-scope default:** By default a FathomDB database is **single-scope /
 > single-agent** (one agent per database, `scope = ""`, using the default
@@ -72,7 +70,7 @@ exposes lower-level inherent methods and re-exported types:
   `fathomdb-cli` / `pip install 'fathomdb[cli]'` while keeping base `fathomdb`
   script-free.
 - Local-first storage on SQLite (FTS5 + `sqlite-vec`), on-disk schema
-  version **39** in `0.8.32` (`38` in published `0.8.31`). Public opens
+  version **39** in `0.8.32` (`38` in `0.8.31`). Public opens
   create a fresh schema-39 database or accept an existing schema-39 database;
   they never auto-migrate. Existing committed Schema 37 or Schema 38 stores
   upgrade offline via `fathomdb migrate --backup-dir <dir> <db_path>`.

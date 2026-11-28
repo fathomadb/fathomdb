@@ -1,7 +1,6 @@
 # Reference
 
-Reference for the **0.8.32** documentation target (pre-publish; newest
-published release: **0.8.31**). Field spellings and type-level details are
+Reference for FathomDB **0.8.32**. Field spellings and type-level details are
 authoritative in the interface specs
 (`dev/interfaces/{python,typescript,rust-sdk,rust,cli,mcp,wire}.md`); this section is the
 client-facing view.
@@ -11,7 +10,7 @@ client-facing view.
 - [TypeScript API](typescript-api.md) — Promise-based `Engine`, `admin`,
   governed reads, data-plane additions, data shapes, and instrumentation.
 - [Rust SDK](rust-sdk.md) — `fathomdb-sdk`, the Rust peer of the Python and
-  TypeScript SDKs (0.8.32 target)
+  TypeScript SDKs (`0.8.32`).
 - [Rust API](rust-api.md) — facade model, Engine methods, public carrier
   families, feature boundary, and links to generated rustdoc.
 - [CLI](cli.md) — `fathomdb doctor` + `fathomdb recover` + `fathomdb migrate`

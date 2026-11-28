@@ -1,8 +1,7 @@
 # Concepts
 
-Mental model for the **0.8.32** documentation target (pre-publish; newest
-published release: **0.8.31**). Detailed treatment lives in internal design
-docs under
+Mental model for FathomDB **0.8.32**. Detailed treatment lives in internal
+design docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
 

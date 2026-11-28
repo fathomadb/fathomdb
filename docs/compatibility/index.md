@@ -1,7 +1,7 @@
 # Compatibility
 
-Supported platforms, toolchains, and version-alignment policy for the **0.8.32**
-documentation target (pre-publish; newest published release: **0.8.31**).
+Supported platforms, toolchains, and version-alignment policy for FathomDB
+**0.8.32**.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -17,13 +17,13 @@ targets those three interpreters explicitly.
 
 ## Supported Node versions
 
-The 0.8.31 package supports Node **25.x** and **26.x** and declares
+The 0.8.32 package supports Node **25.x** and **26.x** and declares
 `engines.node = ">=25 <27"`. Target-native installed qualification covers all
 five generic native targets. Development uses Node **26.13.1** with npm
 **11.20.0**; held release and Tegra producers use Node **25.9.0** with npm
 **11.12.1**. npm OIDC promotion separately uses npm **11.21.0**.
 
-Version 0.8.31 is published. The older 0.8.29 package retains its Node 25-only
+Version 0.8.32 is published. The older 0.8.29 package retains its Node 25-only
 contract; a newer development runtime does not extend that older package's support.
 
 ## Supported Rust toolchain
@@ -33,7 +33,7 @@ and release jobs.
 
 ## Prebuilt artifacts — five native targets
 
-⚠ **The 0.8.31 wheel and npm platform binaries support Linux
+⚠ **The 0.8.32 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc, macOS x64 and
 arm64, and Windows x64.** Linux musl and other targets remain source-build-only.
 
@@ -65,37 +65,37 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-The `0.8.31+tegra` Python wheel and matching 0.8.31 Node addon use
-first-party GitHub Pages for classic Jetson Orin. Public readback and installed
-Orin smokes passed; verify the exact retained version and digest before
-installing. Generic 0.8.31
+The `0.8.32+tegra` Python wheel and matching 0.8.32 Node addon use
+first-party GitHub Pages for classic Jetson Orin. Verify the exact retained
+version and digest in `scripts/release/tegra-pages-retained.json` before
+installing. Generic 0.8.32
 AArch64 packages remain CPU-only, including on Jetson. CUDA 13 artifact
-delivery is deferred beyond 0.8.31 (`0.8.31` retains the CUDA 12.6 + classic Jetson Orin stack).
+delivery is deferred beyond 0.8.32 (`0.8.32` retains the CUDA 12.6 + classic Jetson Orin stack).
 
-For a confirmed classic Jetson Orin only, the 0.8.31 distribution route for
-the exact `fathomdb==0.8.31+tegra` wheel is the interim first-party PEP 503
+For a confirmed classic Jetson Orin only, the 0.8.32 distribution route for
+the exact `fathomdb==0.8.32+tegra` wheel is the interim first-party PEP 503
 index. Install it only after the retained manifest lists the exact wheel and
 digest:
 
 ```bash
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.31+tegra'
+  'fathomdb==0.8.32+tegra'
 ```
 
 Do not use a floating requirement or `--extra-index-url`: pip merges candidate
-sets and does not prioritize indexes. The Pages route is interim 0.8.31
+sets and does not prioritize indexes. The Pages route is interim 0.8.32
 hosting, not a durable multi-version distribution decision. Use
 `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
 before diagnosing an incompatible CUDA provider.
 
 For Node.js, the generic `linux-arm64-gnu` npm package stays CPU-only on every
-AArch64 host, including Jetson. In 0.8.31, a
+AArch64 host, including Jetson. In 0.8.32, a
 confirmed classic Jetson Orin can add the CUDA-capable
 `fathomdb-linux-arm64-gnu-tegra` package. It is distributed only as an
 exact-version tarball from the Tegra Pages site, never from the npm registry,
 and must match the `fathomdb` version exactly. Keep the main package at
-0.8.31 for this addon; do not combine different main/addon versions. Without an
+0.8.32 for this addon; do not combine different main/addon versions. Without an
 installed Tegra addon, the loader uses the generic CPU package. Check its SHA-256 against the release's retained artifact manifest before
 installation; follow the [verification procedure](../install/typescript.md#classic-jetson-orin-with-cuda):
 
@@ -124,7 +124,7 @@ Python and npm native packages in this release.
 
 Non-Tegra ARM hosts with NVIDIA GPUs are not in the known-working CUDA
 environment set. This configuration is unqualified and is excluded from the
-0.8.31 release qualification scope. Generic AArch64 CPU support and the separately
+0.8.32 release qualification scope. Generic AArch64 CPU support and the separately
 qualified classic Jetson route keep their existing scope.
 
 ## SQLite + sqlite-vec
@@ -141,8 +141,8 @@ qualified classic Jetson route keep their existing scope.
 
 ## On-disk schema
 
-The **0.8.32** line sets `SCHEMA_VERSION` to **39** (newest published **0.8.31**
-sets `SCHEMA_VERSION` to **38**). A missing or
+The **0.8.32** release sets `SCHEMA_VERSION` to **39** (`0.8.31` used
+**38**). A missing or
 zero-length path bootstraps directly at schema 39. A non-empty database opens
 only when its effective committed `PRAGMA user_version` is exactly 39; older,
 future, and non-empty zero-version databases are rejected before product
@@ -172,21 +172,19 @@ Automatic `Engine::open` WAL recovery assumes a **local POSIX filesystem**
   reliable `flock`/`fsync`, flush-ignoring write-back caches, silent hardware
   media corruption, and processes bypassing `.lock` (see
   [Operations — concurrency and durability limits](../operations/index.md#concurrency-and-durability-limits)).
-- **Pre-publish `0.8.32` empirical verification:** Both `SyncMode::Normal` and
+- **Empirical verification (`0.8.32`):** Both `SyncMode::Normal` and
   `SyncMode::Full` passed all `11 / 11` live user-mode QEMU/KVM `dm-flakey`
   power-loss scenarios (`cache=none`, QMP `quit`, two-phase `INFLIGHT`/`ACK`/`ERR`
-  external oracle, `ext4`, stale `.lock` reclamation, and fail-closed `EIO`);
-  published `0.8.31` qualification remains CPU/process-kill scoped.
+  external oracle, `ext4`, stale `.lock` reclamation, and fail-closed `EIO`).
 
 ## Versioning — two axes
 
-The `0.8.32` documentation target uses two-axis versioning (`W = 0.8.32`,
-`E = 0.8.0`; newest published release `0.8.31` uses `W = 0.8.31`, `E = 0.8.0`):
+Release `0.8.32` uses two-axis versioning (`W = 0.8.32`, `E = 0.8.0`):
 
-- **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
+- **Axis W (workspace lockstep)** — the runtime / binding / CLI / MCP crates
   plus the Python and TypeScript packages all carry the same workspace
-  version. `scripts/set-version.sh --check-files` enforces this
-  pre-publish; the pre-push hook runs the check.
+  version. `scripts/set-version.sh --check-files` enforces this before tag
+  publication; the pre-push hook runs the check.
 - **Axis E (`fathomdb-embedder-api`)** — the embedder-trait crate is
   versioned independently per `ADR-0.6.0-embedder-protocol`. Bumping a
   binding does not force an embedder-api bump.
@@ -218,7 +216,7 @@ database (`0.8.32`) and re-ingest through the public write surface.
 
 Release qualification validates concrete workloads on named machines; it is
 not a general latency SLA. Current qualification and its limits are recorded
-in the [0.8.31 release status](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/plans/runs/STATUS-0.8.31.md).
+in the [0.8.32 release status](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/dev/plans/runs/STATUS-0.8.32.md).
 
 Clients evaluating FathomDB for performance-sensitive workloads should still
 measure on their own corpus and hardware rather than treating a release-gate

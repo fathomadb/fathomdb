@@ -1,7 +1,6 @@
 # Rust SDK
 
-Crate: `fathomdb-sdk` (documentation target `0.8.32`, pre-publish; newest
-published crates.io release `0.8.31`; import `fathomdb_sdk`). It has the same
+Crate: `fathomdb-sdk` (`0.8.32`; import `fathomdb_sdk`). It has the same
 surface as the Python
 and TypeScript SDKs:
 

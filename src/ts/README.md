@@ -9,13 +9,14 @@ embedder can download its weights. Retrieval runs in your own process.
 
 ## Status: pre-1.0, beta
 
-The 0.8.x line is under active development (documentation target: 0.8.32, pre-publish; newest published release: 0.8.31). The public surface can change between minor releases,
-and scale/stability guarantees are staged for 0.9.x and later.
+Release **0.8.32** is published on npm (`latest`). The 0.8.x line is pre-1.0
+beta: the public surface can change between minor releases, and scale/stability
+guarantees are staged for 0.9.x and later.
 
 ## Install
 
 ```bash
-npm install --save-exact fathomdb@0.8.31
+npm install --save-exact fathomdb@0.8.32
 ```
 
 The package is a thin TypeScript wrapper (ESM, with type declarations) over a native
@@ -23,18 +24,18 @@ The package is a thin TypeScript wrapper (ESM, with type declarations) over a na
 this package: each host triple ships as its own package (for example
 `fathomdb-linux-x64-gnu` or `fathomdb-linux-arm64-gnu`), declared as an optional dependency and
 resolved automatically on a matching host. You install `fathomdb` and nothing else. The
-0.8.31 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
+0.8.32 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
 x64 packages. Linux musl remains without an installable native package.
 Generic Linux AArch64 packages are CPU-only. Classic Jetson Orin can use
-the matching 0.8.31 Tegra CUDA addon through the GitHub Pages route; follow
-[the Tegra installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/install/typescript.md#classic-jetson-orin-with-cuda).
+the matching 0.8.32 Tegra CUDA addon through the GitHub Pages route; follow
+[the Tegra installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/docs/install/typescript.md#classic-jetson-orin-with-cuda).
 Keep the main/addon versions matched. When no Tegra
 addon is installed the loader uses the generic CPU package; mismatched
 versions are refused on a confirmed classic Jetson Orin.
 
 The package declares Node.js 25.x and 26.x. Release producers use Node.js 25.9.0;
 installed qualification consumers use Node.js 26.13.1. See the
-[compatibility matrix](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/compatibility/index.md)
+[compatibility matrix](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/docs/compatibility/index.md)
 for the release boundary.
 
 ## Quick start
@@ -64,12 +65,12 @@ Every write field accepts both the camelCase and the snake_case spelling.
 
 ## What is on the surface
 
-- **Engine lifecycle** — `Engine.open` (plus `0.8.32` target
+- **Engine lifecycle** — `Engine.open` (including
   `{ createIfMissing: false }` / `DatabaseNotFoundError`), `engine.close`,
   `engine.counters()`, `engine.openReport()` (including `rerankerCompiled`,
   `cudaCompiled`, and `rerankAvailable` capability booleans), and an
   event-subscriber seam.
-- **Writes** — `engine.write(batch)` (plus `0.8.32` target opt-in
+- **Writes** — `engine.write(batch)` (plus opt-in
   `engine.writeWithOptions(batch, WriteOptions.bulkNonStrict())` and
   `ActuationOperationV1` `put_latest_state`) of canonical nodes (`{ kind, body,
   sourceId, logicalId?, state?, reason?, validFrom?, validUntil?, properties? }`)
@@ -83,7 +84,7 @@ Every write field accepts both the camelCase and the snake_case spelling.
   `engine.resolveEvidenceMany` (`1..=50` refs with per-slot partial-result outcomes).
 - **Reads** — the `read` namespace: `read.get`, `read.getMany`, `read.list`, `read.collection`,
   `read.operationalCollections`, `read.operationalCollection`,
-  `read.visibilityState` (`0.8.32` target), `read.crossedBoundarySince`, each
+  `read.visibilityState`, `read.crossedBoundarySince`, each
   taking a `ReadView` that selects existence state and world-time validity where applicable.
 - **Graph** — `graph.neighbors`, `graph.searchExpand` for BFS expansion from search hits, and
   `graph.expand` with predicates and optional historical `asOfWriteCursor` / `asOfEpochMs`
@@ -91,7 +92,7 @@ Every write field accepts both the camelCase and the snake_case spelling.
 - **Record lifecycle** — `engine.transition`, `engine.purge`, `engine.eraseSource`.
 - **Projections** — `engine.configureProjections`, declaring which fields are filterable,
   searchable or rankable; the engine owns every derived index.
-- **Caller scope isolation (`0.8.32` target, Schema 39)** — single-scope / single-agent default
+- **Caller scope isolation (Schema 39)** — single-scope / single-agent default
   (`ScopePolicy.unscoped()`), with opt-in `ScopePolicy.single` / `readOnly` / `readWrite` for
   multi-agent or shared stores (`ScopeViolationError` / `FDB_SCOPE_VIOLATION` on write refusal).
 - **Typed errors** — a leaf-class hierarchy under `FathomDbError`, so you can branch on
@@ -106,7 +107,7 @@ and `purge`. A store configured with
 maintenance window; direct erase/purge outside it raises `MaintenanceError`.
 Queued intents leave records logically unchanged until maintenance. Use the
 completion result as proof of cleanup; incomplete cleanup retains durable
-fences. See the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/operations/erasure.md).
+fences. See the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/docs/operations/erasure.md).
 
 ## Embeddings
 
@@ -125,14 +126,14 @@ waits, inference or another release rejects immediately with `OverloadedError`
 and clears neither cache. Empty/repeated release constructs nothing; later
 healthy calls reload on demand. Engine-owned Mean providers close separately
 with their Engine. Terminal CUDA loss still requires process restart. See
-[model lifetime and examples](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/embedder.md#release-module-models).
+[model lifetime and examples](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/docs/embedder.md#release-module-models).
 
 ## Other SDKs
 
 The same engine is available as a Python package (`pip install fathomdb`). The Rust
-application peer is `fathomdb-sdk` (import `fathomdb_sdk`), documented for
-0.8.31; use the
-[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/install/rust.md).
+application peer is `fathomdb-sdk` (import `fathomdb_sdk`), published at
+0.8.32; use the
+[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/docs/install/rust.md).
 The [`fathomdb` crate](https://crates.io/crates/fathomdb) remains the
 separate lower-level engine facade.
 

@@ -61,7 +61,7 @@ NEWEST_PUBLISHED_RE = re.compile(
     r"(?i)\bnewest\s+published\s+release\s*:\s*v?(\d+\.\d+\.\d+)\b"
 )
 # Accepted release-format boundaries; independent of publication status.
-RELEASE_SCHEMAS = {"0.8.26": 34, "0.8.27": 34, "0.8.28": 37, "0.8.29": 37, "0.8.30": 37, "0.8.31": 38}
+RELEASE_SCHEMAS = {"0.8.26": 34, "0.8.27": 34, "0.8.28": 37, "0.8.29": 37, "0.8.30": 37, "0.8.31": 38, "0.8.32": 39}
 
 
 def repo_root() -> Path:

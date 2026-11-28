@@ -185,7 +185,7 @@ specific caller source.
 
 ## Schedule an explicit maintenance window
 
-New format-39 stores (`0.8.32` target; format-38 in published `0.8.31`) can opt
+New format-39 stores (`0.8.32`; format-38 in `0.8.31`) can opt
 into persisted explicit maintenance:
 
 ```python
@@ -225,8 +225,7 @@ Explicit reopen preserves policy/fences and performs no autonomous cleanup.
 
 Autonomous remains the default. Direct online erase/purge under explicit policy
 refuses `maintenance_required`; use the window's selected ticket. Format 39 is
-required for both profiles on the `0.8.32` target line (Format 38 in published
-`0.8.31`): quiescent committed Schema 38 stores (and chained Schema 37 stores)
+required for both profiles in `0.8.32` (Format 38 in `0.8.31`): quiescent committed Schema 38 stores (and chained Schema 37 stores)
 with no pending erasures upgrade offline via
 `fathomdb migrate --backup-dir <dir> <db_path>` (`38 -> 39` and chained
 `37 -> 38 -> 39`), while earlier stores are refused with no automatic migration

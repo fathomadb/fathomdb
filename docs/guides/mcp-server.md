@@ -1,6 +1,6 @@
 # MCP Server (`fathomdb-mcp`)
 
-> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> **Release 0.8.32, pre-1.0 beta.**
 
 `fathomdb-mcp` exposes FathomDB databases to Model Context Protocol (MCP)
 clients over stdio (or embedded in a Rust host via `fathomdb_mcp::Adapter`). It
@@ -20,10 +20,10 @@ and supports per-store opt-in governed writes bound to an explicit caller
   `feedback`) and refuse direct calls to write tools with
   `invalid_request/writes_disabled` and zero database mutation.
 
-## Installation channels (targeted in 0.8.32, pre-publish)
+## Installation channels (`0.8.32`)
 
-`fathomdb-mcp` is packaged across three synchronized channels for the `0.8.32`
-release line (npm wrapper packaging is deferred):
+`fathomdb-mcp` is published across three synchronized channels for `0.8.32`
+(npm wrapper packaging is deferred):
 
 1. **GitHub Releases (5 native targets, includes `--features default-embedder`):**
    Prebuilt stdio binary archives

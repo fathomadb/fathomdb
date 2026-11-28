@@ -1,26 +1,26 @@
 ---
 title: FathomDB 0.8.32 release plan
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.32
-date: 2026-11-24
+date: 2026-11-27
 ---
 
 # FathomDB 0.8.32 release plan
 
-> **Status: ACTIVE on `dev/0.8.32` (HITL Gate 1 approved 2026-11-24; `0.8.31` published 2026-11-23).**
-> Live machine state lives in [release-state-0.8.32.json](../release-state-0.8.32.json)
-> and [STATUS-0.8.32.md](../runs/STATUS-0.8.32.md).
+> **Status: COMPLETE — `v0.8.32` published 2026-11-27.**
+> Final machine state lives in [release-state-0.8.32.json](../release-state-0.8.32.json),
+> [STATUS-0.8.32.md](../runs/STATUS-0.8.32.md), and
+> [features/slice-70/status.md](./features/slice-70/status.md).
 > Phase A prework audits (`Slices 0–9`) and HITL Gate 1 rulings live in
 > [prework/slice-9-triage.md](./prework/slice-9-triage.md) and
 > [HANDOFF-FROM-0.8.31.md](./HANDOFF-FROM-0.8.31.md).
-> Publication (`Slice 70`) remains separately gated on explicit HITL authorization.
 
 ## Immediate next slice
 
-<!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 70** (`PUBLICATION`) — Authorized 0.8.32 publication (crates.io incl. fathomdb-mcp, PyPI fathomdb/fathomdb-cli/fathomdb-mcp, npm, 5-target GH Releases incl. Inspector & fathomdb-mcp, Tegra Pages)
-
-**Remaining ladder:** 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**None — `0.8.32` ladder is complete (`v0.8.32` published 2026-11-27).** See
+[release-state-0.8.32.json](../release-state-0.8.32.json),
+[STATUS-0.8.32.md](../runs/STATUS-0.8.32.md), and
+[features/slice-70/status.md](./features/slice-70/status.md).
 
 ## Goal and scope
 
@@ -154,7 +154,7 @@ Recorded in [prework/slice-9-triage.md](./prework/slice-9-triage.md) § 4:
 | **Decision 9** — `0.8.31` reported bugs: empty-DB reopen cursor & per-class projection namespace | **RULED (Option B2-strict)** | Fix empty-DB reopen cursor regression (fold `_fathomdb_commit_timestamps` & `_fathomdb_projection_terminal` into `load_next_cursor` + explicit `owner_kind` on `_fathomdb_projection_terminal`) and upgrade `_fathomdb_projection_registry` in unreleased Schema 39 to `PRIMARY KEY(entity_class, name)` with strictly typed `ProjectionTarget` (zero bare-string shims) across Rust/SDK/Python/TS in Slice 40 (`WP-40A1`). |
 | **Decision 10** — Cached pooled-reader projection status & `PerHitExplain.vector_cosine` | **RULED (Option 2)** | Accept both into Slice 40 (`WP-40D`, `R32-08`): unify the snapshot boundary helper and cache scope-partitioned projection-generation status across `Engine` and `ReaderWorkerPool` with monotonic cache-epoch guarding and per-connection `PRAGMA data_version` (`+ total_changes` on `Engine.connection`) invalidation for `search(..., explain=true)`, `search_frozen(..., explain=true)`, `search_with_evidence`, and query-seeded `graph.expand`; extend `dev/design/0.8.8-explain-and-telemetry-adr.md` §A.4 Q1 specifically for additive `PerHitExplain.vector_cosine: Option<f64>` (`1.0 - vec_distance_cosine` on uncentered f32 vectors; `Some` iff `vector_rank.is_some()`, `None` on zero-norm/`NULL`/`NaN` or vector-absent hits; finite clamped to `[-1.0, 1.0]`; `EP-13` `vector_distance`/`text_bm25` deferred) across Rust/SDK/Python/TS without modifying `SearchHit`, `EvidenceContributionV1`, `fathomdb-mcp` `PerHitOut`, or governed-surface pin counts. |
 | **Decision 11** — Slice 41 query scaling, purge-lineage hardening, evidence `property_predicates`, and frozen-read additive stability (`#267`, `#268`, `#269`) | **RULED (`Option A` + `Option 2B` + `ADR #103` do-not-defer)** | Insert Slice 41 (`ENGINE-QUERY-AND-EVIDENCE-HARDENING`, `R32-09`) between Slices 40 and 50 under full per-stage adversarial review (ADR → Requirements/AC → Architecture → Design → TDD RED/GREEN → Code Review): (1) Option A for `#269` (`property_predicates` artifact-scoped on evidence `source_filter`, retaining source-enforced `attributes` & Schema 39 `ScopePredicate`, amending `ADR-0.8.25` `#48`); (2) Option 2B for `#267` Part 2 (zero-schema-change `UNION ALL` + Rust max-`write_cursor` tiebreak + `has_source_dependencies`-gated eligibility SQL on `read.get`/`read.get_many(include_superseded=true)`), the verified FTS-only/evidence `O(N)` hotspot fixes (`#267` Part 1), and `#268` purge-lineage regression tests + narrowing `purge_inner` receipt redaction to protect surviving shared-`source_id` siblings; (3) do not defer `#267` Part 3 — ship `ADR-0.8.32` `#103` (Schema 39 `_fathomdb_scope_visibility_watermarks` + `global_struct_gen`/`nonce`, `ReadSurface`-aware `validate_snapshot`, 20-table trigger classification, generalized coalescing including `record_lifecycle::transition`, `fathomdb-mcp` pre-gate/epoch-rejection removal with `MR-070.2` probes; governed pin `58`/`97` unchanged). |
-| **Publication Gate** — `v0.8.32` tag & multi-registry publish | **HELD** | Requires completed Slice 60 qualification and separate explicit HITL publication approval before Slice 70 begins. |
+| **Publication Gate** — `v0.8.32` tag & multi-registry publish | **RULED (Authorized 2026-11-27)** | Owner HITL Gate 2 authorized Slice 70 publication; `v0.8.32` published across crates.io (incl. `fathomdb-mcp`), PyPI (`fathomdb`/`fathomdb-cli`/`fathomdb-mcp`), npm `latest`, and GitHub Release `v0.8.32` (`27` assets incl. Inspector `0.3.0`); final Jetson Tegra Pages refresh pending in follow-up. |
 
 ## Reserved-gap policy and deferred work
 
@@ -168,3 +168,8 @@ direction (`0.8.33`); general multi-version `fathomdb migrate`, public CLI
 `export`/`import`, and personal-agent kits (`0.8.34`); publishable competitive
 benchmark campaigns (`0.8.35`); and CUDA 13 delivery (`cuda-delivery-plan.md`,
 post-`0.8.35` or dedicated release).
+
+## Landed slice roll-up
+
+<!-- BEGIN GENERATED release-state:0.8.32:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 10 (`e8853997a`) · 20 (`165c445c2`) · 30 (`e3a95688a`) · 40 (`b095700c9`) · 41 (`4e76b8e60`) · 50 (`d41975f02`) · 60 (`1be91d322`) · 70 (`06abc24c6`). SCHEMA is 39; remaining ladder = none.<!-- END GENERATED release-state:0.8.32:plan-landed-roll-up -->

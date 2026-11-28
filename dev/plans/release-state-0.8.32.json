@@ -4,12 +4,24 @@
   "board": "dev/plans/runs/STATUS-0.8.32.md",
   "plan": "dev/plans/0.8.32/plan.md",
   "master": "dev/plans/0.8.32/plan.md",
-  "active_ref": "refs/heads/dev/0.8.32",
+  "active_ref": "refs/heads/release/0.8.32",
   "public_docs_target_release": "0.8.32",
   "schema_version": 39,
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs (39 landed in Slice 20; Gate1-D1 Option 1)",
-  "published": null,
-  "completion": null,
+  "published": {
+    "tag": "v0.8.32",
+    "tag_object": "cb0710636b45f01ca79cb36edbff045db8c291c1",
+    "tag_commit": "06abc24c6fdbaf046a5b75120ed2e1b677b1c844",
+    "published_on": "2026-11-27",
+    "npm_dist_tag": "latest",
+    "release_run_id": 46080698565,
+    "recovery_run_id": 46088912921,
+    "tegra_run_id": null
+  },
+  "completion": {
+    "ref": "origin/release/0.8.32",
+    "main_integration": "COMPLETE"
+  },
   "ladder": [
     {
       "slice": 10,
@@ -156,14 +168,16 @@
       "depends_on": [
         60
       ],
-      "status": "NOT_STARTED",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "06abc24c6",
       "design_refs": [
         "dev/plans/0.8.32/features/slice-70/plan.md",
+        "dev/plans/0.8.32/features/slice-70/status.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
-      ]
+      ],
+      "evidence": "Authorized v0.8.32 (tag object cb0710636b45f01ca79cb36edbff045db8c291c1 -> peeled commit 06abc24c6fdbaf046a5b75120ed2e1b677b1c844, incorporating pre-tag read_visibility_generation race fix 15d19f573 and Windows MCP upload-artifact-retry fix 06abc24c6) delivered across crates.io (T1-T7 + fathomdb-mcp via OIDC, Axis-W 0.8.32, Axis-E 0.8.0), PyPI (fathomdb==0.8.32, fathomdb-cli==0.8.32, fathomdb-mcp==0.8.32 via OIDC), npm (5 platform packages + fathomdb@0.8.32 promoted to latest), and GitHub Release v0.8.32 (27 assets incl. 5-target fathomdb-mcp archives and Inspector 0.3.0). Production release.yml run 46080698565 passed 52/53 jobs (all 24 builds incl. GPU0 build-cuda-linux-x64-gnu, all publishers, co-tagging-assert, visibility wait, and 10/10 post-publish registry smokes; sole failure promote-npm-latest E403); promote-npm-release.yml run 46088912921 finalized npm latest and GitHub Release v0.8.32. Temporary GPU0 runner windchill3-gpu0-0832 (id 177) stopped and deregistered (0 org runners). Final Jetson Tegra Pages refresh (withdrawing pre-fix 947787625 run 46054193600 artifacts and re-running jetson-tegra-cuda-evidence.yml on release/0.8.32 06abc24c6) pending in follow-up."
     }
   ],
   "landed": [
@@ -173,12 +187,11 @@
     40,
     41,
     50,
-    60
-  ],
-  "remaining_ladder": [
+    60,
     70
   ],
-  "next_slice": 70,
+  "remaining_ladder": [],
+  "next_slice": null,
   "decisions": {
     "ruled": [
       {
@@ -246,37 +259,32 @@
         "topic": "Slice 41 engine query, evidence, purge-lineage, and frozen-read additive stability hardening (#267, #268, #269)",
         "ruling": "Approved (2026-11-26): insert Slice 41 (ENGINE-QUERY-AND-EVIDENCE-HARDENING) between Slices 40 and 50 under full per-stage adversarial review (ADR -> Requirements/AC -> Architecture -> Design -> TDD RED/GREEN -> Code Review) with (1) Option A for #269: clear SearchFilter.property_predicates on evidence source_filter across authorize_source_access, query_graph_evidence_batch, and resolve_graph_evidence while retaining source-enforced attributes and Schema 39 ScopePredicate, clarifying trace_dependency, and documenting intentional GraphArm SearchHit.source_id vs. ResolvedEvidenceV1.source_id (amending ADR-0.8.25 #48); (2) Option 2B for #267 Part 2: fix read.get/read.get_many(include_superseded=true) via zero-schema-change UNION ALL across canonical_nodes_scope_logical_{active,sup}_idx, dropping SQL ORDER BY write_cursor (max-write_cursor tiebreak in Rust), and gating read_eligibility_sql on has_source_dependencies, alongside the verified FTS-only/evidence O(N) hotspot fixes (#267 Part 1) and #268 purge-lineage regression tests + narrowing purge_inner receipt redaction so single-node purge does not over-redact surviving siblings in a shared source_id bucket; (3) do not defer #267 Part 3: adopt ADR-0.8.32 #103 (accepted, grounded by empirical experiments) extending unreleased Schema 39 in place with _fathomdb_scope_visibility_watermarks (WITHOUT ROWID) + global_struct_gen/nonce, ReadSurface-aware validate_snapshot (universal serving_digest + 0x53 0x39 surface tags), full 20-table trigger classification, generalized non-deadlocking coalescing (including record_lifecycle::transition), and fathomdb-mcp pre-gate/epoch-rejection removal with MR-070.2-compliant frozen SDK drift probing (including resolve_graph_evidence and freshly minted contexts), keeping scripts/governed-surface-pin.json strictly unchanged at 58 ops / 97 allowlist.",
         "source": "dev/adr/ADR-0.8.32-frozen-read-additive-stability-and-evidence-eligibility.md"
-      }
-    ],
-    "unruled": [
+      },
       {
         "id": "Slice70-Publish",
         "topic": "Explicit HITL authorization for v0.8.32 publication",
-        "status": "HELD",
-        "blocking": "Slice 70 publication after Slice 60 qualification passes."
+        "ruling": "Authorized (2026-11-27): owner HITL Gate 2 approved Slice 70 multi-registry, GitHub Release, and Tegra Pages publication for v0.8.32 (PyPI Pending Publisher confirmed for fathomdb-mcp; crates.io OIDC Trusted Publishing configured for fathomdb-mcp).",
+        "source": "dev/plans/0.8.32/features/slice-70/status.md"
       }
-    ]
+    ],
+    "unruled": []
   },
   "publish_gate": {
-    "status": "HELD_PENDING_HITL_APPROVAL",
-    "publication_authorized": false,
-    "scope": "Slice 60 qualification complete (frozen product SHA 8c0021f05); Slice 70 publication remains held pending explicit owner HITL publication authorization."
+    "status": "PUBLISHED",
+    "publication_authorized": true,
+    "scope": "Slice 60 qualification complete and Slice 70 publication authorized and verified across crates.io (T1-T7 + fathomdb-mcp), PyPI (fathomdb + fathomdb-cli + fathomdb-mcp), npm latest, and GitHub Release v0.8.32 (27 assets incl. fathomdb-mcp binaries and Inspector 0.3.0); final Jetson Tegra Pages refresh pending."
+  },
+  "release_readiness": {
+    "status": "PUBLISHED_COMPLETE",
+    "publication_authorized": true,
+    "pages_publication_authorized": true,
+    "public_release_notes": "https://fathomadb.github.io/fathomdb/release-notes/0.8.32/"
   },
   "generated_views": [
     {
-      "id": "plan-immediate-next",
+      "id": "plan-landed-roll-up",
       "file": "dev/plans/0.8.32/plan.md",
-      "location": "Immediate next slice pointer in master release plan"
-    },
-    {
-      "id": "status-current-state",
-      "file": "dev/plans/runs/STATUS-0.8.32.md",
-      "location": "Current release state pointer on live STATUS board"
-    },
-    {
-      "id": "status-next-action",
-      "file": "dev/plans/runs/STATUS-0.8.32.md",
-      "location": "Lifecycle-aware next action on live STATUS board"
+      "location": "Final landed source roll-up; completed ladder has no next-slice controls"
     }
   ]
 }

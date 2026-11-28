@@ -10,12 +10,13 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
-## 0.8.32 - 2026-11-27
+## 0.8.32 — 2026-11-27
 
-**Pre-publication qualification.** `0.8.32` is not yet published; `0.8.31`
-remains the newest published release. Registry publication (crates.io, PyPI
-`fathomdb`, `fathomdb-cli`, and `fathomdb-mcp`, npm, GitHub Pages, and GitHub
-Releases) remains pending Slice 70 authorization.
+**Published.** crates.io (including `fathomdb-mcp`), PyPI (`fathomdb`,
+`fathomdb-cli`, and `fathomdb-mcp`), npm `latest`, and GitHub Releases
+(including 5-target `fathomdb-mcp` archives and FathomDB Inspector `0.3.0`)
+carry 0.8.32. The matching 0.8.32 Tegra CUDA wheel and Node addon route through
+first-party GitHub Pages.
 
 ### Added
 

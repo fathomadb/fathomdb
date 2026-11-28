@@ -4,21 +4,20 @@ Rust application code uses `fathomdb-sdk`, the peer of the Python and
 TypeScript SDKs. The lower-level facade and operator CLI remain separate
 consumption routes:
 
-- **`fathomdb-sdk`** (documentation target `0.8.32`, pre-publish; newest
-  published release `0.8.31`) — the
+- **`fathomdb-sdk`** (`0.8.32`) — the
   [Rust SDK](../reference/rust-sdk.md) with the Python/TypeScript surface.
 - **`fathomdb` facade crate** — re-exports the runtime verbs from
   `fathomdb-engine` for downstream Rust libraries and applications.
 - **`fathomdb-cli` operator CLI** — `fathomdb doctor`, `fathomdb recover`, and
   offline `fathomdb migrate` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
-- **`fathomdb-mcp` MCP server** (targeted in `0.8.32`, pre-publish) — stdio MCP
+- **`fathomdb-mcp` MCP server** (`0.8.32`) — stdio MCP
   server and embeddable Rust library over `fathomdb-sdk` with default read-only
   posture (`allow_writes: false`) and opt-in per-store scoped writes (`default = []`
   on crates.io; pass `--features default-embedder` for hybrid search). See the
   [MCP reference](../reference/mcp.md).
 
-> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> **Release 0.8.32, pre-1.0 beta.**
 
 ## Requirements
 
@@ -30,21 +29,27 @@ consumption routes:
   x64/arm64 and Windows x64. Rust crates compile from source; CUDA builds have
   the toolkit/library requirements in the [embedder guide](../embedder.md).
 
-## Install the lower-level facade and CLI
+## Install the lower-level facade, CLI, and MCP server
 
-Version 0.8.31 is published on crates.io. Use the exact-version commands on
+Version 0.8.32 is published on crates.io. Use the exact-version commands on
 this page. Source consumers can use the trusted release checkout.
 
 Lower-level library:
 
 ```bash
-cargo add fathomdb@=0.8.31
+cargo add fathomdb@=0.8.32
 ```
 
 CLI:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.31' --locked
+cargo install fathomdb-cli --version '=0.8.32' --locked
+```
+
+MCP server (`default = []`; add `--features default-embedder` for CPU hybrid search):
+
+```bash
+cargo install fathomdb-mcp --version '=0.8.32' --locked
 ```
 
 Since 0.8.28, source crates use `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1
@@ -53,16 +58,16 @@ per connection without a caller flag. Pin the application SDK and CLI to the
 matching release; source consumers must also keep sibling crate versions and
 required repository patches aligned.
 
-For the immutable 0.8.31 data-plane inspection route, pin the exact version and
+For the immutable 0.8.32 data-plane inspection route, pin the exact version and
 verify the discovered binary:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.31' --locked
+cargo install fathomdb-cli --version '=0.8.32' --locked
 fathomdb --version
 ```
 
-The `0.8.32` source line bootstraps a missing or zero-length path directly at
-schema **39** (`38` in published `0.8.31`) and accepts a non-empty database
+Release `0.8.32` bootstraps a missing or zero-length path directly at
+schema **39** (`38` in `0.8.31`) and accepts a non-empty database
 only when its committed schema matches. Upgrade committed Schema 37 or 38
 stores offline via `fathomdb migrate --backup-dir <dir> <db_path>`. There is no
 public automatic-upgrade route on `Engine::open`.
@@ -72,7 +77,7 @@ public automatic-upgrade route on `Engine::open`.
 For the application surface shared with Python and TypeScript:
 
 ```bash
-cargo add fathomdb-sdk@=0.8.31
+cargo add fathomdb-sdk@=0.8.32
 ```
 
 Use this complete program in `src/main.rs`, then run `cargo run`:
@@ -91,7 +96,7 @@ fn main() -> fathomdb_sdk::Result<()> {
 
 See the [Rust SDK reference](../reference/rust-sdk.md) for operations and
 option defaults. To build from source, use a trusted
-`release/0.8.31` checkout beside the application:
+`release/0.8.32` checkout beside the application:
 
 ```bash
 cargo add fathomdb-sdk --path ../fathomdb/src/rust/crates/fathomdb-sdk

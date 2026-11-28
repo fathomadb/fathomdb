@@ -4,9 +4,8 @@ FathomDB fits applications that need compact discovery followed by exact,
 revision-aware evidence verification. It keeps retrieval, records and explicit
 relationships in an embedded database, close to the application using them.
 The host decides what to store, who may access it and which actions to take.
-These examples reflect the **0.8.32** documentation target (pre-publish; newest
-published release: **0.8.31**) and, where identified, the
-repository MCP adapter. Each keeps its source of truth explicit.
+These examples reflect FathomDB **0.8.32** and, where identified, the
+`fathomdb-mcp` server. Each keeps its source of truth explicit.
 
 ## Single-scope default and multi-agent isolation
 
@@ -39,8 +38,8 @@ the stored note provides supporting evidence for that inspection.
 
 Store addressable runbook sections or individual procedure steps so an agent
 can discover a small relevant excerpt before fetching a selected record. The
-`fathomdb-mcp` server (graduating to production read+write in the `0.8.32`
-documentation target, read-only by default) provides budgeted search snippets,
+`fathomdb-mcp` server (production read+write in `0.8.32`, read-only by default)
+provides budgeted search snippets,
 logical-ref fetch, and integrated bounded frozen evidence (`search` with
 `freeze: true`, `expand` with `include_evidence_refs`, and `fetch` with
 `evidence_refs` / `graph_evidence_refs`); inspect truncation and adjust the

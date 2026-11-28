@@ -5,17 +5,16 @@ agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through
 the Python, TypeScript, or Rust application SDK.
 
-## Releases and documentation target
+## Release 0.8.32
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
-**Documentation target: `0.8.32`** (pre-publish on `dev/0.8.32`: Schema
-**39**, opt-in `ScopePolicy` caller isolation with a single-scope /
-single-agent default, and offline `38 -> 39` / chained `37 -> 39` migration).
-**Newest published release: `0.8.31`** on crates.io, PyPI (`fathomdb` and
-`fathomdb-cli`), npm, and GitHub Releases (store format **38**, plus FathomDB
-Inspector **0.3.0**), with its matching Tegra CUDA wheel and Node addon
-available through first-party GitHub Pages. See the
-[0.8.31 release notes](docs/release-notes/0.8.31.md) and the
+**0.8.32** is published on crates.io (including `fathomdb-mcp`), PyPI
+(`fathomdb`, `fathomdb-cli`, and `fathomdb-mcp`), npm, and GitHub Releases
+(store format **39**, opt-in `ScopePolicy` caller isolation with a
+single-scope / single-agent default, offline `38 -> 39` / chained `37 -> 39`
+migration, `fathomdb-mcp` binaries, and FathomDB Inspector **0.3.0**), with its
+matching Tegra CUDA wheel and Node addon available through first-party GitHub
+Pages. See the [0.8.32 release notes](docs/release-notes/0.8.32.md) and the
 [changelog](CHANGELOG.md).
 
 ## What you can build
@@ -34,22 +33,22 @@ business, knowledge management and personal agent examples.
   resolution, and constrained graph expansion.
 - **Derived projections:** declarative text, vector, filter, and ranking
   configuration with readiness and runtime diagnostics.
-- **Bulk loading (`0.8.32` target):** strict endpoint validation remains the
+- **Bulk loading:** strict endpoint validation remains the
   default on `write` and `actuate`; opt-in `write_with_options` /
   `writeWithOptions` (`bulk_non_strict`) supports out-of-order ingestion with
   truthful `dangling_edge_endpoints` counts and read-only integrity verification.
-- **Scope isolation (`0.8.32` target, Schema 39):** By default a FathomDB
+- **Scope isolation (Schema 39):** By default a FathomDB
   database is single-scope / single-agent (`scope = ""`,
   `ScopePolicy.unscoped`); multi-agent or shared-store deployments can opt into
   engine-enforced `ScopePolicy` read and write boundaries.
-- **MCP server (`0.8.32` target):** production stdio [`fathomdb-mcp`](docs/guides/mcp-server.md)
+- **MCP server:** production stdio [`fathomdb-mcp`](docs/guides/mcp-server.md)
   server (`allow_writes: false` default, opt-in per-store writes with bound
   scope, startup conflict guards, and bounded read/evidence/graph/write tools).
 - **Operations & durability:** a separate CLI (`doctor`, `recover`, and offline
   `migrate` for `38 -> 39` and chained `37 -> 38 -> 39` upgrades) for integrity
   inspection, backup/restore/rebuild, schema upgrade, and explicit recovery,
-  paired with declared `SyncMode` (`"normal"` default / `"full"` opt-in,
-  `0.8.32` target) WAL durability across writer and projection connections.
+  paired with declared `SyncMode` (`"normal"` default / `"full"` opt-in) WAL
+  durability across writer and projection connections.
 
 The three application SDKs share governed operations and option defaults with
 language-specific naming, calling conventions, and error handling. Rust uses
@@ -60,9 +59,9 @@ error classes. See [SDK parity](docs/positions/sdk-parity.md).
 
 | Language | Package and installation | Import | Documentation |
 | --- | --- | --- | --- |
-| Python | `python -m pip install fathomdb==0.8.31` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
-| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.31` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
-| Rust application SDK | `cargo add fathomdb-sdk@=0.8.31` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
+| Python | `python -m pip install fathomdb==0.8.32` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
+| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.32` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
+| Rust application SDK | `cargo add fathomdb-sdk@=0.8.32` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
 
 The [`fathomdb` Rust crate](docs/reference/rust-api.md) is the
 lower-level engine facade. The application SDK is `fathomdb-sdk`.
@@ -107,12 +106,12 @@ and Windows artifacts are CPU-only. The default `auto` policy uses CPU when
 no usable GPU is available. Retrieval, fusion, graph traversal, and SQLite
 vector stages run on CPU. See the [compatibility matrix](docs/compatibility/index.md)
 for exact versions, ABI floors, and the Node 25/26 contract. Classic Jetson Orin
-uses a separate `0.8.31+tegra` Python wheel and matching 0.8.31 Node addon through
+uses a separate `0.8.32+tegra` Python wheel and matching 0.8.32 Node addon through
 first-party GitHub Pages, with exact URLs and digests in the
 [retained manifest](scripts/release/tegra-pages-retained.json). Keep the Node
 main/addon versions matched; omit the addon to use the generic ARM64 CPU
 package. Earlier verified Tegra artifacts remain available.
-CUDA 13 artifact delivery is deferred beyond 0.8.31 (`0.8.31` retains the CUDA 12.6 + classic Jetson Orin stack).
+CUDA 13 artifact delivery is deferred beyond 0.8.32 (`0.8.32` retains the CUDA 12.6 + classic Jetson Orin stack).
 See [Python installation](docs/install/python.md#jetson-tegra-cuda) and
 [Node installation](docs/install/typescript.md#classic-jetson-orin-with-cuda).
 
@@ -125,17 +124,21 @@ Explicit release drops cached standalone CLS and cross-encoder models while
 engine-owned Mean providers retain their own close lifecycle.
 
 Install the operator CLI from crates.io or via the lockstep `fathomdb-cli` PyPI
-binary wheel (`pip install 'fathomdb[cli]==0.8.31'`, keeping the base `fathomdb`
+binary wheel (`pip install 'fathomdb[cli]==0.8.32'`, keeping the base `fathomdb`
 SDK wheel free of console scripts):
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.31' --locked
+cargo install fathomdb-cli --version '=0.8.32' --locked
 ```
+
+Install the `fathomdb-mcp` stdio server via `pip install 'fathomdb[mcp]==0.8.32'`,
+`cargo install fathomdb-mcp --version '=0.8.32' --locked`, or the 5-target
+GitHub Releases binaries.
 
 Use the [CLI reference](docs/reference/cli.md) and
 [integrity inspection guide](docs/operations/integrity-inspection.md) before
 operating on a store (including offline `fathomdb migrate --backup-dir <dir> <db_path>`
-upgrades to Schema 39 in `0.8.32`). Application SDKs do not expose recovery,
+upgrades to Schema 39). Application SDKs do not expose recovery,
 migration, or raw SQL.
 
 ## Develop and contribute

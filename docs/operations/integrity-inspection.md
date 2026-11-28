@@ -7,10 +7,10 @@ authority.
 ## Before you run it
 
 1. Install the exact CLI version paired with the store and confirm
-   `fathomdb --version`. For published 0.8.31, use
-   `cargo install fathomdb-cli --version '=0.8.31' --locked` or install the
-   lockstep `fathomdb-cli` PyPI binary wheel via `pip install 'fathomdb[cli]'`
-   (`pip install fathomdb-cli==0.8.31`).
+   `fathomdb --version`. For `0.8.32`, use
+   `cargo install fathomdb-cli --version '=0.8.32' --locked` or install the
+   lockstep `fathomdb-cli` PyPI binary wheel via `pip install 'fathomdb[cli]==0.8.32'`
+   (`pip install fathomdb-cli==0.8.32`).
 2. Stop every FathomDB process using the database. The product `.lock` must
    exist and be acquirable. Raw external SQLite writers do not participate in
    this lock protocol and must also be stopped.
@@ -61,7 +61,7 @@ reviewed recovery procedure if a finding requires mutation.
 
 ## Upgrading a Schema 37 or 38 database before inspection
 
-On the `0.8.32` target line (Schema 39; published `0.8.31` used Schema 38),
+In `0.8.32` (Schema 39; `0.8.31` used Schema 38),
 `fathomdb doctor data-plane-integrity` and `Engine::open` both require
 `user_version == 39`. To upgrade an existing quiescent Schema 38 store (or
 chained Schema 37 store) before inspecting or opening it under `0.8.32`, run the

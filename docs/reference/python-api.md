@@ -1,9 +1,9 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/dev/interfaces/python.md).
 
-> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> **Release 0.8.32, pre-1.0 beta.**
 
 ## Representative top-level imports
 
@@ -1105,4 +1105,4 @@ raise `WriteValidationError` and cross-scope evidence tokens raise
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/python.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/dev/interfaces/python.md)

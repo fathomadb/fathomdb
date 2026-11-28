@@ -1,17 +1,22 @@
 # Tegra Pages publication
 
-The 0.8.31 Tegra CUDA wheel and matching Node addon are published.
-[Run 45325322000](https://github.com/fathomadb/fathomdb/actions/runs/45325322000)
-completed the same-run build, driverless ARM, Pages, public readback and
-installed-public-consumer jobs. Earlier published pairs remain retained.
+Tegra CUDA wheels (`fathomdb==<version>+tegra`) and matching
+`fathomdb-linux-arm64-gnu-tegra` Node tarballs publish through first-party
+GitHub Pages for classic Jetson Orin via `jetson-tegra-cuda-evidence.yml`
+(same-run build, driverless ARM, Pages, public readback, and installed-consumer
+jobs). Retained verified pairs (`0.8.26` through `0.8.31`, with `0.8.31`
+verified in
+[Run 45325322000](https://github.com/fathomadb/fathomdb/actions/runs/45325322000))
+remain listed in `scripts/release/tegra-pages-retained.json`; `0.8.32` Tegra
+artifacts are added to the retained manifest only after their final exact-SHA
+`release/0.8.32` run completes public readback and installed smokes.
 Generic AArch64 packages remain CPU-only; keep Node main/addon versions matched.
 
-The published `fathomdb==0.8.31+tegra` and matching
-`fathomdb-linux-arm64-gnu-tegra` Node tarball use first-party GitHub Pages
-for classic Jetson Orin. The wheel is not published to PyPI and the tarball is
-not published to npm. This exact-commit procedure does not publish generic
-artifacts or registry packages. Do not add the new pair to the retained manifest
-or describe it as published until public readback and installed smokes pass.
+The `+tegra` wheel is not published to PyPI and the Tegra tarball is not
+published to npm. This exact-commit procedure does not publish generic
+artifacts or registry packages. Do not add a new pair to the retained manifest
+or describe it as verified in the manifest until public readback and installed
+smokes pass.
 
 ## Retained artifacts
 
@@ -56,9 +61,9 @@ the retained list before their publication is verified.
 ## Publish
 
 Publication is deliberately manual: it requires an exact reviewed commit on
-`release/0.8.31`, then uses the dedicated Jetson workflow. Dispatch the
+`release/0.8.32`, then uses the dedicated Jetson workflow. Dispatch the
 workflow from an authenticated operator host with the exact remote branch
-head, `candidate_version=0.8.31` and `publish_to_pages=true`; its
+head, `candidate_version=0.8.32` and `publish_to_pages=true`; its
 `post-publish-smoke-jetson` job runs the installed public-artifact proof.
 Alternatively, from a clean checkout on the classic Jetson host with
 authenticated `gh`, the operator helper dispatches the same workflow and
@@ -66,8 +71,8 @@ repeats the public-artifact smokes locally:
 
 ```bash
 scripts/release/publish-tegra-pages.sh \
-  --candidate-version 0.8.31 \
-  --candidate-sha <remote-release-0.8.31-head>
+  --candidate-version 0.8.32 \
+  --candidate-sha <remote-release-0.8.32-head>
 ```
 
 The script refuses a SHA that is not the current remote release-branch head,
@@ -93,7 +98,7 @@ The site serves:
 ```text
 https://fathomadb.github.io/fathomdb/tegra/simple/
 https://fathomadb.github.io/fathomdb/tegra/node/
-https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.31.tgz
+https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.32.tgz
 ```
 
 The workflow's `post-publish-smoke-jetson` job runs two post-publication
@@ -101,7 +106,7 @@ smokes on the Jetson. The operator script also runs these smokes when invoked
 from the Jetson host:
 
 - the installed Pages-wheel forced-CUDA smoke;
-- a Node smoke that installs `fathomdb@0.8.31` from npm and the tarball from
+- a Node smoke that installs `fathomdb@0.8.32` from npm and the tarball from
   its Pages URL. It checks the downloaded tarball's SHA-256 against the
   Jetson build digest before installing. It then repeats forced-CUDA
   embedding with its GPU allocation witness, forced-CUDA reranking (checked
@@ -114,7 +119,7 @@ INCOMPLETE.
 
 ## Current allocation witness contract
 
-The 0.8.31 artifacts use
+The 0.8.32 artifacts use
 `fathomdb.tegra-gpu-allocation-witness/v2`. Its tagged `measurement` identifies
 which counter proves model allocation. On Tegra, `private_pool_used` requires
 an actual private pool, checked completion, at least 64 MiB of live model

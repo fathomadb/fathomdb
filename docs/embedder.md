@@ -6,8 +6,7 @@ fresh engine has no embedder configured and vector writes fail with
 `EmbedderNotConfiguredError` until you enable the pinned default provider.
 Caller-supplied engine providers are unsupported before 1.x in all SDKs.
 
-> Documentation target: 0.8.32 (pre-publish); newest published release: 0.8.31,
-> including its matching Tegra Pages artifacts.
+> Release 0.8.32, including its matching Tegra Pages route.
 > Vector fidelity measures agreement with the same model's exact-f32 neighbors,
 > not answer relevance. See [qualification limits](#caveats-and-limitations).
 
@@ -58,7 +57,7 @@ The published Python wheel already includes the default embedder; there is no
 `default-embedder` extra to install. Install the package normally:
 
 ```bash
-python -m pip install fathomdb==0.8.31
+python -m pip install fathomdb==0.8.32
 ```
 
 ### TypeScript
@@ -342,7 +341,7 @@ These measurements come from one Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6).
 Other Jetson models are unmeasured. So are non-Tegra AArch64 Linux CUDA hosts
 such as Grace Hopper, GB10 and SBSA servers, which also build this behaviour.
 These non-Tegra ARM+GPU configurations are not known-working CUDA environments
-and are excluded from 0.8.31 qualification; no GPU support claim is implied.
+and are excluded from 0.8.32 qualification; no GPU support claim is implied.
 
 ### Jetson: private CUDA memory pool
 

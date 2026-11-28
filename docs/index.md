@@ -4,15 +4,16 @@ FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.
 
-> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
-> The surface may change between micro releases. `0.8.32` documents Schema
-> **39**, opt-in `ScopePolicy` caller isolation with a single-scope /
-> single-agent default, and offline `38 -> 39` / chained `37 -> 39` migration.
-> Version **0.8.31** is the newest published release on crates.io, PyPI
-> (`fathomdb` and `fathomdb-cli`), npm, and GitHub Releases (with FathomDB
-> Inspector `0.3.0`), plus its matching Tegra CUDA wheel and Node addon on
-> first-party GitHub Pages. See [Install](install/python.md) and the
-> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/CHANGELOG.md).
+> **Release 0.8.32, pre-1.0 beta.**
+> The surface may change between micro releases. `0.8.32` is published on
+> crates.io (including `fathomdb-mcp`), PyPI (`fathomdb`, `fathomdb-cli`, and
+> `fathomdb-mcp`), npm, and GitHub Releases (with 5-target `fathomdb-mcp`
+> archives and FathomDB Inspector `0.3.0`), plus its matching Tegra CUDA wheel
+> and Node addon on first-party GitHub Pages. It ships Schema **39**, opt-in
+> `ScopePolicy` caller isolation with a single-scope / single-agent default,
+> and offline `38 -> 39` / chained `37 -> 39` migration. See
+> [Install](install/python.md) and the
+> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/CHANGELOG.md).
 
 Native Python and Node artifacts cover Linux x86_64/glibc, Linux
 AArch64/glibc, macOS x64/arm64, and Windows x64. See the
@@ -50,10 +51,10 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Positions](positions/index.md) — consumer-relevant technical
   positions (SDK parity, recovery surface, tokenizer policy,
   embedder identity).
-- [0.8.32 pre-publication release notes](release-notes/0.8.32.md) (qualification
-  target; not yet published), [0.8.31 release notes](release-notes/0.8.31.md)
-  (newest published), and earlier [0.8.30 release notes](release-notes/0.8.30.md).
-- [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/CHANGELOG.md) — 0.8.31 changes.
+- [0.8.32 release notes](release-notes/0.8.32.md),
+  [0.8.31 release notes](release-notes/0.8.31.md), and earlier
+  [0.8.30 release notes](release-notes/0.8.30.md).
+- [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/CHANGELOG.md) — 0.8.32 changes.
   Earlier detailed changes are recorded in the repo
   [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md).
 

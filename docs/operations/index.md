@@ -1,7 +1,6 @@
 # Operations
 
-Operations docs cover the **0.8.32** documentation target (pre-publish; newest
-published release: **0.8.31**).
+Operations docs cover FathomDB **0.8.32**.
 
 ## Single-scope default and multi-agent isolation (0.8.32, Schema 39)
 
@@ -48,8 +47,8 @@ workers, while data-plane integrity uses the immutable inspection route.
 ### Declared WAL durability contract (`SyncMode`, 0.8.32)
 
 FathomDB runs SQLite in `WAL` mode with `PRAGMA secure_delete = ON` and
-mandatory sidecar `.lock` cross-process exclusion. Starting in the **0.8.32**
-documentation target (`ADR-0.8.32` `#101`), `EngineConfig` exposes an explicit
+mandatory sidecar `.lock` cross-process exclusion. Starting in **0.8.32**
+(`ADR-0.8.32` `#101`), `EngineConfig` exposes an explicit
 `sync_mode` / `syncMode` knob (`SyncMode::Normal` default, `SyncMode::Full`
 opt-in), applied to both the primary writer connection and all
 projection-worker/runtime connections:
@@ -80,32 +79,27 @@ projection-worker/runtime connections:
   `Engine::open` recovery and require `fathomdb recover` or full rebuild/restore
   from backup.
 
-### Empirical durability & fuzz verification (`0.8.32` pre-publish vs. `0.8.31` published)
+### Empirical durability & fuzz verification (`0.8.32`)
 
-- **Published `0.8.31`:** Release qualification tests cover selected CPU
-  process-kill/SIGKILL, WAL, checkpoint, persistent SQLite-full/provider-fault,
-  and reopen/recovery cases. They do not prove behavior under torn/reordered
-  device writes, sudden power loss, or a general hardware fault model.
-- **Pre-publish `0.8.32` (`dev/0.8.32`, `ADR-0.8.32` `#101`):**
-  - **QEMU/KVM `dm-flakey` power-loss campaign (`11 / 11` live cases passed):**
-    User-mode QEMU/KVM (`cache=none`, QMP `quit`, two-phase `INFLIGHT`/`ACK`/`ERR`
-    virtio-serial oracle, `ext4` over `dm-flakey`) empirically verified
-    `SyncMode::Normal` atomic checkpoint-bounded prefix rollback (including
-    `4.3 MiB` WAL accumulation and `drop_writes`) and `SyncMode::Full` `0` lost
-    acknowledged commits across active commit, `4.3 MiB` WAL accumulation,
-    `wal_checkpoint(TRUNCATE)` + erasure, double-cut reopen/WAL replay, live
-    mid-`INFLIGHT` atomic rollback and commit, mid-erasure cuts with stale
-    `.lock` reclamation (`pending_erasures` `2 -> 0`), and fail-closed `EIO`
-    (`error_writes`), passing `e2fsck`, `PRAGMA integrity_check`,
-    `doctor check-integrity --full`, and `doctor data-plane-integrity` with `0`
-    findings on every case.
-  - **Coverage-guided fuzzing (`2,185,400` runs across 7 structured targets):**
-    Combined `ASan` and `UBSan`/`-Zub-checks=on` sweeps over query filters,
-    property predicates, `ScopePolicy`, auth/frozen tokens, wire/export codecs,
-    `fathomdb-mcp` JSON/tool parsing, and corrupt open recovery reported `0`
-    FathomDB defects (`23.18%` merged `llvm-cov` line coverage; upstream
-    `sqlite-vec 0.1.9` 280 B `LSan` allocation in `vec0_init` documented
-    separately). No general MC/DC or hardware-wide fault-model claim follows.
+- **QEMU/KVM `dm-flakey` power-loss campaign (`11 / 11` live cases passed):**
+  User-mode QEMU/KVM (`cache=none`, QMP `quit`, two-phase `INFLIGHT`/`ACK`/`ERR`
+  virtio-serial oracle, `ext4` over `dm-flakey`) empirically verified
+  `SyncMode::Normal` atomic checkpoint-bounded prefix rollback (including
+  `4.3 MiB` WAL accumulation and `drop_writes`) and `SyncMode::Full` `0` lost
+  acknowledged commits across active commit, `4.3 MiB` WAL accumulation,
+  `wal_checkpoint(TRUNCATE)` + erasure, double-cut reopen/WAL replay, live
+  mid-`INFLIGHT` atomic rollback and commit, mid-erasure cuts with stale
+  `.lock` reclamation (`pending_erasures` `2 -> 0`), and fail-closed `EIO`
+  (`error_writes`), passing `e2fsck`, `PRAGMA integrity_check`,
+  `doctor check-integrity --full`, and `doctor data-plane-integrity` with `0`
+  findings on every case.
+- **Coverage-guided fuzzing (`2,185,400` runs across 7 structured targets):**
+  Combined `ASan` and `UBSan`/`-Zub-checks=on` sweeps over query filters,
+  property predicates, `ScopePolicy`, auth/frozen tokens, wire/export codecs,
+  `fathomdb-mcp` JSON/tool parsing, and corrupt open recovery reported `0`
+  FathomDB defects (`23.18%` merged `llvm-cov` line coverage; upstream
+  `sqlite-vec 0.1.9` 280 B `LSan` allocation in `vec0_init` documented
+  separately). No general MC/DC or hardware-wide fault-model claim follows.
 
 ## Backup, restore, and rebuild runbook (0.8.32)
 

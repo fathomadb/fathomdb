@@ -1,9 +1,9 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/dev/interfaces/typescript.md).
 
-> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> **Release 0.8.32, pre-1.0 beta.**
 
 The TypeScript, Python, and Rust SDKs share the governed operation surface
 and error categories. Language calling conventions differ. See
@@ -1081,5 +1081,5 @@ reject with `WriteValidationError` and cross-scope evidence tokens reject with
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/typescript.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.32/dev/interfaces/typescript.md)
 - TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)

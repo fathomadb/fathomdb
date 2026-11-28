@@ -1,6 +1,6 @@
 # MCP Server Reference (`fathomdb-mcp`)
 
-> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> **Release 0.8.32, pre-1.0 beta.**
 
 Client-facing reference for the `fathomdb-mcp` stdio server and Rust embedding
 library. The normative wire specification lives in `dev/interfaces/mcp.md`.

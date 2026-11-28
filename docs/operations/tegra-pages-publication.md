@@ -4,12 +4,13 @@ Tegra CUDA wheels (`fathomdb==<version>+tegra`) and matching
 `fathomdb-linux-arm64-gnu-tegra` Node tarballs publish through first-party
 GitHub Pages for classic Jetson Orin via `jetson-tegra-cuda-evidence.yml`
 (same-run build, driverless ARM, Pages, public readback, and installed-consumer
-jobs). Retained verified pairs (`0.8.26` through `0.8.31`, with `0.8.31`
-verified in
-[Run 45325322000](https://github.com/fathomadb/fathomdb/actions/runs/45325322000))
-remain listed in `scripts/release/tegra-pages-retained.json`; `0.8.32` Tegra
-artifacts are added to the retained manifest only after their final exact-SHA
-`release/0.8.32` run completes public readback and installed smokes.
+jobs). Retained verified pairs (`0.8.26` through `0.8.32`, with `fathomdb==0.8.32+tegra`
+and `fathomdb-linux-arm64-gnu-tegra-0.8.32.tgz` verified in
+[Run 46094326695](https://github.com/fathomadb/fathomdb/actions/runs/46094326695))
+remain listed in `scripts/release/tegra-pages-retained.json`; each future
+release's Tegra artifacts are added to the retained manifest only after its
+final exact-SHA `release/<version>` run completes public readback and installed
+smokes.
 Generic AArch64 packages remain CPU-only; keep Node main/addon versions matched.
 
 The `+tegra` wheel is not published to PyPI and the Tegra tarball is not
@@ -61,7 +62,22 @@ the retained list before their publication is verified.
 ## Publish
 
 Publication is deliberately manual: it requires an exact reviewed commit on
-`release/0.8.32`, then uses the dedicated Jetson workflow. Dispatch the
+`release/0.8.32`, then uses the dedicated Jetson workflow. Wait until hosted
+`ci.yml` on `main` and `release.yml`'s `all-builds-passed` gate succeed on the
+final release SHA before dispatching `publish_to_pages=true` (if running Jetson
+in parallel with `release.yml`, dispatch `publish_to_pages=false` first for
+early build and CUDA-witness signal so a late fix never requires withdrawing
+pre-fix Pages artifacts).
+
+GitHub Pages deduplicates `actions/deploy-pages` by `pages_build_version`
+(`GITHUB_SHA`). Never dispatch `jetson-tegra-cuda-evidence.yml`
+(`publish_to_pages=true`) from a commit SHA that `docs-pages.yml` already
+deployed to `github-pages` (for example after an explicit withdrawal); advance
+`main` and `release/<version>` to a distinct commit first.
+`scripts/release/check-tegra-pages-route.sh` checks the `github-pages`
+deployments API and fails closed when the requested SHA was already deployed.
+
+Dispatch the
 workflow from an authenticated operator host with the exact remote branch
 head, `candidate_version=0.8.32` and `publish_to_pages=true`; its
 `post-publish-smoke-jetson` job runs the installed public-artifact proof.

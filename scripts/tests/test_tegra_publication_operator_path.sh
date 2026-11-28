@@ -140,6 +140,8 @@ case "$1 $2" in
   'auth status'|'workflow run'|'run watch') exit 0 ;;
   'api repos/fathomadb/fathomdb/environments/github-pages/deployment-branch-policies')
     printf '{"branch_policies":[{"type":"branch","name":"release/0.8.27"}]}\n' ;;
+  'api repos/fathomadb/fathomdb/deployments?environment=github-pages&per_page=10')
+    printf '[]\n' ;;
   'run download')
     dir=''
     while [ "$#" -gt 0 ]; do

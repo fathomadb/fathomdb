@@ -190,6 +190,8 @@ run_tier_suite fast test-verify-release-gates bash scripts/tests/test_verify_rel
 run_tier_suite fast test-extract-changelog-section bash scripts/tests/test_extract_changelog_section.sh
 run_tier_suite fast test-check-tag-cuda-route bash scripts/tests/test_check_tag_cuda_route.sh
 run_tier_suite fast test-configure-tag-cuda-route bash scripts/tests/test_configure_tag_cuda_route.sh
+run_tier_suite fast test-check-tegra-pages-route bash scripts/tests/test_check_tegra_pages_route.sh
+run_tier_suite fast test-materialize-release-baseline bash scripts/tests/test_materialize_release_baseline.sh
 run_tier_suite fast test-verify-release-python-wheel bash scripts/tests/test_verify_release_python_wheel.sh
 run_tier_suite fast test-slice50-hook-inventory python3 scripts/tests/test_slice50_hook_inventory.py
 run_tier_suite fast test-wait-for-registry-visibility python3 scripts/tests/test_wait_for_registry_visibility.py
@@ -724,6 +726,7 @@ run_tier_suite fast test-ci-rust-workspace-gate bash scripts/tests/test_ci_rust_
 run_tier_suite fast test-aarch64-candle-feature-closure bash scripts/tests/test_aarch64_candle_feature_closure.sh
 run_tier_suite fast test-aarch64-candle-cpu bash scripts/tests/test_aarch64_candle_cpu.sh
 run_tier_suite heavy test-rust bash scripts/test-rust-workspace.sh --serial
+run_tier_suite heavy test-check-low-core-concurrency bash scripts/tests/test_check_low_core_concurrency.sh
 run_tier_suite heavy test-slice130-pool-observation cargo test --locked --release --jobs 1 \
   -p fathomdb-engine --no-default-features --features cuda-pool-observer --lib \
   cuda_pool_observation::tests:: -- --test-threads=1

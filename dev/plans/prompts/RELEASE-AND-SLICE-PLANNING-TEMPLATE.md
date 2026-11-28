@@ -236,6 +236,7 @@ Copy and instantiate the block below when dispatching a subagent (or starting a 
 - Run fast per-slice cross-cutting guards before closing any feature slice (do not defer them to the final qualification slice):
   - `cargo check --workspace --all-targets --all-features`
   - `bash scripts/check-release-smoke-sdk-compile.sh`
+  - `bash scripts/check-low-core-concurrency.sh` (for slices touching WAL, frozen-read, or concurrent-reader state, and mandatory during release qualification)
   - `bash scripts/check-module-boundaries.sh`
   - `python3 scripts/check-sdk-surface-parity.py` (and `AC-050a` verb-surface check when public SDK/engine methods changed)
   - Review affected `README.md`, `docs/`, and `dev/interfaces/*.md` diffs in the same slice so documentation stays in lockstep.

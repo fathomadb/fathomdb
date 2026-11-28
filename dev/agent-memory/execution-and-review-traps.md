@@ -30,6 +30,11 @@ Hard-won operational rules governing day-to-day agent execution in FathomDB.
 - **Full-workspace gate before green claims:** Scoped checks are for inner-loop
   iteration; never make a release or full-workspace green claim without running
   full-workspace `clippy`, `check`, and `agent-verify.sh` on a clean tree.
+- **2-core constrained concurrency stress before tagging:** High-core dev
+  workstations mask preemption races that fire on 2-core hosted GitHub Actions
+  runners (`0.8.32` `read_visibility_generation` race `15d19f573`). Run
+  `bash scripts/check-low-core-concurrency.sh` (pinned via `taskset -c 0,1`)
+  during qualification before cutting a release tag.
 - **Watchdog & ETA cadence (≤15 min):** Never let a subagent or long local run
   wait silently for more than ~15 minutes without checking progress and
   reporting an ETA to the user. Use event-driven timers (`schedule` with

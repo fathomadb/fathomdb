@@ -130,6 +130,12 @@ open-source database candidate** — documenting the complete stabilized
   posture with Schema 39 `scope` isolating multi-agent deployments; review and
   relax that default guidance in `0.8.33` docs/recipes as multi-agent
   shared-store patterns mature.
+- **Audit `fathomdb` npm Trusted Publisher workflow configuration (`0.8.32` retrospective):**
+  In `v0.8.32`, `release.yml`'s `promote-npm-latest` hit `E403` (`46080698565`)
+  while `promote-npm-release.yml` (`46088912921`) promoted `fathomdb@0.8.32` to
+  `latest` via OIDC cleanly. Audit `https://www.npmjs.com/package/fathomdb/access`
+  in Slice 0 so `release.yml` promotes `latest` on the first attempt without
+  needing recovery dispatch.
 
 ### 5. User-facing value proposition, visual illustrations, and tested recipes
 

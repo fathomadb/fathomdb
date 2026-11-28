@@ -54,13 +54,27 @@ remote HTTP404 for that exact tag, the restricted selected GPU group allowing
 `release.yml@refs/heads/main`, the exact environment tag policy and nonempty
 required reviewers. It reports bootstrap readiness with GPU approval held.
 After pushing, run `scripts/release/configure-tag-cuda-route.sh <tag>` (which
-fresh-reads group 3 and its `selected_repositories`, adds only the exact
-approved tag workflow while preserving `selected_repository_ids`, verifies
-repository attachment, and runs the normal marker-free tag guard) **before**
-approving the required GPU environment. Before pushing any `v*` tag, wait for
-cross-OS `ci.yml` on `main` to finish and confirm Trusted/Pending Publishers
-exist for every newly added registry package. Default routing and hook checks
-stay active.
+fresh-reads group 3 and its `selected_repositories`, patches the selected
+workflow ref, restores `selected_repository_ids` via `PUT .../repositories`,
+verifies repository attachment, and runs the normal marker-free tag guard)
+**before** approving the required GPU environment. Before pushing any `v*` tag:
+
+- Wait for cross-OS `ci.yml` on `main` to finish and run
+  `bash scripts/check-low-core-concurrency.sh` locally so 2-core preemption
+  races are caught before tagging.
+- Confirm every newly introduced package passes the new-package pre-flight:
+  crates.io crates must already exist (reserve `0.0.0-reserve` + yank if new)
+  with OIDC Trusted Publishing bound to `release.yml`; PyPI projects need a
+  Pending Publisher (`fathomadb/fathomdb`, workflow `release.yml`, environment
+  `pypi`); any new cross-OS `upload-artifact-retry` paths must stage under
+  workspace-relative forward-slash paths.
+- Gate `jetson-tegra-cuda-evidence.yml` `publish_to_pages=true` on green
+  `ci.yml` and `release.yml` `all-builds-passed` (use `publish_to_pages=false`
+  if running Jetson early), and run
+  `scripts/release/check-tegra-pages-route.sh <version> fathomadb/fathomdb <sha>`
+  to prevent GitHub Pages `pages_build_version` same-SHA deduplication.
+
+Default routing and hook checks stay active.
 
 ## Tiered publish order
 

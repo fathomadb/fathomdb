@@ -59,20 +59,22 @@ EOF
 make_fixture "$WORK/dev-case" "refs/heads/dev/9.2.0" 1
 bash "$SCRIPT" --repo-root "$WORK/dev-case"
 git -C "$WORK/dev-case" rev-parse --verify "refs/heads/dev/9.2.0^{commit}" >/dev/null
+dev_head="$(git -C "$WORK/dev-case" rev-parse HEAD)"
 python3 "$PREFLIGHT_STATE" --repo-root "$WORK/dev-case" \
   --release 9.2.0 --board dev/plans/runs/STATUS-9.2.0.md \
   --state dev/plans/release-state-9.2.0.json --plan dev/plans/9.2.0/plan.md \
-  --expect-closed 60 --target-head "$(git -C "$WORK/dev-case" rev-parse HEAD)" >/dev/null
+  --expect-closed 60 --target-head "$dev_head" >/dev/null
 printf 'PASS arm1 materializes refs/heads/dev/9.2.0 on main CI checkout\n'
 
 # Arm 2: release/9.2.0 active_ref materialized from refs/remotes/origin/release/9.2.0.
 make_fixture "$WORK/rel-case" "refs/heads/release/9.2.0" 1
 bash "$SCRIPT" --repo-root "$WORK/rel-case"
 git -C "$WORK/rel-case" rev-parse --verify "refs/heads/release/9.2.0^{commit}" >/dev/null
+rel_head="$(git -C "$WORK/rel-case" rev-parse HEAD)"
 python3 "$PREFLIGHT_STATE" --repo-root "$WORK/rel-case" \
   --release 9.2.0 --board dev/plans/runs/STATUS-9.2.0.md \
   --state dev/plans/release-state-9.2.0.json --plan dev/plans/9.2.0/plan.md \
-  --expect-closed 60 --target-head "$(git -C "$WORK/rel-case" rev-parse HEAD)" >/dev/null
+  --expect-closed 60 --target-head "$rel_head" >/dev/null
 printf 'PASS arm2 materializes refs/heads/release/9.2.0 on main CI checkout\n'
 
 # Arm 3: missing remote tracking ref fails closed.

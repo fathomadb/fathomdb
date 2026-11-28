@@ -66,7 +66,8 @@ rc=0
 run_with_mock "$POLICIES_WITH_BRANCH" "$DEPLOYMENTS_JSON" 0.8.33 fathomadb/fathomdb "$DEPLOYED_SHA" >/dev/null 2>"$err_file" || rc=$?
 [ "$rc" -eq 1 ] || { printf 'FAIL [arm4]: expected exit 1, got %s\n' "$rc" >&2; exit 1; }
 grep -qi 'pages_build_version\|already deployed' "$err_file" || {
-  printf 'FAIL [arm4]: expected deduplication diagnostic, got:\n%s\n' "$(cat "$err_file")" >&2
+  err_body="$(cat "$err_file")"
+  printf 'FAIL [arm4]: expected deduplication diagnostic, got:\n%s\n' "$err_body" >&2
   exit 1
 }
 printf 'PASS arm4 refuses candidate_sha already deployed to github-pages\n'

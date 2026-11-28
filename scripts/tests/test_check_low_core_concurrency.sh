@@ -42,8 +42,10 @@ printf 'PASS dry-run prints 2-core taskset concurrency targets\n'
 # Arm 3: --require-taskset fails closed when taskset is unavailable on PATH.
 empty_bin="$(mktemp -d)"
 trap 'rm -rf "$empty_bin"' EXIT
-ln -s "$(command -v bash)" "$empty_bin/bash"
-ln -s "$(command -v uname)" "$empty_bin/uname"
+bash_bin="$(command -v bash)"
+uname_bin="$(command -v uname)"
+ln -s "$bash_bin" "$empty_bin/bash"
+ln -s "$uname_bin" "$empty_bin/uname"
 assert_fail_code 1 "fails closed when taskset missing under --require-taskset" \
   env PATH="$empty_bin" bash "$SCRIPT" --dry-run --require-taskset
 

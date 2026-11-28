@@ -79,7 +79,8 @@ if [ "${#targets[@]}" -eq 0 ]; then
 fi
 
 prefix=()
-if [ "$(uname -s)" = "Linux" ] && command -v taskset >/dev/null 2>&1; then
+os_name="$(uname -s)"
+if [ "$os_name" = "Linux" ] && command -v taskset >/dev/null 2>&1; then
   prefix=(taskset -c "$cpus")
 elif [ "$require_taskset" -eq 1 ]; then
   printf 'check-low-core-concurrency: taskset is required under --require-taskset but unavailable\n' >&2
